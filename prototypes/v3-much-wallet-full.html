@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DogeForex · MUCH WALLET — FULL APP DRAFT (Chikyū testnet)</title>
+<style>
+  :root{
+    --cream:#fff8ee; --ink:#2b2118; --ink2:#6f6257;
+    --pink:#ff6fa5; --orange:#ffa94d; --yellow:#ffd43b; --green:#51cf66;
+    --blue:#4dabf7; --purple:#9775fa; --red:#ff6b6b; --teal:#38d9a9; --doge:#f7b500;
+    --usd:#2f9e44; --eur:#1971c2; --jpy:#e64980; --gbp:#7048e8; --aud:#f08c00; --cny:#e03131; --brl:#0ca678;
+    --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:var(--f); color:var(--ink); min-height:100vh; display:grid; place-items:center; padding:28px 12px;
+    background:
+      radial-gradient(circle at 15% 20%, #ffe3ef 0 90px, transparent 91px),
+      radial-gradient(circle at 85% 15%, #fff3bf 0 110px, transparent 111px),
+      radial-gradient(circle at 80% 85%, #d3f9d8 0 120px, transparent 121px),
+      radial-gradient(circle at 12% 82%, #dbe4ff 0 100px, transparent 101px),
+      repeating-linear-gradient(45deg, #fff0f6 0 24px, #fff8ee 24px 48px);
+  }
+  /* ---------- phone frame ---------- */
+  .phone{
+    width:min(390px,100vw); height:min(844px,94vh); background:var(--cream); border-radius:52px; position:relative;
+    border:13px solid #17130e; box-shadow:0 30px 70px rgba(43,33,24,.35), inset 0 0 0 2px #3a2f24;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .notch{position:absolute; top:8px; left:50%; transform:translateX(-50%); width:112px; height:24px; background:#17130e; border-radius:14px; z-index:6}
+  .statusbar{display:flex; justify-content:space-between; align-items:center; padding:38px 24px 4px; font-size:11.5px; font-weight:800; color:var(--ink2); white-space:nowrap}
+  .statusbar .dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); margin-right:5px; animation:blink 1.6s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .banner{
+    margin:4px 16px 6px; padding:7px 10px; border-radius:12px; text-align:center; font-size:10.5px; font-weight:900;
+    letter-spacing:.08em; color:#fff; background:linear-gradient(90deg,var(--pink),var(--orange));
+    box-shadow:0 3px 0 rgba(43,33,24,.15); text-transform:uppercase;
+  }
+  .screen{flex:1; overflow-y:auto; overflow-x:hidden; padding:8px 16px 14px; scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .apptitle{display:flex; align-items:center; gap:8px; padding:2px 2px 10px}
+  .apptitle h1{font-size:20px; font-weight:900; letter-spacing:-.02em}
+  .apptitle .sub{font-size:10px; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.1em; margin-left:auto}
+  /* ---------- generic bits ---------- */
+  .card{background:#fff; border:3px solid var(--ink); border-radius:26px; padding:16px; margin-bottom:14px; box-shadow:0 6px 0 rgba(43,33,24,.12)}
+  .tag{display:inline-block; font-size:9px; font-weight:900; letter-spacing:.12em; padding:3px 7px; border-radius:8px; background:#f1e8d8; color:var(--ink2); text-transform:uppercase; vertical-align:middle}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px; border:3px solid var(--ink); border-radius:18px;
+    background:var(--yellow); color:var(--ink); font-family:var(--f); font-weight:900; font-size:15px; padding:13px 18px;
+    cursor:pointer; box-shadow:0 5px 0 rgba(43,33,24,.28); transition:transform .08s, box-shadow .08s; user-select:none; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .btn:active{transform:translateY(4px); box-shadow:0 1px 0 rgba(43,33,24,.28)}
+  .btn.pink{background:var(--pink); color:#fff}.btn.green{background:var(--green); color:#fff}
+  .btn.blue{background:var(--blue); color:#fff}.btn.ghost{background:#fff}
+  .btn.sm{font-size:12px; padding:9px 13px; border-radius:14px}
+  .btn:disabled{opacity:.45; cursor:not-allowed; transform:none}
+  .hidden{display:none !important}
+  h2.sect{font-size:17px; font-weight:900; margin:4px 2px 10px; letter-spacing:-.01em}
+  h2.sect small{display:block; font-size:10.5px; font-weight:800; color:var(--ink2); letter-spacing:.08em; text-transform:uppercase; margin-top:2px}
+  /* ---------- ticker ---------- */
+  .ticker{background:var(--ink); border-radius:16px; overflow:hidden; margin-bottom:14px; border:3px solid var(--ink)}
+  .ticker-track{display:flex; width:max-content; animation:slide 26s linear infinite; padding:8px 0}
+  @keyframes slide{to{transform:translateX(-50%)}}
+  .tk{color:#ffe8c9; font-size:11.5px; font-weight:800; padding:0 14px; white-space:nowrap; font-variant-numeric:tabular-nums}
+  .tk b{color:var(--yellow); margin-right:5px}
+  .tk.up i{color:var(--green); font-style:normal}.tk.dn i{color:var(--red); font-style:normal}
+  /* ---------- home ---------- */
+  .hero{
+    border-radius:30px; border:3px solid var(--ink); padding:18px; margin-bottom:14px; color:var(--ink);
+    background:linear-gradient(135deg,#ffd43b 0%, #ffa94d 55%, #ff6fa5 100%); box-shadow:0 8px 0 rgba(43,33,24,.15); position:relative; overflow:hidden;
+  }
+  .hero .lbl{font-size:11px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; opacity:.75}
+  .hero .amt{font-size:38px; font-weight:900; letter-spacing:-.03em; margin:4px 0 2px; font-variant-numeric:tabular-nums}
+  .hero .delta{font-size:12px; font-weight:800}
+  .hero .paw{position:absolute; right:-14px; bottom:-18px; width:110px; height:110px; opacity:.18; transform:rotate(-18deg)}
+  .qcard .qtop{display:flex; justify-content:space-between; font-size:12px; font-weight:900; margin-bottom:8px}
+  .qtrack{height:20px; border-radius:12px; border:3px solid var(--ink); background:#fff; overflow:hidden}
+  .qfill{height:100%; width:60%; border-radius:8px; background:repeating-linear-gradient(45deg,var(--teal) 0 12px, #63e6be 12px 24px); background-size:200% 100%; animation:stripes 1.2s linear infinite; transition:width .5s}
+  @keyframes stripes{to{background-position:34px 0}}
+  .qcard .qmsg{font-size:11px; font-weight:800; color:var(--ink2); margin-top:8px}
+  .quick{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px}
+  .coinrow{display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:2px dashed #efe4d2}
+  .coinrow:last-child{border-bottom:0}
+  .chip{width:38px; height:38px; border-radius:14px; display:grid; place-items:center; color:#fff; font-weight:900; font-size:12px; border:2.5px solid var(--ink); flex:none}
+  .coinrow .nm{font-size:13px; font-weight:900}.coinrow .sub2{font-size:10px; font-weight:700; color:var(--ink2)}
+  .coinrow .val{margin-left:auto; text-align:right; font-variant-numeric:tabular-nums}
+  .coinrow .val b{font-size:13px; display:block}.coinrow .val span{font-size:10px; font-weight:700; color:var(--ink2)}
+  .fxbanner{
+    display:none; margin:0 0 14px; padding:10px 12px; border-radius:16px; border:3px solid var(--ink); background:#ffe8cc;
+    font-size:11px; font-weight:900; text-align:center; box-shadow:0 4px 0 rgba(43,33,24,.12);
+  }
+  .fxbanner.show{display:block; animation:cardpop .3s}
+  /* ---------- fetch ---------- */
+  .fetchwrap{text-align:center; padding-top:2px}
+  .fetchbig{
+    width:218px; height:218px; margin:10px auto 8px; border-radius:50%; border:5px solid var(--ink); cursor:pointer; user-select:none;
+    background:radial-gradient(circle at 32% 28%, #ffe066, var(--doge) 62%, #e19c00); font-family:var(--f);
+    font-weight:900; font-size:19px; color:var(--ink); box-shadow:0 10px 0 rgba(43,33,24,.25); position:relative;
+    animation:pulse 1.5s ease-in-out infinite; text-transform:uppercase; letter-spacing:.02em; line-height:1.25;
+  }
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+  .fetchbig:active{transform:scale(.95)}
+  .fetchbig.scanning{animation:spinring 1.1s linear infinite; pointer-events:none}
+  @keyframes spinring{to{filter:hue-rotate(360deg)}}
+  .route{display:flex; align-items:center; justify-content:center; gap:6px; margin:6px 0 4px}
+  .node{border:3px solid var(--ink); border-radius:18px; padding:9px 12px; font-weight:900; font-size:12.5px; background:#fff; transition:all .3s; position:relative}
+  .node small{display:block; font-size:9px; font-weight:800; color:var(--ink2)}
+  .node.lit{transform:scale(1.1) rotate(-2deg); box-shadow:0 5px 0 rgba(43,33,24,.2)}
+  .linkline{width:26px; height:5px; border-radius:4px; background:#e8dcc8; position:relative; overflow:hidden}
+  .linkline::after{content:""; position:absolute; inset:0; background:var(--teal); transform:scaleX(0); transform-origin:left; transition:transform .35s}
+  .linkline.lit::after{transform:scaleX(1)}
+  .scanner{height:6px; border-radius:5px; background:linear-gradient(90deg,transparent,var(--teal),transparent); width:40%; margin:8px auto 0; opacity:0; transition:opacity .2s}
+  .scanner.on{opacity:1; animation:scan 1.15s linear infinite}
+  @keyframes scan{from{transform:translateX(-160%)}to{transform:translateX(360%)}}
+  .sharecard{
+    margin-top:14px; border-radius:26px; border:4px solid var(--ink); padding:18px; text-align:left; color:#fff;
+    background:linear-gradient(140deg,#7048e8,#e64980 60%,#f76707); box-shadow:0 8px 0 rgba(43,33,24,.18); position:relative; overflow:hidden;
+  }
+  .sharecard .s1{font-size:10px; font-weight:900; letter-spacing:.15em; text-transform:uppercase; opacity:.85}
+  .sharecard .s2{font-size:30px; font-weight:900; margin:6px 0 2px; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+  .sharecard .s3{font-size:12.5px; font-weight:800; opacity:.95}
+  .sharecard .s4{font-size:10px; font-weight:700; opacity:.75; margin-top:8px}
+  .sharecard .bone{position:absolute; right:-10px; top:-12px; width:86px; height:86px; opacity:.2; transform:rotate(24deg)}
+  .sniff{font-size:13px; font-weight:900; color:var(--ink2); margin-top:12px}
+  .loops{margin-top:10px; font-size:11px; font-weight:800; color:var(--ink2)}
+  /* ---------- mint ---------- */
+  .dots{display:flex; gap:7px; justify-content:center; margin-bottom:12px}
+  .dots i{width:12px; height:12px; border-radius:50%; border:2.5px solid var(--ink); background:#fff; transition:all .25s}
+  .dots i.on{background:var(--pink); transform:scale(1.2)}
+  .gaugebox{background:#fff; border:3px solid var(--ink); border-radius:24px; padding:8px 10px 2px; margin-bottom:12px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 14px}
+  .chipbtn{border:3px solid var(--ink); background:#fff; border-radius:14px; padding:9px 13px; font-family:var(--f); font-weight:900; font-size:12.5px; cursor:pointer; box-shadow:0 4px 0 rgba(43,33,24,.2)}
+  .chipbtn.on{background:var(--ink); color:var(--yellow)}
+  .chipbtn:active{transform:translateY(3px); box-shadow:none}
+  .field{margin-bottom:14px}
+  .field label{display:flex; justify-content:space-between; font-size:11.5px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; margin-bottom:7px}
+  .field label output{color:var(--ink); font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%; appearance:none; height:16px; border-radius:10px; border:3px solid var(--ink); background:#f1e8d8; outline:none}
+  input[type=range]::-webkit-slider-thumb{appearance:none; width:30px; height:30px; border-radius:50%; background:var(--yellow); border:4px solid var(--ink); cursor:grab; box-shadow:0 3px 0 rgba(43,33,24,.3)}
+  input[type=range]::-moz-range-thumb{width:24px; height:24px; border-radius:50%; background:var(--yellow); border:4px solid var(--ink); cursor:grab}
+  .stepsnav{display:flex; gap:10px; margin-top:6px}
+  .stepsnav .btn{flex:1}
+  .revrow{display:flex; justify-content:space-between; font-size:13px; font-weight:800; padding:8px 0; border-bottom:2px dashed #efe4d2}
+  .revrow:last-of-type{border:0}
+  .revrow b{font-variant-numeric:tabular-nums}
+  /* ---------- arena ---------- */
+  .deck{position:relative; height:352px; margin-bottom:6px}
+  .acard{
+    position:absolute; inset:0; background:#fff; border:3px solid var(--ink); border-radius:26px; padding:16px;
+    box-shadow:0 8px 0 rgba(43,33,24,.14); touch-action:pan-y; cursor:grab; user-select:none; will-change:transform;
+  }
+  .acard .crpill{display:inline-block; font-size:22px; font-weight:900; padding:5px 14px; border-radius:16px; border:3px solid var(--ink); font-variant-numeric:tabular-nums}
+  .arow{display:flex; justify-content:space-between; font-size:12px; font-weight:800; padding:7px 0; border-bottom:2px dashed #efe4d2; color:var(--ink)}
+  .arow span:last-child{font-variant-numeric:tabular-nums}
+  .cr170{background:#d3f9d8}.cr150{background:#fff3bf}.cr116{background:#ffe8cc}.cr104{background:#ffe3e3}
+  .auction{margin-top:10px; font-size:11px; font-weight:900; color:var(--ink2); text-transform:uppercase; letter-spacing:.07em; display:flex; justify-content:space-between}
+  .auction b{color:var(--ink); font-variant-numeric:tabular-nums}
+  .acard .swipehint{text-align:center; font-size:10px; font-weight:900; letter-spacing:.14em; color:var(--ink2); text-transform:uppercase; pointer-events:none; margin:8px 0 6px}
+  .cardbtns{display:flex; gap:10px; margin-top:8px}
+  .cardbtns .btn{flex:1; font-size:13px; padding:12px 8px}
+  .deckempty{text-align:center; padding:60px 20px; font-weight:900; color:var(--ink2)}
+  .auctionpanel{border:3px solid var(--ink); border-radius:22px; background:#fff; padding:14px; margin-bottom:14px}
+  .pricebig{font-size:30px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+  .pricetrack{height:18px; border-radius:11px; border:3px solid var(--ink); background:linear-gradient(90deg,#ffe3e3,#fff3bf 55%,#d3f9d8); overflow:hidden; position:relative; margin:8px 0}
+  .pricetrack i{position:absolute; top:-4px; bottom:-4px; width:6px; background:var(--ink); border-radius:3px; transition:left 1s linear}
+  .settleline{display:flex; align-items:center; gap:8px; font-size:12px; font-weight:900; padding:8px 10px; border:2.5px dashed var(--ink); border-radius:14px; margin-bottom:8px; opacity:0; transform:translateX(-10px); transition:all .35s}
+  .settleline.show{opacity:1; transform:none}
+  .settleline .ico{width:22px;height:22px;border-radius:8px;border:2.5px solid var(--ink);display:grid;place-items:center;flex:none;color:#fff;font-size:11px}
+  /* ---------- baskets ---------- */
+  .brow{margin-bottom:12px}
+  .brow .btop{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px}
+  .brow .btop b{font-size:13px}.brow .btop output{font-size:13px; font-weight:900; font-variant-numeric:tabular-nums}
+  .bblock{height:14px; border-radius:9px; border:3px solid var(--ink); overflow:hidden; background:#fff; margin-top:5px}
+  .bblock i{display:block; height:100%; border-radius:6px; transition:width .2s}
+  .totalpill{display:flex; justify-content:space-between; align-items:center; padding:13px 15px; border-radius:20px; border:3px solid var(--ink); font-weight:900; margin:6px 0 12px; background:#ffe8cc; font-size:14px}
+  .totalpill.ok{background:#d3f9d8}
+  .totalpill .badge{font-size:11px; padding:5px 11px; border-radius:12px; border:2.5px solid var(--ink); background:#fff; letter-spacing:.05em}
+  .totalpill.ok .badge{background:var(--green); color:#fff; animation:popbadge .4s}
+  @keyframes popbadge{40%{transform:scale(1.18) rotate(-3deg)}}
+  /* ---------- more / hub ---------- */
+  .subhead{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+  .backbtn{width:40px; height:40px; border-radius:14px; border:3px solid var(--ink); background:#fff; font-weight:900; font-size:17px; cursor:pointer; box-shadow:0 4px 0 rgba(43,33,24,.2); display:grid; place-items:center; font-family:var(--f); color:var(--ink); flex:none}
+  .backbtn:active{transform:translateY(3px); box-shadow:none}
+  .subhead h2{font-size:17px; font-weight:900; letter-spacing:-.01em}
+  .subhead h2 small{display:block; font-size:10px; font-weight:800; color:var(--ink2); letter-spacing:.08em; text-transform:uppercase; margin-top:1px}
+  .hubgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px}
+  .hubtile{border:3px solid var(--ink); border-radius:20px; background:#fff; padding:13px 6px 11px; text-align:center; cursor:pointer; box-shadow:0 5px 0 rgba(43,33,24,.14); font-family:var(--f)}
+  .hubtile:active{transform:translateY(3px); box-shadow:none}
+  .hubtile svg{width:25px; height:25px; stroke:var(--ink); fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; margin-bottom:5px}
+  .hubtile b{display:block; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.04em}
+  .hubtile small{font-size:8px; font-weight:800; color:var(--ink2); letter-spacing:.04em; text-transform:uppercase}
+  .kv{display:flex; justify-content:space-between; font-size:12px; font-weight:800; padding:7px 0; border-bottom:2px dashed #efe4d2; gap:8px}
+  .kv:last-child{border-bottom:0}
+  .kv b{font-variant-numeric:tabular-nums; text-align:right}
+  .kv .k{color:var(--ink2)}
+  .crbar{height:14px; border-radius:9px; border:3px solid var(--ink); overflow:hidden; background:#fff; margin-top:6px}
+  .crbar i{display:block; height:100%; border-radius:6px; transition:width .4s, background .4s}
+  .hband{display:inline-block; font-size:9px; font-weight:900; letter-spacing:.1em; padding:3px 8px; border-radius:8px; border:2.5px solid var(--ink); text-transform:uppercase}
+  .hband.g{background:#d3f9d8}.hband.a{background:#fff3bf}.hband.r{background:#ffe3e3}
+  .positem{border:3px solid var(--ink); border-radius:20px; background:#fff; padding:12px 13px; margin-bottom:10px; cursor:pointer; box-shadow:0 4px 0 rgba(43,33,24,.1)}
+  .positem:active{transform:translateY(2px)}
+  .positem .ptop{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+  .positem .pid{font-size:13px; font-weight:900}
+  .positem .crpct{margin-left:auto; font-size:15px; font-weight:900; font-variant-numeric:tabular-nums}
+  .segswitch{display:flex; border:3px solid var(--ink); border-radius:16px; overflow:hidden; background:#fff; margin-bottom:12px}
+  .segswitch button{flex:1; border:0; background:#fff; padding:11px; font-family:var(--f); font-weight:900; font-size:12px; cursor:pointer; text-transform:uppercase; letter-spacing:.03em; color:var(--ink2)}
+  .segswitch button.on{background:var(--ink); color:var(--yellow)}
+  .timerpill{display:inline-flex; align-items:center; gap:6px; background:#fff3bf; border:2.5px solid var(--ink); border-radius:12px; padding:4px 10px; font-size:11px; font-weight:900; font-variant-numeric:tabular-nums}
+  .prog{height:16px; border:3px solid var(--ink); border-radius:10px; background:#fff; overflow:hidden}
+  .prog i{display:block; height:100%; background:repeating-linear-gradient(45deg,var(--pink) 0 10px,#faa2c1 10px 20px); background-size:28px 100%; animation:stripes 1s linear infinite; transition:width .4s}
+  .prog.green i{background:repeating-linear-gradient(45deg,var(--green) 0 10px,#8ce99a 10px 20px); background-size:28px 100%}
+  .ptable{width:100%; border-collapse:collapse; font-size:10.5px; margin-bottom:4px}
+  .ptable th,.ptable td{border:2px solid var(--ink); padding:5px 6px; text-align:left; font-weight:800}
+  .ptable th{background:var(--ink); color:#ffe8c9; text-transform:uppercase; font-size:8.5px; letter-spacing:.07em}
+  .ptable td.num{font-variant-numeric:tabular-nums; text-align:right}
+  .ptable tr.ccy td:first-child{font-weight:900; color:#fff; border-right-width:3px}
+  .verbadge{display:inline-grid; place-items:center; width:16px; height:16px; border-radius:50%; background:var(--green); color:#fff; font-size:10px; font-weight:900; border:2px solid var(--ink); margin-right:6px; vertical-align:-3px}
+  .addr{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:2px dashed #efe4d2; font-size:11px}
+  .addr:last-child{border:0}
+  .addr .nm{font-weight:900; width:104px; flex:none; font-size:10.5px}
+  .addr code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--ink2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; font-size:10px}
+  .addr button{border:2.5px solid var(--ink); background:var(--yellow); border-radius:9px; font-size:9px; font-weight:900; padding:4px 7px; cursor:pointer; font-family:var(--f); flex:none}
+  .infocard{font-size:12px; font-weight:800; color:var(--ink2); line-height:1.55}
+  .infocard b{color:var(--ink)}
+  .footnote{font-size:9.5px; color:var(--ink2); font-weight:700; line-height:1.6; padding:4px 6px 10px; font-variant-numeric:tabular-nums}
+  .wcard{background:#fff; border:3px solid var(--ink); border-radius:24px; padding:16px; margin-bottom:14px; box-shadow:0 6px 0 rgba(43,33,24,.12)}
+  .wcard h3{font-size:14px; font-weight:900; margin-bottom:8px}
+  .linkrow{display:flex; align-items:center; gap:8px; padding:10px 2px; border-bottom:2px dashed #efe4d2; font-size:13px; font-weight:900; cursor:pointer}
+  .linkrow:last-child{border:0}
+  .linkrow span{margin-left:auto; color:var(--ink2); font-size:15px}
+  .togglesw{display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:2px dashed #efe4d2; font-size:13px; font-weight:900}
+  .togglesw:last-child{border:0}
+  .sw{width:52px; height:30px; border-radius:16px; border:3px solid var(--ink); background:#e8dcc8; position:relative; cursor:pointer; transition:background .2s; flex:none}
+  .sw::after{content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; border:2.5px solid var(--ink); transition:left .2s}
+  .sw.on{background:var(--green)}
+  .sw.on::after{left:24px}
+  .navlist .ni{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:900; padding:11px 4px; border-bottom:2px dashed #efe4d2; cursor:pointer}
+  .navlist .ni:last-child{border:0}
+  .ni .arr{margin-left:auto; color:var(--ink2)}
+  /* ---------- pool chart ---------- */
+  .curvebox{border:3px solid var(--ink); border-radius:24px; background:#fff; padding:10px 8px 4px; margin-bottom:12px}
+  .chartfoot{font-size:9.5px; color:var(--ink2); font-weight:700; padding:4px 8px 8px; line-height:1.5}
+  .bigstat{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px}
+  .bigstat .bs{border:3px solid var(--ink); border-radius:18px; background:#fff; padding:11px 12px; box-shadow:0 4px 0 rgba(43,33,24,.1)}
+  .bigstat .bs small{font-size:9px; font-weight:900; letter-spacing:.09em; text-transform:uppercase; color:var(--ink2)}
+  .bigstat .bs b{display:block; font-size:17px; font-weight:900; margin-top:2px; font-variant-numeric:tabular-nums}
+  /* ---------- tabbar + footer ---------- */
+  .footstrip{text-align:center; font-size:9px; font-weight:900; letter-spacing:.1em; color:var(--ink2); text-transform:uppercase; padding:3px 0 5px}
+  .footstrip b{color:var(--red)}
+  .tabbar{display:grid; grid-template-columns:repeat(5,1fr); border-top:3px solid var(--ink); background:#fff; padding:7px 4px 10px}
+  .tab{display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:0; font-family:var(--f); font-size:9.5px; font-weight:900; letter-spacing:.05em; color:var(--ink2); cursor:pointer; text-transform:uppercase; padding:2px 0}
+  .tab svg{width:23px; height:23px; stroke:currentColor; fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round}
+  .tab.on{color:var(--pink); transform:translateY(-2px)}
+  .tab.on svg{filter:drop-shadow(0 2px 0 rgba(230,73,128,.3))}
+  /* ---------- fx ---------- */
+  .piece{position:fixed; width:10px; height:10px; border-radius:3px; pointer-events:none; z-index:99; animation:pop .95s cubic-bezier(.15,.6,.3,1) forwards}
+  @keyframes pop{to{transform:translate(var(--dx),var(--dy)) rotate(var(--rot)); opacity:0}}
+  .toast{
+    position:absolute; left:50%; bottom:96px; transform:translate(-50%,20px); background:var(--ink); color:#fff; font-size:12px; font-weight:800;
+    padding:11px 16px; border-radius:16px; opacity:0; transition:all .3s; z-index:20; pointer-events:none; text-align:center; max-width:82%; line-height:1.4;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0)}
+  .pop{animation:cardpop .35s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes cardpop{from{transform:scale(.7) rotate(-2deg); opacity:0}}
+  .shake{animation:shakeX .4s}
+  @keyframes shakeX{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+  input[type=text]{width:100%; border:3px solid var(--ink); border-radius:14px; padding:11px 12px; font-family:var(--f); font-weight:800; font-size:13px; background:#fff; outline:none}
+  input[type=text]:focus{box-shadow:0 0 0 3px rgba(255,111,165,.35)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar">
+    <span>9:41</span>
+    <span><span class="dot"></span>Chikyū 6281971 · gas ~0.02</span>
+  </div>
+  <div class="banner">Draft · mock data · Chikyū testnet</div>
+
+  <div class="screen" id="screen">
+
+    <!-- ============ HOME ============ -->
+    <section class="tabpage" id="pg-home">
+      <div class="apptitle">
+        <svg viewBox="0 0 24 24" width="26" height="26"><g fill="#f7b500" stroke="#2b2118" stroke-width="1.4"><ellipse cx="12" cy="15" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="9.5" rx="2.1" ry="2.8"/><ellipse cx="10" cy="6.8" rx="2.1" ry="2.8"/><ellipse cx="14.6" cy="6.8" rx="2.1" ry="2.8"/><ellipse cx="19" cy="9.5" rx="2.1" ry="2.8"/></g></svg>
+        <h1>MUCH WALLET</h1><span class="sub">v3 full draft</span>
+      </div>
+
+      <div class="ticker"><div class="ticker-track" id="ticker"></div></div>
+      <div class="fxbanner" id="fxBanner">FX markets closed — rates are stale until Monday open, much careful</div>
+
+      <div class="hero">
+        <div class="lbl">Your much money</div>
+        <div class="amt" id="heroTotal">$0.00</div>
+        <div class="delta" id="heroDelta">across 7 k9 coins · <span class="tag">mock</span></div>
+        <svg class="paw" viewBox="0 0 24 24"><g fill="#2b2118"><ellipse cx="12" cy="15" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="9.5" rx="2.1" ry="2.8"/><ellipse cx="10" cy="6.8" rx="2.1" ry="2.8"/><ellipse cx="14.6" cy="6.8" rx="2.1" ry="2.8"/><ellipse cx="19" cy="9.5" rx="2.1" ry="2.8"/></g></svg>
+      </div>
+
+      <div class="card qcard">
+        <div class="qtop"><span>FETCH QUEST</span><span id="questCount">0/5 loops</span></div>
+        <div class="qtrack"><div class="qfill" id="questFill" style="width:0%"></div></div>
+        <div class="qmsg" id="questMsg">0/5 loops this week — next milestone much closer <span class="tag">mock</span></div>
+      </div>
+
+      <div class="quick">
+        <button class="btn pink" data-go="mint">Mint</button>
+        <button class="btn green" data-go="fetch">Fetch</button>
+        <button class="btn blue" data-go="arena">Arena</button>
+      </div>
+
+      <h2 class="sect">Your positions <small>summary · tap to manage</small></h2>
+      <div class="card" id="homePosCard" style="cursor:pointer"></div>
+
+      <h2 class="sect">Your k9 coins <small>mock balances · chikyū</small></h2>
+      <div class="card" id="coinList" style="padding:8px 14px"></div>
+
+      <div class="card" id="homeSaveCard" style="border-color:var(--usd); cursor:pointer"></div>
+
+      <div class="card">
+        <div class="togglesw"><span>Weekend FX-gap demo</span><div class="sw" id="wkSw"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ MINT ============ -->
+    <section class="tabpage hidden" id="pg-mint">
+      <h2 class="sect">Mint a k9 coin <small>collateral in · k9 out · mock</small></h2>
+      <div class="dots" id="mintDots"><i class="on"></i><i></i><i></i></div>
+
+      <div class="card" id="mintStep1">
+        <div style="font-size:12px;font-weight:900;margin-bottom:2px">Step 1 · pick collateral <span class="tag">mock</span></div>
+        <div class="chips" id="colChips">
+          <button class="chipbtn on" data-col="MOFX">MOFX · $0.42</button>
+          <button class="chipbtn" data-col="wDOGE">wDOGE · $0.085</button>
+          <button class="chipbtn" data-col="WUFF">WUFF · $0.19</button>
+        </div>
+        <div class="infocard" style="font-size:11px">mock oracle-free prices for this draft. real thing uses the challenge game, much trustless.<br><b>min position $3,500 · opening fee 1,000 K9USD</b></div>
+        <div class="stepsnav"><button class="btn pink" data-mnext="2" style="flex:1">Next · much</button></div>
+      </div>
+
+      <div class="card hidden" id="mintStep2">
+        <div style="font-size:12px;font-weight:900;margin-bottom:2px">Step 2 · amounts <span class="tag">mock</span></div>
+        <div class="field">
+          <label>Collateral: <span id="colName">MOFX</span><output id="colAmtOut">12,000 MOFX</output></label>
+          <input type="range" id="colAmt" min="9000" max="60000" step="100" value="12000">
+        </div>
+        <div class="field">
+          <label>Mint into<output id="mintAmtOut">2,200.0 K9USD</output></label>
+          <input type="range" id="mintAmt" min="10" max="10000" step="10" value="2200">
+          <div class="chips" id="k9Chips" style="margin:8px 0 0"></div>
+        </div>
+        <div class="gaugebox">
+          <svg viewBox="0 0 220 130" style="width:100%">
+            <path d="M20 118 A90 90 0 0 1 200 118" fill="none" stroke="#f1e8d8" stroke-width="18" stroke-linecap="round"/>
+            <path id="gArc" d="M20 118 A90 90 0 0 1 200 118" fill="none" stroke="#37b24d" stroke-width="18" stroke-linecap="round" stroke-dasharray="0 283"/>
+            <g id="gNeedle" style="transform-origin:110px 118px"><line x1="110" y1="118" x2="110" y2="44" stroke="#2b2118" stroke-width="5" stroke-linecap="round"/><circle cx="110" cy="118" r="8" fill="#2b2118"/></g>
+            <rect x="60" y="62" width="100" height="44" rx="14" fill="#fff8ee" stroke="#2b2118" stroke-width="3"/>
+            <text id="gVal" x="110" y="82" text-anchor="middle" font-size="22" font-weight="900" fill="#2b2118" font-family="inherit">210%</text>
+            <text x="110" y="97" text-anchor="middle" font-size="9.5" font-weight="800" fill="#6f6257">COLLATERAL RATIO</text>
+          </svg>
+        </div>
+        <div class="stepsnav"><button class="btn ghost" data-mnext="1">Back</button><button class="btn pink" data-mnext="3">Review · wow</button></div>
+      </div>
+
+      <div class="card hidden" id="mintStep3">
+        <div style="font-size:12px;font-weight:900;margin-bottom:6px">Step 3 · much review <span class="tag">mock</span></div>
+        <div class="revrow"><span>Collateral</span><b id="rvCol">—</b></div>
+        <div class="revrow"><span>You mint</span><b id="rvMint">—</b></div>
+        <div class="revrow"><span>Collateral ratio</span><b id="rvCr">—</b></div>
+        <div class="revrow"><span>Opening fee</span><b>1,000 K9USD</b></div>
+        <div class="revrow"><span>Min position check</span><b id="rvMin">—</b></div>
+        <div class="revrow"><span>Gas (DOGE)</span><b>~0.02 / tx</b></div>
+        <div class="revrow"><span>MintingHub (Chikyū)</span><b style="font-size:10px">0x0bAD…80F9b</b></div>
+        <div class="stepsnav" style="margin-top:12px">
+          <button class="btn ghost" data-mnext="2">Back</button>
+          <button class="btn green" id="mintGo">Mint it · such coin</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ARENA ============ -->
+    <section class="tabpage hidden" id="pg-arena">
+      <h2 class="sect">The Arena <small>challenge game · dutch auction · mock</small></h2>
+      <div class="card" id="activeChalBox"></div>
+      <div class="deck" id="deck"></div>
+      <div class="card infocard">
+        <b>How challenges work:</b> spot a position with a weak collateral ratio, trigger a Dutch auction, win the challenge and earn <b>2%</b>. Arb round-trip band ≈0.15% (Barkswap 0.05%/hop). Swipe a card right to challenge, or use the buttons. <span class="tag">mock</span>
+      </div>
+    </section>
+
+    <!-- ============ FETCH ============ -->
+    <section class="tabpage hidden" id="pg-fetch">
+      <h2 class="sect">Fetch the loop <small>k9usd → k9eur → wdoge · mock arb</small></h2>
+      <div class="fetchwrap">
+        <div class="route" id="route">
+          <div class="node" data-n="0" style="border-color:var(--usd)">K9USD<small>$1.000</small></div>
+          <div class="linkline" data-l="0"></div>
+          <div class="node" data-n="1" style="border-color:var(--eur)">K9EUR<small>$1.087</small></div>
+          <div class="linkline" data-l="1"></div>
+          <div class="node" data-n="2" style="border-color:var(--doge)">wDOGE<small>$0.085</small></div>
+        </div>
+        <div class="scanner" id="scanner"></div>
+        <button class="fetchbig" id="fetchBtn">FETCH<br>THE<br>LOOP</button>
+        <div class="loops">loops sniffed this session: <b id="loopCount">0</b> · bones fetched: <b id="boneCount">0</b></div>
+
+        <div class="sharecard hidden pop" id="shareCard">
+          <svg class="bone" viewBox="0 0 24 24" fill="#fff"><path d="M7 6a2.5 2.5 0 1 1 3-3c0 1 .5 1.8 1.5 1.8h1A2.5 2.5 0 1 1 16 6c0 1-.5 1.8-1.5 1.8h-1A2.5 2.5 0 1 1 11 11c0 1 .5 1.8 1.5 1.8h1A2.5 2.5 0 1 1 16 16c0 1-.5 1.8-1.5 1.8h-1A2.5 2.5 0 1 1 11 21a2.5 2.5 0 1 1-3-3c0-1 .5-1.8 1.5-1.8h1A2.5 2.5 0 1 1 11 11c0-1-.5-1.8-1.5-1.8h-1A2.5 2.5 0 1 1 7 6z"/></svg>
+          <div class="s1">MUCH WALLET · loop result</div>
+          <div class="s2" id="scPct">+0.4%</div>
+          <div class="s3" id="scRoute">K9USD → K9EUR → wDOGE</div>
+          <div class="s4" id="scFoot">barkswap 0.05%/hop · arb band ≈0.15% · dogeforex on chikyū · <span class="tag" style="background:rgba(255,255,255,.25);color:#fff">mock</span></div>
+          <button class="btn sm" id="copyShare" style="margin-top:12px;background:#fff">Copy result · such share</button>
+        </div>
+        <div class="sniff" id="sniffMsg"></div>
+      </div>
+    </section>
+
+    <!-- ============ MORE (hub) ============ -->
+    <section class="tabpage hidden" id="pg-more">
+      <h2 class="sect">More <small>everything else · much complete</small></h2>
+      <div class="hubgrid" id="hubGrid"></div>
+      <div class="card infocard">
+        <b>Monetary policy</b> — the <b>Leadrate</b> sets the savings rate per currency (rate set by monetary policy, mock). Positions carry a <b>collateral ratio</b>, and the dollar price is defended by the <b>oracle-free challenge game</b> (Dutch auction, challenger earns 2%), not by promises. <span class="tag">mock</span>
+      </div>
+      <div class="footnote">
+        Reference rates (mock): 1 USD = 1.00 K9USD · 0.92 K9EUR · 149 K9JPY · 0.79 K9GBP · 1.52 K9AUD · 7.12 K9CNY · 5.45 K9BRL · DOGE $0.085.
+      </div>
+    </section>
+
+    <!-- ============ POSITIONS ============ -->
+    <section class="tabpage hidden" id="pg-positions">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Positions<small>all open · across 7 k9 currencies</small></h2></div>
+      <div class="card" id="posSummary" style="padding:12px 14px"></div>
+      <div id="posList"></div>
+    </section>
+
+    <!-- ============ POSITION DETAIL ============ -->
+    <section class="tabpage hidden" id="pg-position">
+      <div class="subhead"><button class="backbtn" data-go="positions">←</button><h2 id="pdTitle">Position<small>manage · working actions · mock</small></h2></div>
+      <div id="pdBody"></div>
+    </section>
+
+    <!-- ============ SAVINGS ============ -->
+    <section class="tabpage hidden" id="pg-savings">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Savings<small>leadrate accrual · 3-day lockup · mock</small></h2></div>
+      <div class="card" id="saveProto" style="border-color:var(--doge)"></div>
+      <div class="wcard" id="saveNew">
+        <h3>Deposit into savings <span class="tag">mock</span></h3>
+        <div class="chips" id="saveChips"></div>
+        <div class="field">
+          <label>Amount<output id="saveAmtOut">500 K9USD</output></label>
+          <input type="range" id="saveAmt" min="10" max="5000" step="10" value="500">
+        </div>
+        <button class="btn green" id="saveDeposit" style="width:100%">Deposit · 3-day lockup</button>
+        <div class="infocard" style="font-size:10.5px;margin-top:8px">accrues at the Leadrate — a rate set by monetary policy. lockup shown at demo speed (1 day = 30s).</div>
+      </div>
+      <div id="saveList"></div>
+    </section>
+
+    <!-- ============ BASKETS ============ -->
+    <section class="tabpage hidden" id="pg-baskets">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Baskets<small>7 k9 blocks · weight builder · mock</small></h2></div>
+      <div class="card" id="basketRows"></div>
+      <div class="totalpill" id="totalPill"><span>Total weight: <b id="totalOut">100%</b></span><span class="badge" id="totalBadge">MUCH BALANCED</span></div>
+      <div class="chips" id="presetChips" style="margin-bottom:12px"></div>
+      <div class="stepsnav">
+        <button class="btn blue" id="diversify">Much diversify</button>
+        <button class="btn pink" id="mintBasket" disabled>Mint basket</button>
+      </div>
+      <div class="card infocard" style="margin-top:14px">
+        <b>Baskets</b> bundle all 7 k9 coins into one weighted basket token. Weights must total exactly 100% — the badge tells you when you are <b>much balanced</b>. <span class="tag">mock</span>
+      </div>
+      <div id="basketPortfolio"></div>
+    </section>
+
+    <!-- ============ POOL TOKENS ============ -->
+    <section class="tabpage hidden" id="pg-pool">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Pool Tokens<small>K9·USD Pool Token · K9USDS · mock</small></h2></div>
+
+      <div class="card" id="myPoolCard"></div>
+
+      <div class="segswitch" id="poolSeg">
+        <button class="on" data-pm="invest">Invest</button>
+        <button data-pm="redeem">Redeem</button>
+      </div>
+
+      <div class="wcard" id="poolWiz"></div>
+
+      <div class="curvebox">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 8px 6px">
+          <b style="font-size:12px;font-weight:900">PRICE CURVE <span class="tag">live · mock</span></b>
+          <span style="font-size:11px;font-weight:900;font-variant-numeric:tabular-nums" id="curvePrice"></span>
+        </div>
+        <svg id="curveSvg" viewBox="0 0 330 190" style="width:100%;display:block"></svg>
+        <div class="chartfoot">price = 3 × reserve ÷ supply · supply drifts on a random walk (mock). move the slider above — watch your point travel the curve.</div>
+      </div>
+
+      <div class="curvebox">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 8px 6px">
+          <b style="font-size:12px;font-weight:900">PRICE HISTORY <span class="tag">30 ticks · mock</span></b>
+          <span style="font-size:11px;font-weight:900" id="histDir"></span>
+        </div>
+        <svg id="histSvg" viewBox="0 0 330 110" style="width:100%;display:block"></svg>
+        <div class="chartfoot">mock curve · mechanics mirror Frankencoin Equity (github.com/Frankencoin-ZCHF/FrankenCoin)</div>
+      </div>
+    </section>
+
+    <!-- ============ GOVERNANCE ============ -->
+    <section class="tabpage hidden" id="pg-gov">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Governance<small>veto / deny democracy · mock</small></h2></div>
+      <div class="card" id="myVetoCard" style="border-color:var(--purple)"></div>
+      <h2 class="sect">Pending minter applications <small>deny window · quorum 2%</small></h2>
+      <div id="govApps"></div>
+      <h2 class="sect">Fresh positions <small>in 5-day initPeriod · deniable</small></h2>
+      <div id="govFresh"></div>
+      <div class="wcard" id="suggestBox">
+        <h3>Suggest a minter <span class="tag">mock</span></h3>
+        <div class="field"><label>Minter address</label><input type="text" id="sugAddr" placeholder="0x…" spellcheck="false"></div>
+        <div class="field"><label>Mint currency</label><div class="chips" id="sugChips"></div></div>
+        <div class="revrow"><span>Application fee</span><b>1,000 K9USD</b></div>
+        <div class="revrow"><span>Min application period</span><b>14 days</b></div>
+        <button class="btn pink" id="sugGo" style="width:100%;margin-top:10px">Submit application · pay 1,000 K9</button>
+      </div>
+      <div class="card" style="border-color:var(--teal)">
+        <div style="font-size:12px;font-weight:900;margin-bottom:6px">Why this matters</div>
+        <div class="infocard">no veto fired in the old world — here, the bot watches so you don't have to. Anyone can apply to mint k9 coins; anyone holding <b>2% of Pool Tokens</b> can deny a bad actor before it goes live. Silence = approval after the window. Much democracy, very veto. <span class="tag">mock</span></div>
+      </div>
+    </section>
+
+    <!-- ============ AUCTION DETAIL ============ -->
+    <section class="tabpage hidden" id="pg-auction">
+      <div class="subhead"><button class="backbtn" data-go="arena">←</button><h2 id="aucTitle">Auction<small>dutch auction · mock</small></h2></div>
+      <div id="aucBody"></div>
+    </section>
+
+    <!-- ============ ADDRESS BOOK ============ -->
+    <section class="tabpage hidden" id="pg-addr">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Address book<small>chikyū testnet · verified</small></h2></div>
+      <div class="card"><div id="addrListFull"></div></div>
+    </section>
+
+    <!-- ============ PARAMS ============ -->
+    <section class="tabpage hidden" id="pg-params">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Genesis params<small>per-currency · read from chain (mock)</small></h2></div>
+      <div class="card" style="padding:10px"><div id="paramsTable"></div>
+        <div class="footnote">All 7 currencies (K9USD K9EUR K9JPY K9GBP K9AUD K9CNY K9BRL) share genesis mechanics; only the Leadrate differs — set by monetary policy. <span class="tag">mock</span></div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section class="tabpage hidden" id="pg-settings">
+      <div class="subhead"><button class="backbtn" data-go="more">←</button><h2>Settings &amp; about<small>demo controls · fine print</small></h2></div>
+      <div class="card">
+        <div style="font-size:12px;font-weight:900;margin-bottom:6px">Demo</div>
+        <div class="togglesw"><span>Weekend FX-gap banner</span><div class="sw" id="wkSw2"></div></div>
+        <button class="btn ghost sm" id="resetDemo" style="width:100%;margin-top:10px">Reset demo state · start over</button>
+      </div>
+      <div class="card">
+        <div style="font-size:12px;font-weight:900;margin-bottom:4px">Links <span class="tag">placeholders</span></div>
+        <div class="navlist">
+          <div class="ni" data-link>Docs <span class="arr">→</span></div>
+          <div class="ni" data-link>GitHub <span class="arr">→</span></div>
+          <div class="ni" data-link>Status page <span class="arr">→</span></div>
+          <div class="ni" data-link>Brand kit <span class="arr">→</span></div>
+        </div>
+      </div>
+      <div class="card infocard">
+        <b>MUCH WALLET</b> · DogeForex UI draft on Chikyū testnet (chain 6281971). All numbers are mock data in a local demo store. The challenge game, Leadrate and Pool Token curve mirror the Frankencoin design. <span class="tag">mock</span>
+      </div>
+      <div class="footnote">Not financial advice. DRAFT · mock data · Chikyū testnet. Demo clocks run at demo speed (1 day = 30s).</div>
+    </section>
+
+    <div class="footstrip"><b>DRAFT</b> · mock data · chikyū testnet · not financial advice</div>
+  </div>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab on" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M6 10.5V20h12v-9.5"/><path d="M10 20v-5h4v5"/></svg>Home</button>
+    <button class="tab" data-tab="mint"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v10M9.5 9.5h3.2a1.8 1.8 0 0 1 0 3.6H9.8h3.4a1.8 1.8 0 0 1 0 3.6H9.5"/></svg>Mint</button>
+    <button class="tab" data-tab="arena"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>Arena</button>
+    <button class="tab" data-tab="fetch"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6"/><path d="M5 12a7 7 0 1 0 7-7" opacity=".4"/></svg>Fetch</button>
+    <button class="tab" data-tab="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg>More</button>
+  </nav>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+"use strict";
+/* ================= helpers ================= */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const buzz=(ms=12)=>{ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+const fmt=(n,d=2)=>n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const clamp=(n,a,b)=>Math.min(Math.max(n,a),b);
+
+/* ================= constants (mock) ================= */
+const CC={K9USD:"var(--usd)",K9EUR:"var(--eur)",K9JPY:"var(--jpy)",K9GBP:"var(--gbp)",K9AUD:"var(--aud)",K9CNY:"var(--cny)",K9BRL:"var(--brl)"};
+const KEYS=Object.keys(CC);
+const RATES={K9USD:1,K9EUR:0.92,K9JPY:149,K9GBP:0.79,K9AUD:1.52,K9CNY:7.12,K9BRL:5.45}; // k9 units per USD
+const LEAD={K9USD:5,K9EUR:3.5,K9JPY:1,K9GBP:4.5,K9AUD:4,K9CNY:2.5,K9BRL:10}; // % rate set by monetary policy
+const COLPX={MOFX:0.42,wDOGE:0.085,WUFF:0.19};
+const DAY_MS=30000; // demo speed: 1 day = 30s
+const OPENING_FEE=1000, MIN_POS=3500, BOUNTY=0.02, QUORUM=0.02, VFACTOR=3;
+const k9usd=c=>1/RATES[c]; // USD price of one k9 coin
+const fmtC=(n,c,d)=>fmt(n,d==null?(c==="K9JPY"?0:2):d)+" "+c;
+
+/* ================= mock store ================= */
+function makeStore(){
+  const t=Date.now();
+  return {
+    bal:{K9USD:3200,K9EUR:1180.4,K9JPY:512000,K9GBP:640.1,K9AUD:905,K9CNY:2300,K9BRL:510},
+    colBal:{MOFX:80000,wDOGE:400000,WUFF:150000},
+    positions:[
+      {id:"POS-101",col:"MOFX",  colAmt:12000, ccy:"K9USD",minted:2200, denyUntil:t+DAY_MS*5, cooldownUntil:0},
+      {id:"POS-102",col:"wDOGE", colAmt:8000,  ccy:"K9EUR",minted:500,  denyUntil:0, cooldownUntil:0},
+      {id:"POS-103",col:"WUFF",  colAmt:3500,  ccy:"K9JPY",minted:60000,denyUntil:0, cooldownUntil:0},
+      {id:"POS-104",col:"MOFX",  colAmt:1000,  ccy:"K9GBP",minted:300,  denyUntil:0, cooldownUntil:0},
+      {id:"POS-105",col:"MOFX",  colAmt:3000,  ccy:"K9AUD",minted:550,  denyUntil:0, cooldownUntil:0},
+      {id:"POS-106",col:"wDOGE", colAmt:6000,  ccy:"K9CNY",minted:2500, denyUntil:0, cooldownUntil:0},
+      {id:"POS-107",col:"WUFF",  colAmt:1500,  ccy:"K9BRL",minted:1000, denyUntil:0, cooldownUntil:0},
+      {id:"POS-108",col:"MOFX",  colAmt:3600,  ccy:"K9USD",minted:650,  denyUntil:t+DAY_MS*5, cooldownUntil:0},
+    ],
+    savings:[{ccy:"K9USD",bal:1250,lockedUntil:t+DAY_MS*3,depositDay:t}],
+    baskets:[],
+    pool:{reserve:250000,supply:75000,mine:1500,hist:[]},
+    challenges:[], // {id,posId,ccy,col,size,start,dur,state:'active'|'averted'|'won',bounty}
+    apps:[
+      {id:"APP-01",name:"MuchMinter BV",addr:"0x8f3A…c21e",ccy:"K9EUR",until:t+DAY_MS*14,denied:0,voters:[]},
+      {id:"APP-02",name:"wow-coltd",addr:"0x11b7…904A",ccy:"K9BRL",until:t+DAY_MS*14,denied:0,voters:[]},
+      {id:"APP-03",name:"suchfi-bridge",addr:"0x9Cc2…77d0",ccy:"K9CNY",until:t+DAY_MS*14,denied:0,voters:[]},
+    ],
+    myVotes:[],
+    quest:{loops:0,target:5},
+    weekend:false,
+    nextId:200,
+    chalId:1,
+  };
+}
+let store=makeStore();
+
+/* position math */
+const mintedUSD=p=>p.minted*k9usd(p.ccy);
+const collatUSD=p=>p.colAmt*COLPX[p.col];
+const crOf=p=>collatUSD(p)/mintedUSD(p)*100;
+const liqPriceOf=p=>mintedUSD(p)/p.colAmt; // collateral USD price at CR 100%
+function bandOf(cr){ return cr>200?{cls:"g",lbl:"green · much safe"}:cr>=120?{cls:"a",lbl:"amber · much watch"}:{cls:"r",lbl:"red · challengeable"}; }
+function crColor(cr){ return cr>200?"#51cf66":cr>=120?"#f7b500":"#ff6b6b"; }
+
+/* ================= toast / confetti ================= */
+let toastT;
+function toast(msg){ const t=$("#toast"); t.innerHTML=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+function burst(x,y,n=26){
+  const colors=["#ff6fa5","#ffa94d","#ffd43b","#51cf66","#4dabf7","#9775fa","#38d9a9"];
+  for(let i=0;i<n;i++){
+    const p=document.createElement("div"); p.className="piece";
+    const a=Math.random()*Math.PI*2, d=70+Math.random()*130;
+    p.style.cssText=`left:${x}px;top:${y}px;--dx:${Math.cos(a)*d}px;--dy:${Math.sin(a)*d-60}px;--rot:${Math.random()*720-360}deg;background:${colors[i%colors.length]};width:${7+Math.random()*8}px;height:${7+Math.random()*8}px;border-radius:${Math.random()<.4?"50%":"3px"}`;
+    document.body.appendChild(p); setTimeout(()=>p.remove(),980);
+  }
+}
+
+/* ================= navigation + interval cleanup ================= */
+const TABS=["home","mint","arena","fetch","more"];
+const SUB2MORE=["positions","position","savings","baskets","pool","gov","addr","params","settings","auction"];
+let pageTimers=[], curPage="home";
+function addTimer(id){ pageTimers.push(id); }
+function clearPageTimers(){ pageTimers.forEach(clearInterval); pageTimers=[]; }
+function go(tab){
+  clearPageTimers();
+  const all=[...TABS,...SUB2MORE];
+  all.forEach(t=>$("#pg-"+t).classList.toggle("hidden",t!==tab));
+  const hl=TABS.includes(tab)?tab:(tab==="auction"?"arena":"more");
+  $$(".tab").forEach(b=>b.classList.toggle("on",b.dataset.tab===hl));
+  $("#screen").scrollTop=0; buzz(10); curPage=tab;
+  if(PAGE_ENTER[tab]) PAGE_ENTER[tab]();
+}
+$$(".tab").forEach(b=>b.addEventListener("click",()=>go(b.dataset.tab)));
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(b) go(b.dataset.go); });
+
+/* ================= market price engine (v3, extended) ================= */
+const PX={}; KEYS.forEach(k=>PX[k]=1/RATES[k]); PX.wDOGE=0.085;
+const FLOOR={}; Object.keys(PX).forEach(k=>FLOOR[k]=PX[k]*0.6);
+const TICK=[...KEYS,"wDOGE"];
+function buildTicker(){
+  const track=$("#ticker"); track.innerHTML="";
+  for(let r=0;r<2;r++){
+    const g=document.createElement("div"); g.style.display="contents";
+    TICK.forEach(s=>{
+      const d=document.createElement("span"); d.className="tk"; d.dataset.sym=s;
+      d.innerHTML=`<b>${s}</b> $${fmt(PX[s],s==="K9JPY"?4:3)} <i>·</i>`; g.appendChild(d);
+    });
+    track.appendChild(g);
+  }
+}
+function tickPrices(){
+  if(store.weekend) return; // stale until Monday open
+  TICK.forEach(s=>{ PX[s]=Math.max(PX[s]*(1+(Math.random()-.5)*0.002),FLOOR[s]); });
+  $$(".tk").forEach(el=>{ el.innerHTML=`<b>${el.dataset.sym}</b> $${fmt(PX[el.dataset.sym],el.dataset.sym==="K9JPY"?4:3)} <i>·</i>`; });
+  renderCoins();
+  $("#heroTotal").textContent="$"+fmt(homeTotal());
+}
+setInterval(tickPrices,2600);
+
+/* ================= home ================= */
+function homeTotal(){ return KEYS.reduce((a,k)=>a+store.bal[k]*PX[k],0); }
+function renderCoins(){
+  const el=$("#coinList"); if(!el.childElementCount){
+    el.innerHTML=KEYS.map(k=>`<div class="coinrow" data-sym="${k}">
+      <div class="chip" style="background:${CC[k]}">${k.slice(2)}</div>
+      <div><div class="nm">${k}</div><div class="sub2">stable · mock</div></div>
+      <div class="val"><b class="va">0</b><span class="vv">$0.00</span></div></div>`).join("");
+  }
+  $$("#coinList .coinrow").forEach(r=>{
+    const k=r.dataset.sym;
+    r.querySelector(".va").textContent=fmt(store.bal[k],k==="K9JPY"?0:2);
+    r.querySelector(".vv").textContent="$"+fmt(store.bal[k]*PX[k]);
+  });
+}
+function renderHome(){
+  $("#heroTotal").textContent="$"+fmt(homeTotal());
+  renderCoins();
+  // fetch quest
+  const q=store.quest, pct=clamp(q.loops/q.target*100,0,100);
+  $("#questCount").textContent=`${Math.min(q.loops,q.target)}/${q.target} loops`;
+  $("#questFill").style.width=pct+"%";
+  $("#questMsg").innerHTML=`${Math.min(q.loops,q.target)}/${q.target} loops this week — next milestone much closer <span class="tag">mock</span>`;
+  // positions summary
+  const ps=store.positions;
+  const worst=ps.length?Math.min(...ps.map(crOf)):null;
+  const reds=ps.filter(p=>crOf(p)<120).length, ambers=ps.filter(p=>{const c=crOf(p);return c>=120&&c<=200}).length;
+  $("#homePosCard").innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <b style="font-size:14px">${ps.length} open positions</b>
+      ${reds?`<span class="hband r">${reds} red</span>`:""}${ambers?`<span class="hband a">${ambers} amber</span>`:""}
+      <span class="arr" style="margin-left:auto;font-weight:900;color:var(--ink2)">→</span>
+    </div>
+    ${ps.length?`
+    <div class="kv"><span class="k">Weakest collateral ratio</span><b style="color:${crColor(worst)}">${fmt(worst,1)}%</b></div>
+    <div class="kv"><span class="k">Total minted (USD value)</span><b>$${fmt(ps.reduce((a,p)=>a+mintedUSD(p),0))}</b></div>`:`<div class="infocard">no positions — much empty. go mint something.</div>`}`;
+  $("#homePosCard").onclick=()=>go("positions");
+  // savings summary
+  const totSave=store.savings.reduce((a,s)=>a+s.bal*k9usd(s.ccy),0);
+  $("#homeSaveCard").innerHTML=`
+    <div style="font-size:12px;font-weight:900">Savings across currencies <span class="tag">mock</span></div>
+    <div style="font-size:22px;font-weight:900;margin:4px 0;font-variant-numeric:tabular-nums">$${fmt(totSave)}</div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink2)">rates set by monetary policy (Leadrate · K9USD 5% · mock). no promises, just policy.</div>`;
+  $("#homeSaveCard").onclick=()=>go("savings");
+  $("#fxBanner").classList.toggle("show",store.weekend);
+  $("#wkSw").classList.toggle("on",store.weekend);
+  $("#wkSw2").classList.toggle("on",store.weekend);
+}
+function toggleWeekend(){ store.weekend=!store.weekend; renderHome(); renderSettings(); toast(store.weekend?"weekend mode on · rates frozen until Monday open, much careful":"markets reopened · rates live again (mock)"); buzz(12); }
+$("#wkSw").addEventListener("click",toggleWeekend);
+
+/* ================= fetch (v3 intact) ================= */
+let loops=0,bones=0,sniffFails=0,fetching=false;
+$("#fetchBtn").addEventListener("click",e=>{
+  if(fetching) return; fetching=true; buzz([15,40,15]);
+  const btn=e.currentTarget; btn.classList.add("scanning"); $("#scanner").classList.add("on");
+  $("#shareCard").classList.add("hidden"); $("#sniffMsg").textContent="";
+  const nodes=$$("#route .node"), links=$$("#route .linkline");
+  nodes.forEach(n=>n.classList.remove("lit")); links.forEach(l=>l.classList.remove("lit"));
+  nodes.forEach((n,i)=>setTimeout(()=>{ n.classList.add("lit"); buzz(8); if(i<links.length) links[i].classList.add("lit"); },350*(i+1)));
+  setTimeout(()=>{
+    btn.classList.remove("scanning"); $("#scanner").classList.remove("on");
+    loops++; $("#loopCount").textContent=loops;
+    store.quest.loops=Math.min(store.quest.loops+1,9); renderHome();
+    const p=Math.min(.55+sniffFails*.25,.9), win=Math.random()<p;
+    if(win){
+      sniffFails=0; bones++; $("#boneCount").textContent=bones;
+      $("#scPct").textContent="+0.4%"; $("#scRoute").textContent="K9USD → K9EUR → wDOGE";
+      const sc=$("#shareCard"); sc.classList.remove("hidden","pop"); void sc.offsetWidth; sc.classList.add("pop");
+      const r=sc.getBoundingClientRect(); burst(r.left+r.width/2,r.top+40,34); buzz([20,50,20,50,60]);
+    }else{
+      sniffFails++;
+      $("#sniffMsg").textContent="no bone yet, keep sniffing · arb band ≈0.15% not crossed";
+      const r=btn.getBoundingClientRect(); burst(r.left+r.width/2,r.top+r.height/2,8); buzz(30);
+    }
+    fetching=false;
+  },1500);
+});
+$("#copyShare").addEventListener("click",()=>{
+  const txt="MUCH WALLET · fetched the loop K9USD → K9EUR → wDOGE · +0.4% (mock) · DogeForex on Chikyū testnet";
+  try{ navigator.clipboard && navigator.clipboard.writeText(txt).catch(()=>{}); }catch(e){}
+  toast("result copied · such share · <span class='tag'>mock</span>"); buzz(15);
+});
+
+/* ================= mint wizard (v3 intact, wired to store) ================= */
+const COLRANGE={MOFX:{min:9000,max:60000,step:100,def:12000},wDOGE:{min:45000,max:250000,step:500,def:60000},WUFF:{min:20000,max:120000,step:100,def:30000}};
+const mint={col:"MOFX",k9:"K9USD",colAmt:12000,mintAmt:2200};
+function updateMint(){
+  const colVal=mint.colAmt*COLPX[mint.col], mintVal=mint.mintAmt*k9usd(mint.k9), cr=colVal/mintVal*100;
+  $("#colAmtOut").textContent=fmt(mint.colAmt,0)+" "+mint.col;
+  $("#mintAmtOut").textContent=fmt(mint.mintAmt,1)+" "+mint.k9;
+  const frac=clamp((cr-80)/140,0,1), C=282.74;
+  $("#gArc").setAttribute("stroke-dasharray",`${frac*C} 283`);
+  $("#gArc").setAttribute("stroke",cr>=150?"#37b24d":cr>=120?"#f08c00":"#e03131");
+  $("#gNeedle").style.transform=`rotate(${frac*180-90}deg)`;
+  $("#gVal").textContent=Math.round(cr)+"%";
+  $("#rvCol").textContent=`${fmt(mint.colAmt,0)} ${mint.col} ($${fmt(colVal)})`;
+  $("#rvMint").textContent=`${fmt(mint.mintAmt,1)} ${mint.k9} ($${fmt(mintVal)})`;
+  $("#rvCr").textContent=Math.round(cr)+"% · "+bandOf(cr).lbl;
+  $("#rvMin").textContent=colVal>=MIN_POS?"✓ $"+fmt(colVal):"✗ $"+fmt(colVal)+" < $3,500";
+  $("#rvMin").style.color=colVal>=MIN_POS?"var(--usd)":"var(--red)";
+  $("#mintGo").disabled=colVal<MIN_POS;
+  return cr;
+}
+$$("#colChips .chipbtn").forEach(b=>b.addEventListener("click",()=>{
+  $$("#colChips .chipbtn").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+  mint.col=b.dataset.col; const r=COLRANGE[mint.col];
+  const s=$("#colAmt"); s.min=r.min; s.max=r.max; s.step=r.step; s.value=r.def;
+  mint.colAmt=r.def; $("#colName").textContent=mint.col; updateMint(); buzz(10);
+}));
+const k9chips=$("#k9Chips");
+KEYS.forEach(k=>{
+  const b=document.createElement("button"); b.className="chipbtn"+(k==="K9USD"?" on":""); b.textContent=k; b.style.fontSize="10.5px"; b.style.padding="7px 9px";
+  b.addEventListener("click",()=>{ k9chips.querySelectorAll(".chipbtn").forEach(x=>x.classList.remove("on")); b.classList.add("on"); mint.k9=k; updateMint(); buzz(10); });
+  k9chips.appendChild(b);
+});
+$("#colAmt").addEventListener("input",e=>{ mint.colAmt=+e.target.value; updateMint(); });
+$("#mintAmt").addEventListener("input",e=>{ mint.mintAmt=+e.target.value; updateMint(); });
+function mintStep(n){
+  [1,2,3].forEach(i=>$("#mintStep"+i).classList.toggle("hidden",i!==n));
+  $$("#mintDots i").forEach((d,i)=>d.classList.toggle("on",i<n));
+  updateMint();
+}
+$$("[data-mnext]").forEach(b=>b.addEventListener("click",()=>{ mintStep(+b.dataset.mnext); buzz(10); }));
+$("#mintGo").addEventListener("click",e=>{
+  const colVal=mint.colAmt*COLPX[mint.col];
+  if(colVal<MIN_POS){ $("#mintStep3").classList.add("shake"); setTimeout(()=>$("#mintStep3").classList.remove("shake"),450); toast("collateral below min position $3,500 · much small"); return; }
+  if(store.colBal[mint.col]<mint.colAmt){ toast("not enough "+mint.col+" in wallet (mock) · much poor"); return; }
+  if(store.bal.K9USD<OPENING_FEE){ toast("need 1,000 K9USD for opening fee (mock)"); return; }
+  store.colBal[mint.col]-=mint.colAmt;
+  store.bal.K9USD-=OPENING_FEE;
+  store.bal[mint.k9]+=mint.mintAmt;
+  const p={id:"POS-"+(store.nextId++),col:mint.col,colAmt:mint.colAmt,ccy:mint.k9,minted:mint.mintAmt,denyUntil:Date.now()+DAY_MS*5,cooldownUntil:0};
+  store.positions.push(p);
+  const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,30); buzz([20,40,20,40,80]);
+  toast("position "+p.id+" opened (mock) · "+fmt(mint.mintAmt,1)+" "+mint.k9+" minted · fee 1,000 K9USD · deny window 5 days");
+  renderHome(); mintStep(1);
+});
+
+/* ================= positions ================= */
+function challengeOf(posId){ return store.challenges.find(c=>c.posId===posId && c.state==="active"); }
+function posStatus(p){
+  const ch=challengeOf(p.id);
+  if(ch) return `<span class="hband r">challenged</span>`;
+  if(p.cooldownUntil>Date.now()) return `<span class="timerpill">⏱ cooldown ${fmtDur(p.cooldownUntil-Date.now())}</span>`;
+  if(p.denyUntil>Date.now()) return `<span class="timerpill">⏱ deny window ${fmtDur(p.denyUntil-Date.now())}</span>`;
+  return `<span class="hband g">clear</span>`;
+}
+function fmtDur(ms){
+  const s=Math.max(0,Math.floor(ms/1000)), d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60), ss=s%60;
+  const p2=n=>String(n).padStart(2,"0");
+  return (d>0?d+"d ":"")+p2(h)+":"+p2(m)+":"+p2(ss);
+}
+function renderPositions(){
+  const ps=store.positions;
+  $("#posSummary").innerHTML=`
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div><small style="font-size:9px;font-weight:900;color:var(--ink2);letter-spacing:.08em">OPEN</small><br><b style="font-size:18px">${ps.length}</b></div>
+      <div><small style="font-size:9px;font-weight:900;color:var(--ink2);letter-spacing:.08em">GREEN</small><br><b style="font-size:18px;color:var(--usd)">${ps.filter(p=>crOf(p)>200).length}</b></div>
+      <div><small style="font-size:9px;font-weight:900;color:var(--ink2);letter-spacing:.08em">AMBER</small><br><b style="font-size:18px;color:var(--doge)">${ps.filter(p=>{const c=crOf(p);return c>=120&&c<=200}).length}</b></div>
+      <div><small style="font-size:9px;font-weight:900;color:var(--ink2);letter-spacing:.08em">RED</small><br><b style="font-size:18px;color:var(--red)">${ps.filter(p=>crOf(p)<120).length}</b></div>
+    </div>`;
+  const el=$("#posList"); el.innerHTML="";
+  if(!ps.length){ el.innerHTML=`<div class="card infocard">much empty. every position closed — wow discipline. <span class="tag">mock</span></div>`; return; }
+  ps.forEach(p=>{
+    const cr=crOf(p), b=bandOf(cr);
+    const d=document.createElement("div"); d.className="positem";
+    d.innerHTML=`
+      <div class="ptop">
+        <span class="chip" style="width:30px;height:30px;font-size:10px;background:${CC[p.ccy]}">${p.ccy.slice(2)}</span>
+        <span class="pid">${p.id} · ${p.col} → ${p.ccy}</span>
+        <span class="crpct" style="color:${crColor(cr)}">${fmt(cr,1)}%</span>
+      </div>
+      <div class="crbar"><i style="width:${clamp(cr/3,2,100)}%;background:${crColor(cr)}"></i></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:10.5px;font-weight:800;color:var(--ink2)">
+        <span class="hband ${b.cls}">${b.lbl}</span><span>${posStatus(p)}</span>
+      </div>`;
+    d.addEventListener("click",()=>{ curPosId=p.id; go("position"); });
+    el.appendChild(d);
+  });
+}
+let curPosId=null;
+function renderPosition(){
+  const p=store.positions.find(x=>x.id===curPosId);
+  const body=$("#pdBody");
+  if(!p){ body.innerHTML=`<div class="card infocard">position closed or gone (mock).</div>`; return; }
+  const cr=crOf(p), b=bandOf(cr), lp=liqPriceOf(p);
+  $("#pdTitle").innerHTML=`${p.id}<small>${p.col} collateral → ${p.ccy} · working actions · mock</small>`;
+  const wMaxW=Math.max(0,collatUSD(p)-1.1*mintedUSD(p))/COLPX[p.col]; // withdraw keeps CR>=110%
+  body.innerHTML=`
+    <div class="card" style="border-color:${crColor(cr)}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <b style="font-size:14px">Health</b>
+        <span class="hband ${b.cls}">${b.lbl}</span>
+      </div>
+      <div style="font-size:34px;font-weight:900;color:${crColor(cr)};font-variant-numeric:tabular-nums">${fmt(cr,1)}%</div>
+      <div class="crbar"><i style="width:${clamp(cr/3,2,100)}%;background:${crColor(cr)}"></i></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Minted (${p.ccy})</span><b>${fmtC(p.minted,p.ccy,p.ccy==="K9JPY"?0:1)}</b></div>
+      <div class="kv"><span class="k">Minted (USD)</span><b>$${fmt(mintedUSD(p))}</b></div>
+      <div class="kv"><span class="k">Collateral</span><b>${fmt(p.colAmt,0)} ${p.col} ($${fmt(collatUSD(p))})</b></div>
+      <div class="kv"><span class="k">Collateral price (mock)</span><b>$${fmt(COLPX[p.col],3)}</b></div>
+      <div class="kv"><span class="k">Liq. price (CR→100%)</span><b>$${fmt(lp,3)}</b></div>
+      <div class="kv"><span class="k">Status</span><b>${posStatus(p)}</b></div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:900;margin-bottom:8px">Adjust position <span class="tag">recomputes live</span></h3>
+      <div class="field">
+        <label>Collateral ${p.col}<output id="adjColOut">${fmt(p.colAmt,0)}</output></label>
+        <input type="range" id="adjCol" min="0" max="${Math.round(p.colAmt*1.5)}" step="10" value="${Math.round(p.colAmt)}">
+      </div>
+      <div class="field">
+        <label>Minted ${p.ccy}<output id="adjMintOut">${fmt(p.minted,0)}</output></label>
+        <input type="range" id="adjMint" min="1" max="${Math.round(p.minted*1.5)}" step="1" value="${Math.round(p.minted)}">
+      </div>
+      <div class="kv"><span class="k">New collateral ratio</span><b id="adjCr" style="color:${crColor(cr)}">${fmt(cr,1)}%</b></div>
+      <div class="kv"><span class="k">New liq. price</span><b id="adjLp">$${fmt(lp,3)}</b></div>
+      <button class="btn blue sm" id="adjApply" style="width:100%;margin-top:8px">Apply adjustment</button>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:900;margin-bottom:8px">Mint more</h3>
+      <div class="field">
+        <label>Additional ${p.ccy}<output id="mmOut">${fmt(p.minted*0.1,0)}</output></label>
+        <input type="range" id="mmAmt" min="1" max="${Math.round(p.minted)}" step="1" value="${Math.round(p.minted*0.1)}">
+      </div>
+      <div class="kv"><span class="k">Collateral ratio after</span><b id="mmCr">—</b></div>
+      <button class="btn pink sm" id="mmApply" style="width:100%;margin-top:8px">Mint more · such leverage</button>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:900;margin-bottom:8px">Repay <span style="font-size:10px;color:var(--ink2)">frees collateral</span></h3>
+      <div class="field">
+        <label>Repay ${p.ccy}<output id="rpOut">0</output></label>
+        <input type="range" id="rpAmt" min="0" max="${Math.round(p.minted)}" step="1" value="0">
+      </div>
+      <div class="kv"><span class="k">Collateral freed</span><b id="rpFree">0 ${p.col}</b></div>
+      <div class="kv"><span class="k">Your ${p.ccy} balance</span><b>${fmt(store.bal[p.ccy],p.ccy==="K9JPY"?0:1)}</b></div>
+      <button class="btn green sm" id="rpApply" style="width:100%;margin-top:8px">Repay</button>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:900;margin-bottom:8px">Withdraw collateral</h3>
+      <div class="field">
+        <label>Withdraw ${p.col}<output id="wdOut">0</output></label>
+        <input type="range" id="wdAmt" min="0" max="${Math.round(wMaxW)}" step="10" value="0">
+      </div>
+      <div class="kv"><span class="k">Collateral ratio after</span><b id="wdCr">—</b></div>
+      <div class="kv"><span class="k">Gate</span><b>must stay ≥ 110%</b></div>
+      <button class="btn ghost sm" id="wdApply" style="width:100%;margin-top:8px">Withdraw</button>
+    </div>
+
+    <button class="btn pink" id="closePos" style="width:100%">Close position · repay all · take collateral</button>`;
+
+  /* adjust */
+  const adjCol=$("#adjCol"), adjMint=$("#adjMint");
+  function adjUpd(){
+    const ca=+adjCol.value, m=+adjMint.value;
+    $("#adjColOut").textContent=fmt(ca,0); $("#adjMintOut").textContent=fmt(m,0);
+    const ncr=ca*COLPX[p.col]/(m*k9usd(p.ccy))*100;
+    $("#adjCr").textContent=fmt(ncr,1)+"%"; $("#adjCr").style.color=crColor(ncr);
+    $("#adjLp").textContent="$"+fmt(m*k9usd(p.ccy)/Math.max(ca,1),3);
+  }
+  adjCol.addEventListener("input",adjUpd); adjMint.addEventListener("input",adjUpd); adjUpd();
+  $("#adjApply").addEventListener("click",()=>{
+    const ca=+adjCol.value, m=+adjMint.value, dCol=ca-p.colAmt, dMint=m-p.minted;
+    if(dCol>store.colBal[p.col]){ toast("not enough "+p.col+" in wallet (mock)"); return; }
+    if(dMint<0 && store.bal[p.ccy]< -dMint){ toast("need "+fmtC(-dMint,p.ccy)+" to burn (mock) · much short"); return; }
+    store.colBal[p.col]-=dCol; p.colAmt=ca;
+    if(dMint!==0){ store.bal[p.ccy]+=dMint; p.minted=m; }
+    toast(p.id+" adjusted (mock) · CR now "+fmt(crOf(p),1)+"% · liq $"+fmt(liqPriceOf(p),3)); buzz(15); renderPosition(); renderPositions(); renderHome();
+  });
+  /* mint more */
+  const mmAmt=$("#mmAmt");
+  function mmUpd(){ const a=+mmAmt.value; $("#mmOut").textContent=fmt(a,0);
+    const ncr=(p.colAmt*COLPX[p.col])/((p.minted+a)*k9usd(p.ccy))*100;
+    $("#mmCr").textContent=fmt(ncr,1)+"%"; $("#mmCr").style.color=crColor(ncr); }
+  mmAmt.addEventListener("input",mmUpd); mmUpd();
+  $("#mmApply").addEventListener("click",e=>{
+    const a=+mmAmt.value; p.minted+=a; store.bal[p.ccy]+=a;
+    const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,18); buzz([15,30,15]);
+    toast(a.toLocaleString()+" "+p.ccy+" minted more (mock) · CR "+fmt(crOf(p),1)+"% · such leverage"); renderPosition(); renderPositions(); renderHome();
+  });
+  /* repay */
+  const rpAmt=$("#rpAmt");
+  function rpUpd(){ const a=+rpAmt.value; $("#rpOut").textContent=fmt(a,0);
+    $("#rpFree").textContent=fmt(p.colAmt*a/Math.max(p.minted,1),0)+" "+p.col; }
+  rpAmt.addEventListener("input",rpUpd); rpUpd();
+  $("#rpApply").addEventListener("click",()=>{
+    const a=+rpAmt.value; if(a<=0){ toast("slide to repay something · much zero"); return; }
+    if(store.bal[p.ccy]<a){ toast("not enough "+p.ccy+" to repay (mock)"); return; }
+    const freed=p.colAmt*a/p.minted;
+    store.bal[p.ccy]-=a; store.colBal[p.col]+=freed; p.colAmt-=freed; p.minted-=a;
+    buzz(15); toast("repaid "+fmtC(a,p.ccy,0)+" (mock) · freed "+fmt(freed,0)+" "+p.col+" · CR "+fmt(crOf(p),1)+"%");
+    if(p.minted<=0.5){ store.positions=store.positions.filter(x=>x.id!==p.id); toast(p.id+" fully repaid · position closed · collateral returned (mock)"); go("positions"); }
+    renderPosition(); renderPositions(); renderHome();
+  });
+  /* withdraw */
+  const wdAmt=$("#wdAmt");
+  function wdUpd(){ const a=+wdAmt.value; $("#wdOut").textContent=fmt(a,0);
+    const ncr=((p.colAmt-a)*COLPX[p.col])/mintedUSD(p)*100;
+    $("#wdCr").textContent=fmt(ncr,1)+"%"; $("#wdCr").style.color=crColor(ncr); }
+  wdAmt.addEventListener("input",wdUpd); wdUpd();
+  $("#wdApply").addEventListener("click",()=>{
+    const a=+wdAmt.value; if(a<=0){ toast("slide to withdraw something · much zero"); return; }
+    p.colAmt-=a; store.colBal[p.col]+=a;
+    buzz(15); toast("withdrew "+fmt(a,0)+" "+p.col+" (mock) · CR "+fmt(crOf(p),1)+"%"); renderPosition(); renderPositions();
+  });
+  /* close */
+  $("#closePos").addEventListener("click",()=>{
+    if(store.bal[p.ccy]<p.minted){ toast("need "+fmtC(p.minted,p.ccy)+" to close (mock) · repay first or fetch more"); return; }
+    store.bal[p.ccy]-=p.minted; store.colBal[p.col]+=p.colAmt;
+    store.positions=store.positions.filter(x=>x.id!==p.id);
+    toast(p.id+" closed (mock) · all collateral back · much freedom"); buzz([20,40,60]); go("positions"); renderPositions(); renderHome();
+  });
+}
+
+/* ================= savings ================= */
+const save={ccy:"K9USD",amt:500};
+function renderSavings(){
+  // protocol-wide total (mock)
+  const protoTotal=412350;
+  $("#saveProto").innerHTML=`
+    <div style="font-size:12px;font-weight:900;margin-bottom:6px">Protocol-wide savings <span class="tag">mock</span></div>
+    <div style="font-size:26px;font-weight:900;font-variant-numeric:tabular-nums">$${fmt(protoTotal)}</div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink2);margin-top:2px">across 7 currencies · every rate set by monetary policy (Leadrate) · no promises, just policy.</div>`;
+  // chips
+  const ch=$("#saveChips");
+  if(!ch.childElementCount){
+    KEYS.forEach(k=>{
+      const b=document.createElement("button"); b.className="chipbtn"+(k==="K9USD"?" on":""); b.textContent=k; b.style.fontSize="10px"; b.style.padding="7px 8px"; b.dataset.ccy=k;
+      b.addEventListener("click",()=>{ ch.querySelectorAll(".chipbtn").forEach(x=>x.classList.remove("on")); b.classList.add("on"); save.ccy=k; $("#saveAmtOut").textContent=save.amt+" "+k; buzz(8); });
+      ch.appendChild(b);
+    });
+  }
+  $("#saveAmtOut").textContent=save.amt+" "+save.ccy;
+  // entries
+  const el=$("#saveList"); el.innerHTML="";
+  if(!store.savings.length){ el.innerHTML=`<div class="card infocard">no savings yet — deposit some k9, watch it accrue at the Leadrate. <span class="tag">mock</span></div>`; return; }
+  store.savings.forEach((s,i)=>{
+    const locked=s.lockedUntil>Date.now();
+    const d=document.createElement("div"); d.className="card";
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span class="chip" style="width:30px;height:30px;font-size:10px;background:${CC[s.ccy]}">${s.ccy.slice(2)}</span>
+        <b style="font-size:13px">${s.ccy} savings</b>
+        <span class="timerpill" style="margin-left:auto" data-lock${i}>⏱</span>
+      </div>
+      <div style="font-size:24px;font-weight:900;font-variant-numeric:tabular-nums" data-bal${i}>${fmt(s.bal,4)}</div>
+      <div class="prog green" style="margin:8px 0"><i data-prog${i} style="width:${locked?clamp(100-(s.lockedUntil-Date.now())/(DAY_MS*3)*100,2,100):100}%"></i></div>
+      <div class="kv"><span class="k">Leadrate (monetary policy)</span><b>${LEAD[s.ccy]}%</b></div>
+      <div class="kv"><span class="k">Status</span><b data-st${i}>${locked?"locked · 3-day lockup":"unlocked · withdraw ready"}</b></div>
+      <button class="btn ${locked?"ghost":"green"} sm" data-wd${i} style="width:100%;margin-top:8px" ${locked?"disabled":""}>${locked?"locked · wait for timer":"Withdraw · take k9 back"}</button>
+      ${locked?`<button class="btn ghost sm" data-ff${i} style="width:100%;margin-top:6px">fast-forward lockup (demo)</button>`:""}`;
+    el.appendChild(d);
+    const wd=d.querySelector(`[data-wd${i}]`);
+    if(wd) wd.addEventListener("click",()=>{
+      store.bal[s.ccy]+=s.bal; toast("withdrew "+fmtC(s.bal,s.ccy,4)+" from savings (mock) · much liquidity"); buzz(15);
+      store.savings.splice(i,1); renderSavings(); renderHome();
+    });
+    const ff=d.querySelector(`[data-ff${i}]`);
+    if(ff) ff.addEventListener("click",()=>{ s.lockedUntil=Date.now(); toast("lockup fast-forwarded (demo) · withdraw ready"); renderSavings(); });
+  });
+}
+function savingsTick(){
+  // accrue (demo speed ×100 so it is visible) + update timers
+  store.savings.forEach(s=>{ s.bal*=1+(LEAD[s.ccy]/100)/(365*86400)*100*1000; });
+  if(curPage!=="savings") return;
+  store.savings.forEach((s,i)=>{
+    const b=$(`[data-bal${i}]`); if(!b) return;
+    b.textContent=fmt(s.bal,4);
+    const locked=s.lockedUntil>Date.now();
+    const lp=$(`[data-lock${i}]`); if(lp) lp.textContent=locked?"⏱ "+fmtDur(s.lockedUntil-Date.now()):"🔓 ready";
+    const pg=$(`[data-prog${i}]`); if(pg) pg.style.width=locked?clamp(100-(s.lockedUntil-Date.now())/(DAY_MS*3)*100,2,100):100+"%";
+    const st=$(`[data-st${i}]`); if(st) st.textContent=locked?"locked · 3-day lockup":"unlocked · withdraw ready";
+    const wd=$(`[data-wd${i}]`); if(wd && !locked && wd.disabled){ renderSavings(); }
+  });
+}
+$("#saveAmt").addEventListener("input",e=>{ save.amt=+e.target.value; $("#saveAmtOut").textContent=save.amt+" "+save.ccy; });
+$("#saveDeposit").addEventListener("click",e=>{
+  if(store.bal[save.ccy]<save.amt){ toast("not enough "+save.ccy+" in wallet (mock)"); return; }
+  store.bal[save.ccy]-=save.amt;
+  store.savings.push({ccy:save.ccy,bal:save.amt,lockedUntil:Date.now()+DAY_MS*3,depositDay:Date.now()});
+  const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,22); buzz([15,35,15]);
+  toast("deposited "+fmtC(save.amt,save.ccy)+" into savings (mock) · Leadrate "+LEAD[save.ccy]+"% · 3-day lockup started");
+  renderSavings(); renderHome();
+});
+
+/* ================= baskets ================= */
+const W={K9USD:30,K9EUR:20,K9JPY:10,K9GBP:12,K9AUD:8,K9CNY:10,K9BRL:10};
+const PRESETS={
+  "Equal-7":{K9USD:15,K9EUR:14,K9JPY:14,K9GBP:14,K9AUD:14,K9CNY:14,K9BRL:15},
+  "G10-Lite":{K9USD:30,K9EUR:25,K9GBP:20,K9JPY:15,K9AUD:10,K9CNY:0,K9BRL:0},
+  "BRICS+":{K9USD:15,K9EUR:15,K9CNY:35,K9BRL:35,K9JPY:0,K9GBP:0,K9AUD:0},
+  "Carry":{K9USD:10,K9EUR:8,K9GBP:7,K9JPY:0,K9AUD:40,K9CNY:0,K9BRL:35},
+};
+function buildBaskets(){
+  const box=$("#basketRows"); box.innerHTML="";
+  KEYS.forEach(k=>{
+    const row=document.createElement("div"); row.className="brow";
+    row.innerHTML=`<div class="btop"><b>${k}</b><output id="w-${k}">${W[k]}%</output></div>
+      <input type="range" min="0" max="60" step="1" value="${W[k]}" data-w="${k}" style="accent-color:${CC[k]}">
+      <div class="bblock"><i id="b-${k}" style="width:${W[k]}%;background:${W[k]?CC[k]:"transparent"}"></i></div>`;
+    box.appendChild(row);
+  });
+  box.addEventListener("input",e=>{ const k=e.target.dataset.w; if(!k)return; W[k]=+e.target.value; $(`#w-${k}`).textContent=W[k]+"%"; const b=$(`#b-${k}`); b.style.width=W[k]+"%"; b.style.background=W[k]?CC[k]:"transparent"; updateTotal(); });
+  const pc=$("#presetChips");
+  Object.keys(PRESETS).forEach(name=>{
+    const b=document.createElement("button"); b.className="chipbtn"; b.textContent=name; b.style.fontSize="10px"; b.style.padding="7px 10px";
+    b.addEventListener("click",()=>{
+      Object.assign(W,PRESETS[name]);
+      KEYS.forEach(k=>{ const o=$(`#w-${k}`); if(o){ o.textContent=W[k]+"%"; $(`#b-${k}`).style.width=W[k]+"%"; $(`#b-${k}`).style.background=W[k]?CC[k]:"transparent"; $(`[data-w="${k}"]`).value=W[k]; } });
+      updateTotal(); buzz(12);
+      toast(name==="Carry"?"carry preset: borrow cheap yen, stack high real · much macro":name+" preset loaded · such weights");
+    });
+    pc.appendChild(b);
+  });
+  updateTotal();
+}
+function updateTotal(){
+  const t=Object.values(W).reduce((a,b)=>a+b,0);
+  $("#totalOut").textContent=t+"%";
+  const ok=t===100, pill=$("#totalPill"), badge=$("#totalBadge");
+  pill.classList.toggle("ok",ok);
+  badge.textContent=ok?"MUCH BALANCED":(t<100?`MUCH NOT BALANCED · need ${100-t}%`:`MUCH NOT BALANCED · ${t-100}% over`);
+  $("#mintBasket").disabled=!ok;
+  return t;
+}
+$("#diversify").addEventListener("click",()=>{
+  Object.assign(W,PRESETS["Equal-7"]);
+  KEYS.forEach(k=>{ $(`#w-${k}`).textContent=W[k]+"%"; const b=$(`#b-${k}`); b.style.width=W[k]+"%"; b.style.background=W[k]?CC[k]:"transparent"; $(`[data-w="${k}"]`).value=W[k]; });
+  updateTotal(); buzz(15); toast("much diversify · equal weights · very balance");
+});
+$("#mintBasket").addEventListener("click",e=>{
+  if(updateTotal()!==100) return;
+  const amt=500; // mock mint size
+  if(store.bal.K9USD<amt){ toast("need 500 K9USD to mint a basket (mock)"); return; }
+  store.bal.K9USD-=amt;
+  const weights={...W};
+  const b={id:"BSK-"+(store.nextId++),name:"Basket "+(store.baskets.length+1),amt,weights,nav:amt,drift:1};
+  store.baskets.push(b);
+  const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,30); buzz([20,40,60]);
+  toast("basket minted (mock) · 500 K9USD in · NAV $"+fmt(b.nav)+" · so currency"); renderBaskets(); renderHome();
+});
+function renderBaskets(){
+  const el=$("#basketPortfolio"); el.innerHTML="";
+  if(!store.baskets.length) return;
+  el.innerHTML=`<h2 class="sect">Your baskets <small>NAV drifts with mock FX</small></h2>`;
+  store.baskets.forEach(b=>{
+    const d=document.createElement("div"); d.className="card"; d.dataset.bid=b.id;
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <b style="font-size:13px">${b.name}</b><span class="tag">mock nav</span>
+        <b style="margin-left:auto;font-size:16px;font-variant-numeric:tabular-nums" data-nav>$${fmt(b.nav)}</b>
+      </div>
+      <div class="bblock" style="display:flex;gap:2px;border:0;height:16px">${KEYS.map(k=>b.weights[k]?`<i style="flex:${b.weights[k]};background:${CC[k]};border-radius:4px;border:2px solid var(--ink)"></i>`:"").join("")}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn blue sm" data-rebal style="flex:1">Rebalance</button>
+        <button class="btn ghost sm" data-redeem style="flex:1">Redeem</button>
+      </div>
+      <div class="rebal hidden" style="margin-top:10px">
+        ${KEYS.map(k=>`<div class="field" style="margin-bottom:8px"><label style="font-size:10px">${k}<output data-ro="${k}">${b.weights[k]}%</output></label>
+          <input type="range" min="0" max="60" step="1" value="${b.weights[k]}" data-rw="${k}" style="accent-color:${CC[k]}"></div>`).join("")}
+        <div class="totalpill" data-rpill><span>Total: <b data-rtot>100%</b></span><span class="badge" data-rbadge>MUCH BALANCED</span></div>
+        <button class="btn blue sm" data-rapple style="width:100%">Apply rebalance</button>
+      </div>`;
+    el.appendChild(d);
+    d.querySelector("[data-rebal]").addEventListener("click",()=>{ d.querySelector(".rebal").classList.toggle("hidden"); buzz(8); });
+    d.querySelector("[data-redeem]").addEventListener("click",()=>{
+      store.bal.K9USD+=b.nav;
+      store.baskets=store.baskets.filter(x=>x.id!==b.id);
+      toast(b.name+" redeemed (mock) · $"+fmt(b.nav)+" K9USD back · much exit"); buzz(15); renderBaskets(); renderHome();
+    });
+    const rpill=d.querySelector("[data-rpill]"), rbadge=d.querySelector("[data-rbadge]"), rtot=d.querySelector("[data-rtot]");
+    d.querySelectorAll("[data-rw]").forEach(sl=>sl.addEventListener("input",()=>{
+      b.weights[sl.dataset.rw]=+sl.value;
+      d.querySelector(`[data-ro="${sl.dataset.rw}"]`).textContent=sl.value+"%";
+      const t=Object.values(b.weights).reduce((a,x)=>a+x,0);
+      rtot.textContent=t+"%";
+      const ok=t===100; rpill.classList.toggle("ok",ok);
+      rbadge.textContent=ok?"MUCH BALANCED":(t<100?`need ${100-t}%`:`${t-100}% over`);
+      d.querySelector("[data-rapple]").disabled=!ok;
+    }));
+    d.querySelector("[data-rapple]").addEventListener("click",()=>{
+      toast(b.name+" rebalanced (mock) · weights updated · much tuned"); buzz(15); renderBaskets();
+    });
+  });
+}
+function basketTick(){
+  if(!store.baskets.length) return;
+  store.baskets.forEach(b=>{
+    const pw=KEYS.reduce((a,k)=>a+b.weights[k]*PX[k],0)/100;
+    b.nav=b.amt*pw;
+  });
+  if(curPage!=="baskets") return;
+  store.baskets.forEach(b=>{
+    const el=document.querySelector(`[data-bid="${b.id}"] [data-nav]`);
+    if(el) el.textContent="$"+fmt(b.nav);
+  });
+}
+
+/* ================= pool tokens (K9USDS) ================= */
+const poolPrice=(R,S)=>VFACTOR*R/S;
+function poolHistInit(){
+  const h=store.pool.hist, P=poolPrice(store.pool.reserve,store.pool.supply);
+  if(h.length) return;
+  let v=P*(0.86+Math.random()*0.1);
+  for(let i=0;i<30;i++){ v*=1+(Math.random()-.48)*0.012; h.push(v); }
+  h[h.length-1]=P;
+}
+function renderPool(){
+  renderPoolCard();
+  renderPoolWiz();
+  drawCurve();
+  drawHist();
+  $("#curvePrice").textContent="$"+fmt(poolPrice(store.pool.reserve,store.pool.supply),3);
+}
+function renderPoolCard(){
+  const P=store.pool, price=poolPrice(P.reserve,P.supply), myPct=P.mine/P.supply*100;
+  $("#myPoolCard").innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span class="chip" style="background:linear-gradient(135deg,var(--doge),var(--orange))">K9</span>
+      <b style="font-size:13px">My Pool Tokens</b>
+      <span class="tag" style="margin-left:auto">K9USDS</span>
+    </div>
+    <div class="bigstat">
+      <div class="bs"><small>Balance</small><b>${fmt(P.mine,2)} K9USDS</b></div>
+      <div class="bs"><small>Mock price</small><b>$${fmt(price,3)}</b></div>
+      <div class="bs"><small>Value (mock)</small><b>$${fmt(P.mine*price)}</b></div>
+      <div class="bs"><small>Reserve backing</small><b>$${fmt(P.reserve)}</b></div>
+    </div>
+    <div class="kv"><span class="k">Share of supply</span><b>${fmt(myPct,2)}% · ${myPct>=QUORUM*100?"meets the 2% deny quorum ✓":"below the 2% deny quorum"}</b></div>
+    <div class="kv"><span class="k">Holding note</span><b>90-day holding note</b></div>`;
+}
+let poolMode="invest";
+const pwiz={invest:2500,redeem:100};
+$("#poolSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  poolMode=b.dataset.pm;
+  $$("#poolSeg button").forEach(x=>x.classList.toggle("on",x===b));
+  renderPoolWiz(); drawCurve(); buzz(10);
+});
+function renderPoolWiz(){
+  const P=store.pool, w=$("#poolWiz");
+  if(poolMode==="invest"){
+    w.innerHTML=`
+      <h3>Invest K9USD → mint Pool Tokens <span class="tag">cube-root curve</span></h3>
+      <div class="field">
+        <label>Invest (K9USD)<output id="pwOut"></output></label>
+        <input type="range" id="invAmt" min="10" max="10000" step="10" value="${pwiz.invest}">
+      </div>
+      <div class="kv"><span class="k">You receive (mock)</span><b id="pwTok"></b></div>
+      <div class="kv"><span class="k">Avg price paid</span><b id="pwAvg"></b></div>
+      <div class="kv"><span class="k">Curve price after</span><b id="pwAfter"></b></div>
+      <div class="kv"><span class="k">Price impact</span><b id="pwImp"></b></div>
+      <button class="btn green" id="invGo" style="width:100%;margin-top:10px">Invest · such equity</button>`;
+    $("#invAmt").addEventListener("input",e=>{ pwiz.invest=+e.target.value; updPoolWiz(); drawCurve(); });
+    $("#invGo").addEventListener("click",e=>{
+      if(store.bal.K9USD<pwiz.invest){ toast("not enough K9USD (mock) · much poor"); return; }
+      const I=pwiz.invest, tok=store.pool.supply*(Math.cbrt((store.pool.reserve+I)/store.pool.reserve)-1);
+      store.bal.K9USD-=I; store.pool.reserve+=I; store.pool.supply+=tok; store.pool.mine+=tok;
+      const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,32); buzz([20,40,20,40,80]);
+      toast("invested "+fmt(I,0)+" K9USD (mock) · minted "+fmt(tok,2)+" K9USDS · welcome to the pool, much partner");
+      poolHistPush(); renderPoolCard(); updPoolWiz(); drawCurve(); drawHist(); renderHome(); renderGov();
+    });
+  }else{
+    w.innerHTML=`
+      <h3>Redeem Pool Tokens → K9USD <span class="tag">exit side</span></h3>
+      <div class="field">
+        <label>Redeem (K9USDS)<output id="pwOut"></output></label>
+        <input type="range" id="redAmt" min="0" max="${Math.max(0,Math.floor(P.mine))}" step="5" value="${Math.min(pwiz.redeem,P.mine)}">
+      </div>
+      <div class="kv"><span class="k">Curve price (3×reserve/supply)</span><b id="pwCurve"></b></div>
+      <div class="kv"><span class="k">You receive (mock)</span><b id="pwTok"></b></div>
+      <div class="kv"><span class="k">Exit vs curve</span><b id="pwImp" style="color:var(--red)"></b></div>
+      <div class="infocard" style="font-size:10.5px;margin:6px 0 10px">exit pays book value (reserve ÷ supply). the curve price = 3 × reserve ÷ supply is the market reference — <b>90-day holding note</b>, much patience. Redeem small or hold long, wow.</div>
+      <button class="btn pink" id="redGo" style="width:100%">Redeem · take K9USD</button>`;
+    $("#redAmt").addEventListener("input",e=>{ pwiz.redeem=+e.target.value; updPoolWiz(); drawCurve(); });
+    $("#redGo").addEventListener("click",()=>{
+      const T2=Math.min(pwiz.redeem,store.pool.mine);
+      if(T2<=0){ toast("slide to redeem something · much zero"); return; }
+      const pr=T2*poolPrice(store.pool.reserve,store.pool.supply)/VFACTOR;
+      store.pool.mine-=T2; store.pool.supply-=T2; store.pool.reserve-=pr; store.bal.K9USD+=pr;
+      buzz([15,30,15]); toast("redeemed "+fmt(T2,2)+" K9USDS (mock) · got "+fmt(pr,2)+" K9USD · much exit");
+      poolHistPush(); renderPoolCard(); updPoolWiz(); drawCurve(); drawHist(); renderHome(); renderGov();
+    });
+  }
+  updPoolWiz();
+}
+function updPoolWiz(){
+  const P=store.pool, price=poolPrice(P.reserve,P.supply);
+  if(poolMode==="invest"){
+    const I=pwiz.invest;
+    const tok=P.supply*(Math.cbrt((P.reserve+I)/P.reserve)-1);
+    const nP=poolPrice(P.reserve+I,P.supply+tok);
+    const impact=(nP/price-1)*100;
+    $("#pwOut").textContent=fmt(I,0)+" K9USD";
+    $("#pwTok").textContent=fmt(tok,2)+" K9USDS";
+    $("#pwAvg").textContent="$"+fmt(I/Math.max(tok,1e-9),3);
+    $("#pwAfter").textContent="$"+fmt(nP,3);
+    $("#pwImp").textContent=(impact>=0?"+":"")+fmt(impact,2)+"%";
+    $("#pwImp").style.color=impact>1?"var(--red)":"var(--usd)";
+  }else{
+    const T=Math.min(pwiz.redeem,P.mine);
+    const proceeds=T*poolPrice(P.reserve,P.supply)/VFACTOR;
+    const impact=T>0?(proceeds/T)/price*100-100:0;
+    $("#pwOut").textContent=fmt(T,2)+" K9USDS";
+    $("#pwCurve").textContent="$"+fmt(price,3);
+    $("#pwTok").textContent=fmt(proceeds,2)+" K9USD";
+    $("#pwImp").textContent=fmt(impact,1)+"%";
+    $("#redGo") && ($("#redGo").disabled=T<=0);
+  }
+}
+function drawCurve(){
+  const P=store.pool, S0=P.supply, R0=P.reserve;
+  const I=poolMode==="invest"?pwiz.invest:0;
+  const T=poolMode==="redeem"?Math.min(pwiz.redeem,P.mine):0;
+  let S1=S0, R1=R0;
+  if(I>0){ S1=S0+S0*(Math.cbrt((R0+I)/R0)-1); R1=R0+I; }
+  if(T>0){ const pr=T*poolPrice(R0,S0)/VFACTOR; S1=S0-T; R1=R0-pr; }
+  const smin=S0*0.45, smax=S0*2.3, pmax=poolPrice(R0,smin)*1.06, pmin=poolPrice(R0,smax)*0.94;
+  const X=s=>22+(s-smin)/(smax-smin)*296, Y=p=>178-(p-pmin)/(pmax-pmin)*150;
+  let pts="";
+  for(let i=0;i<=64;i++){ const s=smin+(smax-smin)*i/64; pts+=`${X(s).toFixed(1)},${Y(poolPrice(R0,s)).toFixed(1)} `; }
+  const p0=poolPrice(R0,S0), p1=poolPrice(R1,S1);
+  const impact=poolMode==="invest"&&I>0?(p1/p0-1)*100:(poolMode==="redeem"&&T>0?(p1/p0-1)*100:0);
+  $("#curveSvg").innerHTML=`
+    <line x1="22" y1="178" x2="318" y2="178" stroke="#2b2118" stroke-width="2.5"/>
+    <line x1="22" y1="178" x2="22" y2="14" stroke="#2b2118" stroke-width="2.5"/>
+    <text x="318" y="170" text-anchor="end" font-size="8.5" font-weight="800" fill="#6f6257">SUPPLY →</text>
+    <text x="28" y="20" font-size="8.5" font-weight="800" fill="#6f6257">K9USD PRICE</text>
+    <polyline points="${pts}" fill="none" stroke="#f7b500" stroke-width="4" stroke-linecap="round"/>
+    <line x1="${X(S0)}" y1="${Y(p0)}" x2="${X(S1)}" y2="${Y(p1)}" stroke="#ff6fa5" stroke-width="2.5" stroke-dasharray="5 4"/>
+    <circle cx="${X(S0)}" cy="${Y(p0)}" r="7" fill="#fff" stroke="#2b2118" stroke-width="3"/>
+    <rect x="${X(S1)-6}" y="${Y(p1)-6}" width="12" height="12" rx="3" fill="#ff6fa5" stroke="#2b2118" stroke-width="3"/>
+    <text x="${clamp(X(S1)+10,40,300)}" y="${clamp(Y(p1)-8,16,170)}" font-size="9.5" font-weight="900" fill="#2b2118">${poolMode==="invest"?"after invest":"after redeem"}</text>
+    <text x="318" y="30" text-anchor="end" font-size="9.5" font-weight="900" fill="#2b2118">$${fmt(p0,2)}</text>
+    ${impact?`<text x="318" y="42" text-anchor="end" font-size="9" font-weight="800" fill="${impact>0?"#2f9e44":"#e03131"}">impact ${impact>=0?"+":""}${fmt(impact,2)}%</text>`:""}`;
+}
+function drawHist(){
+  const h=store.pool.hist; if(h.length<2) return;
+  const mn=Math.min(...h)*0.985, mx=Math.max(...h)*1.015;
+  const X=i=>14+i/(h.length-1)*302, Y=v=>96-(v-mn)/(mx-mn)*76;
+  const pts=h.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const up=h[h.length-1]>=h[0];
+  $("#histDir").textContent=(up?"▲ ":"▼ ")+fmt(Math.abs(h[h.length-1]/h[0]-1)*100,1)+"%";
+  $("#histDir").style.color=up?"var(--usd)":"var(--red)";
+  $("#histSvg").innerHTML=`
+    <polyline points="${pts}" fill="none" stroke="#1971c2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${X(h.length-1)}" cy="${Y(h[h.length-1])}" r="5" fill="#1971c2" stroke="#2b2118" stroke-width="2.5"/>`;
+}
+function poolHistPush(){ const h=store.pool.hist; h.push(poolPrice(store.pool.reserve,store.pool.supply)); if(h.length>30) h.shift(); }
+function poolDrift(){
+  const P=store.pool;
+  P.reserve*=1+(Math.random()-.48)*0.0012;
+  P.supply*=1+(Math.random()-.5)*0.0015;
+  if(curPage!=="pool") return;
+  renderPoolCard(); updPoolWiz(); drawCurve();
+  $("#curvePrice").textContent="$"+fmt(poolPrice(P.reserve,P.supply),3);
+}
+
+/* ================= governance ================= */
+function renderGov(){
+  const P=store.pool, price=poolPrice(P.reserve,P.supply), myPct=P.mine/P.supply*100;
+  $("#myVetoCard").innerHTML=`
+    <div style="font-size:12px;font-weight:900;margin-bottom:6px">Your veto power <span class="tag">mock</span></div>
+    <div class="kv"><span class="k">Pool Tokens held</span><b>${fmt(P.mine,0)} K9USDS (${fmt(myPct,2)}%)</b></div>
+    <div class="kv"><span class="k">Deny threshold</span><b>2.00% of supply</b></div>
+    <div class="kv"><span class="k">Status</span><b style="color:${myPct>=2?"var(--usd)":"var(--red)"}">${myPct>=2?"can deny · much power":"not enough to deny"}</b></div>`;
+  // minter applications
+  const ga=$("#govApps"); ga.innerHTML="";
+  if(!store.apps.length) ga.innerHTML=`<div class="card infocard">no pending applications · much quiet. <span class="tag">mock</span></div>`;
+  store.apps.forEach(a=>{
+    const d=document.createElement("div"); d.className="card";
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <b style="font-size:13px">${a.name}</b>
+        <span class="chip" style="width:26px;height:26px;font-size:9px;background:${CC[a.ccy]}">${a.ccy.slice(2)}</span>
+        <span class="timerpill" style="margin-left:auto" data-gt="${a.id}">⏱</span>
+      </div>
+      <div class="kv"><span class="k">Minter address</span><b style="font-size:10px">${a.addr}</b></div>
+      <div class="kv"><span class="k">Application period</span><b>14 days (min)</b></div>
+      <div class="kv"><span class="k">Deny votes</span><b>${a.denied?fmt(a.denied,2)+"% recorded":"none yet · silence approves"}</b></div>
+      <div class="prog" style="margin:8px 0"><i data-gp="${a.id}" style="width:${clamp(a.denied/2,0,100)}%"></i></div>
+      <button class="btn pink sm" data-deny="${a.id}" style="width:100%">Deny · needs 2% Pool Tokens</button>`;
+    ga.appendChild(d);
+    d.querySelector("[data-deny]").addEventListener("click",e=>{
+      if(P.mine/P.supply<QUORUM){ toast("need 2% of Pool Tokens to deny (mock) · much small"); buzz(30); return; }
+      if(a.voters.includes("me")){ toast("you already denied this one · much decisive"); return; }
+      a.voters.push("me"); a.denied+=myPct;
+      buzz([20,40,20]);
+      if(a.denied>=2){
+        d.style.transition="all .4s"; d.style.transform="rotate(-2deg) scale(.95)"; d.style.opacity=.4;
+        toast("DENY recorded (mock) · "+a.name+" rejected at "+fmt(a.denied,2)+"% ≥ 2% quorum · much veto");
+        setTimeout(()=>{ store.apps=store.apps.filter(x=>x.id!==a.id); renderGov(); },700);
+      }else{ toast("DENY recorded (mock) · "+fmt(a.denied,2)+"% of 2% needed · building quorum"); renderGov(); }
+    });
+  });
+  // fresh positions in deny window
+  const gf=$("#govFresh"); gf.innerHTML="";
+  const fresh=store.positions.filter(p=>p.denyUntil>Date.now());
+  if(!fresh.length) gf.innerHTML=`<div class="card infocard">no fresh positions in the 5-day initPeriod · much calm. <span class="tag">mock</span></div>`;
+  fresh.forEach(p=>{
+    const d=document.createElement("div"); d.className="card";
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <b style="font-size:13px">${p.id}</b>
+        <span class="chip" style="width:26px;height:26px;font-size:9px;background:${CC[p.ccy]}">${p.ccy.slice(2)}</span>
+        <span class="timerpill" style="margin-left:auto" data-ft="${p.id}">⏱</span>
+      </div>
+      <div class="kv"><span class="k">Minted</span><b>${fmtC(p.minted,p.ccy,0)}</b></div>
+      <div class="kv"><span class="k">Collateral ratio</span><b>${fmt(crOf(p),1)}%</b></div>
+      <div class="prog" style="margin:8px 0"><i data-fp="${p.id}" style="width:${clamp((p.denied||0)/2,0,100)}%"></i></div>
+      <button class="btn pink sm" data-fdeny="${p.id}" style="width:100%">Deny this position · needs 2%</button>`;
+    gf.appendChild(d);
+    d.querySelector("[data-fdeny]").addEventListener("click",()=>{
+      if(P.mine/P.supply<QUORUM){ toast("need 2% of Pool Tokens to deny (mock) · much small"); return; }
+      p.denied=(p.denied||0)+myPct; buzz([20,40,20]);
+      if(p.denied>=2){
+        store.positions=store.positions.filter(x=>x.id!==p.id);
+        toast("DENY fired (mock) · "+p.id+" blocked during initPeriod · collateral returned to minter · wow veto"); renderGov(); renderPositions(); renderHome();
+      }else{ toast("DENY recorded (mock) · "+fmt(p.denied,2)+"% of 2% · building quorum"); renderGov(); }
+    });
+  });
+}
+function govTick(){
+  if(curPage!=="gov") return;
+  store.apps.forEach(a=>{ const el=$(`[data-gt="${a.id}"]`); if(el) el.textContent="⏱ "+fmtDur(a.until-Date.now()); });
+  store.positions.filter(p=>p.denyUntil>Date.now()).forEach(p=>{ const el=$(`[data-ft="${p.id}"]`); if(el) el.textContent="⏱ "+fmtDur(p.denyUntil-Date.now()); });
+}
+/* suggest minter */
+const sug={ccy:"K9USD"};
+(function(){
+  const ch=$("#sugChips");
+  KEYS.forEach(k=>{
+    const b=document.createElement("button"); b.className="chipbtn"+(k==="K9USD"?" on":""); b.textContent=k; b.style.fontSize="10px"; b.style.padding="7px 8px";
+    b.addEventListener("click",()=>{ ch.querySelectorAll(".chipbtn").forEach(x=>x.classList.remove("on")); b.classList.add("on"); sug.ccy=k; buzz(8); });
+    ch.appendChild(b);
+  });
+})();
+$("#sugGo").addEventListener("click",e=>{
+  const v=$("#sugAddr").value.trim();
+  if(!/^0x[0-9a-fA-F]{40}$/.test(v)){ $("#sugAddr").classList.add("shake"); setTimeout(()=>$("#sugAddr").classList.remove("shake"),450); toast("that address smells funny · need 0x + 40 hex · much format"); return; }
+  if(store.bal.K9USD<1000){ toast("need 1,000 K9USD fee (mock) · much short"); return; }
+  store.bal.K9USD-=1000;
+  store.apps.push({id:"APP-"+(store.nextId++),name:"anon-minter",addr:v.slice(0,6)+"…"+v.slice(-4),ccy:sug.ccy,until:Date.now()+DAY_MS*14,denied:0,voters:[]});
+  $("#sugAddr").value="";
+  const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,18); buzz([15,30,15]);
+  toast("minter application submitted (mock) · fee 1,000 K9USD paid · 14-day window starts · much democracy");
+  renderGov(); renderHome();
+});
+
+/* ================= arena (v3 deck + live challenges) ================= */
+let deck=[];
+function renderActiveChals(){
+  const box=$("#activeChalBox");
+  const act=store.challenges.filter(c=>c.state==="active");
+  if(!act.length){ box.innerHTML=`<div class="infocard" style="font-size:11px"><b>Active challenges:</b> none · the arena sniffs for weak collateral ratios. <span class="tag">mock</span></div>`; return; }
+  box.innerHTML=`<div style="font-size:12px;font-weight:900;margin-bottom:8px">Live challenges <span class="tag">${act.length} active</span></div>`;
+  act.forEach(c=>{
+    const row=document.createElement("div");
+    row.className="kv";
+    row.innerHTML=`<span class="k">${c.id} · ${c.posId} · ${fmt(c.size,0)} ${c.col}</span><b>auction live →</b>`;
+    row.style.cursor="pointer";
+    row.addEventListener("click",()=>{ curChalId=c.id; go("auction"); });
+    box.appendChild(row);
+  });
+}
+function buildDeck(){
+  deck=[];
+  // real challengeable positions (CR < 160) first
+  store.positions.filter(p=>crOf(p)<160 && !challengeOf(p.id) && p.cooldownUntil<=Date.now()).forEach(p=>{
+    const cr=crOf(p);
+    deck.push({id:p.id,real:true,posId:p.id,col:p.col,cr:Math.round(cr),minted:fmtC(p.minted,p.ccy,p.ccy==="K9JPY"?0:0),collat:fmt(p.colAmt,0)+" "+p.col,bounty:Math.round(mintedUSD(p)*BOUNTY),line:cr<120?"ARENA BAIT. much brave only.":"getting spicy. much watch.",cls:cr>200?"cr170":cr>=150?"cr150":cr>=116?"cr116":"cr104",t:40+Math.floor(Math.random()*80)});
+  });
+  // wild mock cards
+  const WILD=[
+    {id:"W-1",col:"MOFX",cr:104,minted:"12,700 K9BRL",collat:"5,770 MOFX",bounty:45,line:"ARENA BAIT. much brave only.",cls:"cr104"},
+    {id:"W-2",col:"wDOGE",cr:150,minted:"8,900 K9JPY",collat:"1,054 wDOGE",bounty:60,line:"much collateral. wow.",cls:"cr150"},
+    {id:"W-3",col:"WUFF",cr:150,minted:"22,000 K9AUD",collat:"114,300 WUFF",bounty:55,line:"so balanced. very hold.",cls:"cr150"},
+    {id:"W-4",col:"MOFX",cr:171,minted:"18,400 K9USD",collat:"65,700 MOFX",bounty:70,line:"very safe. such boring.",cls:"cr170"},
+  ];
+  WILD.forEach(w=>deck.push({...w,t:40+Math.floor(Math.random()*80)}));
+}
+function renderDeck(){
+  const d=$("#deck"); d.innerHTML="";
+  if(!deck.length){ d.innerHTML=`<div class="deckempty">much vigilance.<br>arena clear (for now).<br><br><button class="btn blue" id="reshuffle">Sniff again</button></div>`;
+    $("#reshuffle").addEventListener("click",()=>{ buildDeck(); renderDeck(); }); return; }
+  deck.forEach((p,i)=>{
+    const c=document.createElement("div"); c.className="acard"; c.style.zIndex=deck.length-i;
+    c.style.transform=i?`translateY(${i*10}px) scale(${1-i*.035})`:"";
+    c.style.filter=i?`brightness(${1-i*.06})`:"";
+    if(i===0){
+      c.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:900">${p.id} · ${p.col} position <span class="tag">mock</span></span>
+          <span class="crpill ${p.cls}">${fmt(p.cr,0)}%</span>
+        </div>
+        <div class="arow"><span>Collateral ratio</span><span>${fmt(p.cr,0)}%</span></div>
+        <div class="arow"><span>Minted</span><span>${p.minted}</span></div>
+        <div class="arow"><span>Collateral</span><span>${p.collat}</span></div>
+        <div class="arow"><span>Bounty (2%)</span><span>${p.bounty} K9USD</span></div>
+        <div style="margin-top:8px;font-size:13px;font-weight:900">"${p.line}"</div>
+        <div class="auction"><span>Dutch auction · challenger earns 2%</span><b data-t>${p.t}s</b></div>
+        <div class="swipehint">swipe right to challenge →</div>
+        <div class="cardbtns">
+          <button class="btn ghost sm" data-skip>Skip · meh</button>
+          <button class="btn pink sm" data-challenge>Challenge · much brave</button>
+        </div>`;
+      attachSwipe(c,p);
+      c.querySelector("[data-challenge]").addEventListener("click",()=>challenge(p,c));
+      c.querySelector("[data-skip]").addEventListener("click",()=>skipCard(c));
+    }
+    d.appendChild(c);
+  });
+}
+function flyOff(c,dir,cb){ c.style.transition="transform .35s, opacity .35s"; c.style.transform=`translateX(${dir*420}px) rotate(${dir*18}deg)`; c.style.opacity=0; setTimeout(cb,320); }
+function auctionPrice(c){
+  const el=(Date.now()-c.start)/1000, frac=clamp(el/c.dur,0,1);
+  return c.p0*(1-frac); // ticking toward zero
+}
+function startChallengeFromCard(p,c){
+  buzz([20,40,20,40,80]);
+  const r=c.getBoundingClientRect(); burst(r.left+r.width/2,r.top+r.height/2,30);
+  flyOff(c,1,()=>{
+    deck.shift(); renderDeck();
+    openChallenge(p);
+  });
+}
+function openChallenge(p){
+  // real position challenge
+  if(p.real){
+    const pos=store.positions.find(x=>x.id===p.posId);
+    if(!pos){ toast("position vanished (mock)"); return; }
+    const ch={id:"CH-"+(store.chalId++),posId:pos.id,ccy:pos.ccy,col:pos.col,size:pos.colAmt,start:Date.now(),dur:120,p0:liqPriceOf(pos)*1.15,minted:pos.minted,state:"active",bounty:mintedUSD(pos)*BOUNTY,bidder:"you"};
+    store.challenges.push(ch); curChalId=ch.id;
+    toast("challenge opened (mock) · "+pos.id+" · Dutch auction · bounty "+fmt(ch.bounty,0)+" K9USD · size "+fmt(ch.size,0)+" "+ch.col);
+  }else{
+    const ch={id:"CH-"+(store.chalId++),posId:p.id,ccy:"K9USD",col:p.col,size:parseFloat(p.collat.replace(/,/g,""))||5000,start:Date.now(),dur:120,p0:COLPX[p.col]*1.15,minted:parseFloat(p.minted.replace(/,/g,""))||1000,state:"active",bounty:p.bounty,bidder:"you",wild:true};
+    store.challenges.push(ch); curChalId=ch.id;
+    toast("challenge opened (mock) · wild card "+p.id+" · bounty "+p.bounty+" K9USD");
+  }
+  renderActiveChals(); go("auction");
+}
+function challenge(p,c){ startChallengeFromCard(p,c); }
+function skipCard(c){ buzz(8); flyOff(c,-1,()=>{ deck.shift(); renderDeck(); }); }
+function attachSwipe(c,p){
+  let sx=0,dx=0,drag=false;
+  c.addEventListener("pointerdown",e=>{ if(e.target.closest("button"))return; drag=true; sx=e.clientX; c.style.transition="none"; c.setPointerCapture(e.pointerId); });
+  c.addEventListener("pointermove",e=>{ if(!drag)return; dx=e.clientX-sx; c.style.transform=`translateX(${dx}px) rotate(${dx/22}deg)`; });
+  const end=()=>{ if(!drag)return; drag=false; c.style.transition="transform .2s";
+    if(dx>90) challenge(p,c); else if(dx<-90) skipCard(c); else c.style.transform=""; dx=0; };
+  c.addEventListener("pointerup",end); c.addEventListener("pointercancel",end);
+}
+function arenaTick(){
+  if(deck.length && deck[0].t>0){ deck[0].t--; const el=$("[data-t]"); if(el) el.textContent=deck[0].t+"s"; if(deck[0].t===0) deck[0].t=40+Math.floor(Math.random()*80); }
+  if(curPage==="arena"){ renderActiveChals(); }
+}
+
+/* ================= auction detail ================= */
+let curChalId=null, aucRendered=null;
+function renderAuction(){
+  const ch=store.challenges.find(c=>c.id===curChalId);
+  const body=$("#aucBody");
+  if(!ch){ aucRendered=null; body.innerHTML=`<div class="card infocard">no such challenge (mock). go sniff the arena.</div>`; return; }
+  const pos=ch.wild?null:store.positions.find(p=>p.id===ch.posId);
+  aucRendered=ch.id+":"+ch.state;
+  $("#aucTitle").innerHTML=`${ch.id}<small>${ch.posId} · dutch auction · mock</small>`;
+  if(ch.state==="active"){
+    const px=auctionPrice(ch), ask=px*ch.size, mintedVal=ch.minted*k9usd(ch.ccy);
+    const costC=ask*RATES[ch.ccy];
+    body.innerHTML=`
+      <div class="auctionpanel" style="background:#ffe8cc">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <b style="font-size:12px;font-weight:900">DUTCH AUCTION · PRICE TICKING DOWN</b>
+          <span class="timerpill">⏱ ${Math.max(0,ch.dur-Math.floor((Date.now()-ch.start)/1000))}s</span>
+        </div>
+        <div class="pricebig" data-aprice>$${fmt(px,4)}</div>
+        <div style="font-size:11px;font-weight:800;color:var(--ink2)">per ${ch.col} · toward zero · demo speed</div>
+        <div class="pricetrack"><i data-ahandle style="left:${clamp(auctionPrice(ch)/ch.p0*100,0,100)}%"></i></div>
+      </div>
+      <div class="card">
+        <div class="kv"><span class="k">Challenge size</span><b>${fmt(ch.size,0)} ${ch.col}</b></div>
+        <div class="kv"><span class="k">Position minted (${ch.ccy})</span><b>${fmt(ch.minted,0)} · $${fmt(mintedVal)}</b></div>
+        <div class="kv"><span class="k">Current ask (size × price)</span><b data-aask>$${fmt(ask)}</b></div>
+        <div class="kv"><span class="k">Bounty to challenger (2%)</span><b>${fmt(ch.bounty,0)} K9USD</b></div>
+        <div class="kv"><span class="k">Your ${ch.ccy} balance</span><b>${fmt(store.bal[ch.ccy],ch.ccy==="K9JPY"?0:1)}</b></div>
+      </div>
+      <div class="card infocard" style="margin-bottom:12px">
+        <b>Avert</b> (owner or anyone): pay the ask, kill the challenge, 1-day cooldown for the position. <b>Bid</b>: pay the ask in ${ch.ccy}, take the collateral — settlement sends collateral to the bidder, ${ch.ccy} to the position, 2% bounty to the challenger. ${pos?"" :"Wild card — mock position, settles instantly."} <span class="tag">mock</span>
+      </div>
+      <div class="stepsnav">
+        <button class="btn green" id="avertBtn">Avert · pay ${fmt(costC,0)} ${ch.ccy}</button>
+        <button class="btn pink" id="bidBtn">Bid · take collateral</button>
+      </div>
+      <button class="btn ghost sm" id="chalCancel" style="width:100%;margin-top:10px">Walk away · let it tick</button>`;
+    $("#avertBtn").addEventListener("click",()=>{
+      if(store.bal[ch.ccy]<costC){ toast("not enough "+ch.ccy+" to avert (mock) · need "+fmt(costC,0)); return; }
+      store.bal[ch.ccy]-=costC; ch.state="averted";
+      if(pos) pos.cooldownUntil=Date.now()+DAY_MS*1;
+      settleRender(ch,"averted",["ask paid → challenger refunded (mock)","collateral stays with minter","1-day cooldown on "+ch.posId]);
+      toast("challenge averted (mock) · paid "+fmt(costC,0)+" "+ch.ccy+" · 1-day cooldown started"); buzz([20,40,20]);
+      renderActiveChals(); renderPositions();
+    });
+    $("#bidBtn").addEventListener("click",e=>{
+      if(store.bal[ch.ccy]<costC){ toast("not enough "+ch.ccy+" to bid (mock) · need "+fmt(costC,0)); return; }
+      store.bal[ch.ccy]-=costC;
+      store.colBal[ch.col]+=ch.size; // collateral to bidder (you)
+      ch.state="won";
+      const coveredUSD=Math.min(ask,ch.minted*k9usd(ch.ccy));
+      if(pos){
+        const coveredCCY=coveredUSD*RATES[pos.ccy];
+        pos.minted=Math.max(0,pos.minted-coveredCCY);
+        pos.colAmt=Math.max(0,pos.colAmt-ch.size);
+        if(pos.minted<=1||pos.colAmt<=0){ store.positions=store.positions.filter(x=>x.id!==pos.id); }
+      }
+      store.bal.K9USD+=ch.bounty; // bounty to challenger (you)
+      const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,30); buzz([20,40,20,40,80]);
+      settleRender(ch,"won",[
+        `${fmt(ch.size,0)} ${ch.col} → bidder (you)`,
+        `${fmt(costC,0)} ${ch.ccy} → position · minted covered $${fmt(coveredUSD)}`,
+        `bounty ${fmt(ch.bounty,0)} K9USD → challenger (you) · 3-day cooldown`]);
+      ch.cooldownUntil=Date.now()+DAY_MS*3;
+      toast("challenge won (mock) · collateral is yours · bounty "+fmt(ch.bounty,0)+" K9USD · much profit"); buzz(15);
+      renderActiveChals(); renderPositions(); renderHome();
+    });
+    $("#chalCancel").addEventListener("click",()=>go("arena"));
+  }else{
+    settleRender(ch,ch.state,null);
+  }
+}
+function settleRender(ch,state,lines){
+  const body=$("#aucBody");
+  const won=state==="won";
+  body.innerHTML=`
+    <div class="card pop" style="border-color:${won?"var(--green)":"var(--blue)"}">
+      <div style="font-size:12px;font-weight:900;margin-bottom:4px">Challenge ${state.toUpperCase()} <span class="tag">mock</span></div>
+      <div style="font-size:15px;font-weight:900;margin-bottom:10px">${won?"much victory · settlement executed":"challenge averted · position saved"}</div>
+      <div data-sl0 class="settleline"><span class="ico" style="background:var(--orange)">🦴</span><span>${lines?lines[0]:"—"}</span></div>
+      <div data-sl1 class="settleline"><span class="ico" style="background:var(--blue)">K9</span><span>${lines?lines[1]:"—"}</span></div>
+      <div data-sl2 class="settleline"><span class="ico" style="background:var(--green)">2%</span><span>${lines?lines[2]:"—"}</span></div>
+    </div>
+    <div class="card">
+      <div class="kv"><span class="k">Cooldown timer</span><b class="timerpill" data-cd>⏱ ${fmtDur(Math.max(0,(ch.cooldownUntil||Date.now())-Date.now()))}</b></div>
+      <div class="kv"><span class="k">Cooldown rule</span><b>${won?"3 days after successful challenge":"1 day after avert"}</b></div>
+    </div>
+    <button class="btn blue" id="backArena" style="width:100%">Back to arena</button>`;
+  [0,1,2].forEach(i=>setTimeout(()=>{ const el=$(`[data-sl${i}]`); if(el){ el.classList.add("show"); buzz(10);} },350*(i+1)));
+  $("#backArena").addEventListener("click",()=>go("arena"));
+}
+function auctionTick(){
+  const ch=store.challenges.find(c=>c.id===curChalId);
+  if(!ch) return;
+  if(ch.state!=="active"){
+    if(aucRendered!==ch.id+":"+ch.state){ renderAuction(); return; }
+    const cd=$("#aucBody [data-cd]"); if(cd) cd.textContent="⏱ "+fmtDur(Math.max(0,(ch.cooldownUntil||Date.now())-Date.now()));
+    return;
+  }
+  if(curPage!=="auction") return;
+  const px=auctionPrice(ch), ask=px*ch.size, costC=ask*RATES[ch.ccy];
+  const pe=$("[data-aprice]"); if(pe) pe.textContent="$"+fmt(px,4);
+  const ae=$("[data-aask]"); if(ae) ae.textContent="$"+fmt(ask);
+  const hd=$("[data-ahandle]"); if(hd) hd.style.left=clamp(px/ch.p0*100,0,100)+"%";
+  const av=$("#avertBtn"); if(av) av.textContent="Avert · pay "+fmt(costC,0)+" "+ch.ccy;
+  const tp=$("#aucBody .timerpill"); if(tp) tp.textContent="⏱ "+Math.max(0,ch.dur-Math.floor((Date.now()-ch.start)/1000))+"s";
+  if(px<=0){
+    ch.state="won"; ch.expired=true;
+    store.colBal[ch.col]+=ch.size; store.bal.K9USD+=ch.bounty;
+    ch.cooldownUntil=Date.now()+DAY_MS*3;
+    if(aucRendered!==ch.id+":"+ch.state) renderAuction();
+    toast("auction expired at zero (mock) · collateral + bounty to challenger · much brutal"); renderActiveChals(); renderPositions();
+  }
+}
+
+/* ================= address book ================= */
+const ADDRFULL=[
+  ["K9USD Token","0x7cd12A6C4CbcfE87af588d9c3FF8576aB4FBF5A8"],
+  ["Equity (Pool Token)","0x61B9193ef708972D694f98DbBF2dA9ccfD614C4E"],
+  ["MintingHub","0x0bADA8D887573Cc47eBef4ff5BBE42942B580F9b"],
+  ["Savings","0x80958D976149d1Dcf522682EB105aC3F7566ca05"],
+  ["PositionFactory","0x5207E378d4e6c1992b130a2D2420f52C274570ce"],
+  ["Roller","0xA2c692320aC9881b23A1eCE077C60a0fbF239731"],
+  ["GenesisBootstrap","0xd95Cf14598d12E5AdA5035eec02d66302d84E019"],
+  ["GuardianTimelock","0xCB359C7c6f6ce794b8E840D11BC5833954313Ccf"],
+  ["MOFX","0x2F0393CEb21b040722D36b628DB2C75aB0E0b156"],
+  ["Pool K9USD/wDOGE ★","0x4380BF2aDb03DC4089A8d0b2887493361Ac489E2"],
+  ["Pool MOFX/K9USD","0xe67d57f33414cCDF267adC9eCCa414cb10657461B"],
+  ["wDOGE (canonical)","0x5300000000000000000000000000000000000004"],
+  ["WUFF","0x03538800942cF78fb59550532496164D1d3bE31D"],
+];
+function renderAddr(){
+  $("#addrListFull").innerHTML=ADDRFULL.map(([n,a])=>`<div class="addr">
+    <span class="nm"><span class="verbadge">✓</span>${n}</span>
+    <code>${a.slice(0,10)}…${a.slice(-6)}</code>
+    <button data-addr="${a}">copy</button></div>`).join("");
+}
+$("#addrListFull").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  try{ navigator.clipboard && navigator.clipboard.writeText(b.dataset.addr).catch(()=>{}); }catch(err){}
+  toast("address copied · chikyū testnet · verified <span class='tag'>mock</span>"); buzz(10);
+});
+
+/* ================= params ================= */
+function renderParams(){
+  const rows=KEYS.map(k=>`<tr class="ccy"><td style="background:${CC[k].replace("var(","").replace(")","")}">${k}</td>
+    <td class="num">${LEAD[k]}%</td><td class="num">14d</td><td class="num">1,000</td><td class="num">3,500</td><td class="num">3d</td><td class="num">5d</td><td class="num">2%</td><td class="num">3</td></tr>`).join("");
+  $("#paramsTable").innerHTML=`<table class="ptable">
+    <tr><th>CCY</th><th>Leadrate</th><th>Min app</th><th>Open fee</th><th>Min pos</th><th>Chal.</th><th>Init</th><th>Quorum</th><th>ValF</th></tr>
+    ${rows}</table>`;
+}
+
+/* ================= settings ================= */
+function renderSettings(){ $("#wkSw2").classList.toggle("on",store.weekend); }
+$("#wkSw2").addEventListener("click",toggleWeekend);
+$$("[data-link]").forEach(el=>el.addEventListener("click",()=>{ toast("placeholder link (mock) · much docs soon"); buzz(8); }));
+$("#resetDemo").addEventListener("click",e=>{
+  store=makeStore(); poolHistInit();
+  loops=0;bones=0;sniffFails=0;
+  $("#loopCount").textContent="0"; $("#boneCount").textContent="0";
+  buildDeck(); renderDeck(); renderAll();
+  const r=e.currentTarget.getBoundingClientRect(); burst(r.left+r.width/2,r.top,24); buzz([20,40,20]);
+  toast("demo state reset · fresh mock store · much clean"); go("home");
+});
+
+/* ================= more hub ================= */
+const HUB=[
+  ["positions","Positions","7 currencies","M4 20V10l8-6 8 6v10z M9 20v-6h6v6"],
+  ["savings","Savings","leadrate","M12 3v18 M5 8c0-2 3-2 3 0s-3 2-3 0z M16 12c0-2 3-2 3 0s-3 2-3 0z M7 16c0-2 3-2 3 0s-3 2-3 0z"],
+  ["baskets","Baskets","weights","M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"],
+  ["pool","Pool tokens","K9USDS","M4 17c4-8 12-8 16 0 M6 17h12 M12 6v4"],
+  ["gov","Governance","veto","M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z M9 12l2 2 4-4"],
+  ["arena","Challenge arena","dutch auction","M13 2 4 14h6l-1 8 9-12h-6z"],
+  ["addr","Address book","verified","M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5"],
+  ["params","Genesis params","per ccy","M4 6h16 M4 12h16 M4 18h16 M8 4v16"],
+  ["settings","Settings","about","M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2v3 M12 19v3 M2 12h3 M19 12h3"],
+];
+function renderHub(){
+  const g=$("#hubGrid");
+  g.innerHTML=HUB.map(([pg,name,sub,path])=>`<div class="hubtile" data-hub="${pg}">
+    <svg viewBox="0 0 24 24"><path d="${path}"/></svg><b>${name}</b><small>${sub}</small></div>`).join("");
+  g.addEventListener("click",e=>{
+    const t=e.target.closest("[data-hub]"); if(!t) return;
+    go(t.dataset.hub); buzz(10);
+  },{once:false});
+}
+
+/* ================= page enter registry (timers) ================= */
+const PAGE_ENTER={
+  home(){ renderHome(); },
+  mint(){ updateMint(); },
+  arena(){ buildDeck(); renderDeck(); renderActiveChals(); addTimer(setInterval(arenaTick,1000)); },
+  fetch(){},
+  more(){},
+  positions(){ renderPositions(); addTimer(setInterval(()=>{ if(curPage==="positions") renderPositions(); },1000)); },
+  position(){ renderPosition(); },
+  savings(){ renderSavings(); addTimer(setInterval(savingsTick,1000)); },
+  baskets(){ renderBaskets(); addTimer(setInterval(basketTick,2600)); },
+  pool(){ renderPool(); addTimer(setInterval(poolDrift,2500)); addTimer(setInterval(()=>{ poolHistPush(); if(curPage==="pool") drawHist(); },4000)); },
+  gov(){ renderGov(); addTimer(setInterval(govTick,1000)); },
+  auction(){ aucRendered=null; renderAuction(); addTimer(setInterval(auctionTick,1000)); },
+  addr(){ renderAddr(); },
+  params(){ renderParams(); },
+  settings(){ renderSettings(); },
+};
+function renderAll(){
+  renderHome(); renderPositions(); renderSavings(); renderBaskets(); renderPool(); renderGov(); renderAddr(); renderParams(); renderSettings(); renderActiveChals();
+}
+
+/* ================= boot ================= */
+buildTicker(); renderCoins(); buildBaskets(); renderHub(); poolHistInit(); buildDeck(); renderDeck(); renderAll(); updateMint();
+$("#heroTotal").textContent="$"+fmt(homeTotal());
+</script>
+</body>
+</html>
