@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DogeForex UI — Draft Prototypes</title>
+<style>
+  :root { --ink:#12263a; --paper:#f7f4ec; --gold:#b8860b; --line:#d8d2c2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; background:var(--paper); color:var(--ink); min-height:100vh; padding:48px 24px; }
+  .wrap { max-width:1060px; margin:0 auto; }
+  header { border-bottom:3px double var(--ink); padding-bottom:24px; margin-bottom:36px; }
+  h1 { font-size:34px; letter-spacing:.04em; }
+  .sub { color:#5a6b7d; font-style:italic; margin-top:8px; }
+  .banner { display:inline-block; margin-top:14px; font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.14em; border:1px solid var(--gold); color:var(--gold); padding:5px 12px; border-radius:3px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:22px; }
+  .card { border:1px solid var(--line); background:#fffdf7; border-radius:8px; padding:26px; display:flex; flex-direction:column; transition:transform .15s ease, box-shadow .15s ease; }
+  .card:hover { transform:translateY(-4px); box-shadow:0 12px 30px rgba(18,38,58,.12); }
+  .tag { font-family:ui-monospace,Menlo,monospace; font-size:10px; letter-spacing:.16em; color:var(--gold); text-transform:uppercase; }
+  .card h2 { font-size:23px; margin:10px 0 4px; }
+  .pitch { font-style:italic; color:#41566b; font-size:14px; margin-bottom:14px; }
+  .card p.desc { font-size:14px; line-height:1.55; flex:1; }
+  ul { margin:14px 0 18px 18px; font-size:13.5px; line-height:1.5; color:#33475c; }
+  a.btn { display:block; text-align:center; text-decoration:none; font-family:ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.12em; background:var(--ink); color:var(--paper); padding:13px; border-radius:5px; }
+  a.btn:hover { background:var(--gold); }
+  footer { margin-top:44px; border-top:1px solid var(--line); padding-top:16px; font-size:12px; color:#7a8896; font-style:italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DogeForex — User-Facing Frontend Drafts</h1>
+    <div class="sub">Three directions for the International Money Fund of DogeWorld. Pick a feel; the winner becomes the design base.</div>
+    <div class="banner">INTERACTIVE DRAFTS · MOCK DATA · CHIKYŪ TESTNET</div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <div class="tag">Version 1 · Degen desk</div>
+      <h2>BARKTERMINAL</h2>
+      <div class="pitch">"The DogeWorld IMF's war room — much reserves, very stabilize."</div>
+      <p class="desc">Near-black CRT terminal in neon DOGE-gold, signal green and alert red. Dense panel grid, blinking LIVE dot, command palette with working hotkeys. Built for degens who want everything at one glance and one click.</p>
+      <ul>
+        <li>Live 7-stable cross-rate matrix — dislocations flash gold and spawn clickable loop pills</li>
+        <li>Click a loop: watch a 3-hop arb animate through the matrix, logged to a tape</li>
+        <li>Position builder with live liquidation price + 2% bounty readout</li>
+      </ul>
+      <a class="btn" href="v1-barkterminal.html">OPEN BARKTERMINAL</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Version 2 · Institutional core, meme skin</div>
+      <h2>THE RESERVE</h2>
+      <div class="pitch">"If the IMF were run by the Doge community."</div>
+      <p class="desc">Central-bank letterhead on ivory: navy ink, gold-leaf accents, serif display type, hairline rules, a geometric shiba seal ("Est. 2026, much stable"). Credible to a TradFi eye — and it smiles.</p>
+      <ul>
+        <li>Reserve Composition donut that eases in segment-by-segment</li>
+        <li>Currency switcher re-themes the entire accent system (try CNY)</li>
+        <li>Central-bank policy-rate table with doge "minutes" hidden in every row</li>
+      </ul>
+      <a class="btn" href="v2-the-reserve.html">OPEN THE RESERVE</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Version 3 · Mobile arcade, MyDoge-native</div>
+      <h2>MUCH WALLET</h2>
+      <div class="pitch">"The app inside your wallet — fetch the bone."</div>
+      <p class="desc">A phone-frame mockup with Grand-Heist energy: candy colors on cream, chunky pressable buttons, confetti bursts, quest progress. Five tabs — Mint · Arena · Fetch · Baskets · More.</p>
+      <ul>
+        <li>FETCH THE LOOP: pulsing button, scanning animation, "BONE FETCHED +0.4%" confetti</li>
+        <li>Mint wizard with a cartoon collateral-ratio gauge sweeping green→red</li>
+        <li>Arena swipe deck: swipe right to challenge for the 2% bounty</li>
+      </ul>
+      <a class="btn" href="v3-much-wallet.html">OPEN MUCH WALLET</a>
+    </div>
+  </div>
+
+  <footer>All three drafts run on real Chikyū addresses (K9USD suite, pools, wDOGE, WUFF, MOFX) with simulated market data. No external assets — each file is fully self-contained. Not financial advice.</footer>
+</div>
+</body>
+</html>

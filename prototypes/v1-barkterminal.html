@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BARKTERMINAL — DogeForex · DogeWorld Monetary Fund (DRAFT)</title>
+<style>
+  :root{
+    --bg:#0a0e12; --panel:#0d1319; --panel2:#111a23; --line:#1d2936; --line2:#263646;
+    --gold:#c9a227; --gold2:#f0c94a; --green:#3ddc84; --red:#ff4d5e;
+    --dim:#54687c; --text:#d3e4da; --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font:13px/1.5 var(--mono);min-width:1080px}
+  body::before{content:"";position:fixed;inset:0;z-index:60;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 3px)}
+  body::after{content:"";position:fixed;inset:0;z-index:61;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.55))}
+  a{color:var(--gold);text-decoration:none}
+  ::selection{background:var(--gold);color:#000}
+
+  /* ---------- top bar ---------- */
+  .topbar{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0d141c,#0a0e12);position:sticky;top:0;z-index:20}
+  .logo{color:var(--gold);font-weight:700;letter-spacing:.12em;white-space:nowrap}
+  .logo small{color:var(--dim);font-weight:400;letter-spacing:.05em}
+  .livedot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 8px var(--green);animation:blink 1.4s steps(2,start) infinite;vertical-align:1px;margin-right:5px}
+  @keyframes blink{50%{opacity:.15}}
+  .tagline{color:var(--dim);font-style:italic;white-space:nowrap}
+  .cmdwrap{position:relative;flex:1;max-width:520px;margin-left:auto}
+  .cmdwrap::before{content:"❯";position:absolute;left:10px;top:7px;color:var(--gold)}
+  #cmd{width:100%;background:#070b0f;border:1px solid var(--line2);color:var(--green);
+    font:12px var(--mono);padding:7px 10px 7px 26px;outline:none;letter-spacing:.03em}
+  #cmd:focus{border-color:var(--gold);box-shadow:0 0 0 1px rgba(201,162,39,.35),0 0 18px rgba(201,162,39,.12) inset}
+  .cmddrop{position:absolute;top:33px;left:0;right:0;background:#0b1118;border:1px solid var(--line2);
+    display:none;z-index:30;box-shadow:0 12px 30px rgba(0,0,0,.6)}
+  .cmddrop.on{display:block}
+  .cmddrop div{padding:6px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+  .cmddrop div:hover,.cmddrop div.sel{background:#14202c;color:var(--gold2)}
+  .cmddrop span{color:var(--dim)}
+  kbd{border:1px solid var(--line2);border-bottom-width:2px;border-radius:3px;padding:0 5px;
+    font:10px var(--mono);color:var(--dim);background:#0a1016}
+  .keys{display:flex;gap:8px;align-items:center;color:var(--dim);font-size:10px;white-space:nowrap}
+  .badge{border:1px solid var(--line2);padding:3px 8px;font-size:10px;color:var(--dim);white-space:nowrap;background:#0a1016}
+  .badge b{color:var(--green);font-weight:400}
+  .badge.gold b{color:var(--gold2)}
+
+  /* ---------- layout ---------- */
+  .wrap{display:grid;grid-template-columns:1.55fr 1fr;gap:10px;padding:10px 16px}
+  .colstack{display:flex;flex-direction:column;gap:10px;min-width:0}
+  .panel{background:var(--panel);border:1px solid var(--line);position:relative}
+  .panel::before{content:"";position:absolute;top:-1px;left:-1px;width:14px;height:14px;
+    border-top:2px solid var(--gold);border-left:2px solid var(--gold);opacity:.55;pointer-events:none}
+  .phead{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--line);
+    color:var(--dim);font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  .phead .r{margin-left:auto;letter-spacing:.04em;text-transform:none}
+  .pbody{padding:10px 12px}
+  .flashable{transition:box-shadow .3s}
+  .flashable.hit{box-shadow:0 0 0 1px var(--gold),0 0 28px rgba(201,162,39,.28)}
+
+  /* ---------- arb matrix ---------- */
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th{font-size:9px;letter-spacing:.14em;color:var(--dim);text-align:right;padding:4px 8px;
+    border-bottom:1px solid var(--line);font-weight:400;text-transform:uppercase}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:5px 8px;text-align:right;border-bottom:1px solid rgba(29,41,54,.6);white-space:nowrap}
+  tbody tr{transition:background .2s}
+  tbody tr:hover{background:#101a24}
+  .pair{color:var(--gold);font-weight:700;letter-spacing:.05em}
+  .pair i{font-style:normal;color:var(--dim);font-weight:400}
+  .dev-pos{color:var(--green)}
+  .dev-neg{color:var(--red)}
+  .dev-hot{color:var(--gold2)}
+  td.cellflash{animation:cellflash 1.1s ease-out}
+  @keyframes cellflash{0%{background:rgba(201,162,39,.85);color:#000}100%{background:transparent}}
+  .sig{font-size:9px;letter-spacing:.12em;color:var(--dim)}
+  .sig.hot{color:var(--gold2)} .sig.neg{color:var(--red)}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;padding:9px 12px;border-top:1px solid var(--line);min-height:38px}
+  .pill{border:1px solid var(--gold);color:var(--gold2);background:rgba(201,162,39,.07);
+    padding:3px 9px;font-size:11px;cursor:pointer;animation:pillin .25s ease-out;white-space:nowrap}
+  .pill:hover{background:var(--gold);color:#000}
+  .pill small{color:var(--dim)} .pill:hover small{color:#000}
+  @keyframes pillin{from{transform:translateY(6px);opacity:0}}
+  .tape{max-height:118px;overflow:hidden;padding:8px 12px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--dim)}
+  .tape div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 0}
+  .tape .t{color:var(--line2)} .tape .g{color:var(--green)} .tape .y{color:var(--gold2)}
+  td.hop1{outline:1px solid var(--gold);outline-offset:-1px;background:rgba(201,162,39,.28)!important;transition:none}
+  td.hop2{outline:1px solid var(--gold2);outline-offset:-1px;background:rgba(240,201,74,.4)!important;transition:none}
+  td.hop3{outline:1px solid var(--green);outline-offset:-1px;background:rgba(61,220,132,.3)!important;transition:none}
+
+  /* ---------- position builder ---------- */
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:4px}
+  .field select,.field input[type=number]{width:100%;background:#070b0f;border:1px solid var(--line2);
+    color:var(--text);font:13px var(--mono);padding:7px 9px;outline:none}
+  .field select:focus,.field input:focus{border-color:var(--gold)}
+  .sliderow{display:flex;align-items:center;gap:10px}
+  input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:3px;background:linear-gradient(90deg,var(--red),var(--gold) 40%,var(--green));outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:var(--gold2);
+    border:2px solid #000;border-radius:0;cursor:grab;box-shadow:0 0 8px rgba(201,162,39,.8)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--gold2);border:2px solid #000;border-radius:0;cursor:grab}
+  #crout{min-width:64px;text-align:right;font-size:16px}
+  .readout{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}
+  .ro{border:1px solid var(--line);background:#0a1016;padding:7px 9px}
+  .ro label{font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;display:block}
+  .ro b{font-weight:400;font-size:14px}
+  .ro.warn b{color:var(--red)} .ro.ok b{color:var(--green)} .ro.gold b{color:var(--gold2)}
+  .bigbtn{display:block;width:100%;padding:13px;background:var(--red);color:#fff;border:0;cursor:pointer;
+    font:700 14px var(--mono);letter-spacing:.18em;text-transform:uppercase;
+    box-shadow:0 0 20px rgba(255,77,94,.35);transition:transform .08s, box-shadow .2s}
+  .bigbtn:hover{box-shadow:0 0 34px rgba(255,77,94,.6);background:#ff6273}
+  .bigbtn:active{transform:scale(.985)}
+  .micro{color:var(--dim);font-size:10px;margin-top:8px;text-align:center}
+
+  /* ---------- arena / tables ---------- */
+  .feed{max-height:230px;overflow:hidden}
+  .feed div{padding:6px 12px;border-bottom:1px solid rgba(29,41,54,.6);font-size:11px;animation:feedin .3s ease-out}
+  @keyframes feedin{from{opacity:0;transform:translateX(-8px)}}
+  .feed .t{color:var(--line2);margin-right:6px}
+  .feed .b{color:var(--gold2)} .feed .cr-bad{color:var(--red)} .feed .cr-mid{color:var(--gold2)} .feed .cr-ok{color:var(--green)}
+  .status{font-size:9px;letter-spacing:.12em;padding:1px 6px;border:1px solid}
+  .st-safe{color:var(--green);border-color:var(--green)}
+  .st-watch{color:var(--gold2);border-color:var(--gold)}
+  .st-bait{color:var(--red);border-color:var(--red);animation:blink 1.2s steps(2,start) infinite}
+  .addrblock{font-size:10px;line-height:1.9;color:var(--dim)}
+  .addrblock b{color:var(--text);font-weight:400;display:inline-block;min-width:88px}
+  .addrblock span{cursor:pointer}
+  .addrblock span:hover{color:var(--gold2)}
+  .supply{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .supply div{border:1px solid var(--line);background:#0a1016;padding:6px 8px;font-size:10px}
+  .supply label{color:var(--gold);display:block;font-size:10px}
+  .supply span{color:var(--dim)}
+
+  /* ---------- toasts / footer ---------- */
+  #toasts{position:fixed;right:16px;bottom:16px;z-index:80;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .toast{background:#0b1118;border:1px solid var(--gold);border-left:4px solid var(--gold);color:var(--text);
+    padding:10px 14px;font-size:11px;max-width:420px;box-shadow:0 10px 30px rgba(0,0,0,.7);animation:toastin .25s ease-out}
+  .toast.red{border-color:var(--red)} .toast.green{border-color:var(--green)}
+  @keyframes toastin{from{transform:translateX(30px);opacity:0}}
+  .foot{display:flex;gap:18px;align-items:center;padding:10px 16px 16px;color:var(--dim);font-size:10px;flex-wrap:wrap}
+  .foot .draft{color:var(--gold2);border:1px solid var(--gold);padding:2px 8px;letter-spacing:.16em}
+  .refnote{grid-column:1/-1;padding:8px 16px 0;color:var(--dim);font-size:10px}
+  .flash-target{animation:targetflash .8s ease-out}
+  @keyframes targetflash{0%{box-shadow:0 0 0 2px var(--gold),0 0 40px rgba(201,162,39,.5)}100%{}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">◈ BARKTERMINAL <small>v0</small></div>
+  <div><span class="livedot"></span><span style="color:var(--green);font-size:10px;letter-spacing:.14em">LIVE</span></div>
+  <div class="tagline">// DogeWorld Monetary Fund — much reserves, very stabilize</div>
+  <div class="cmdwrap">
+    <input id="cmd" placeholder="type a command… (try: loop)" autocomplete="off" spellcheck="false">
+    <div class="cmddrop" id="cmddrop"></div>
+  </div>
+  <div class="keys"><kbd>/</kbd> cmd <kbd>L</kbd> loop <kbd>P</kbd> build <kbd>A</kbd> arena</div>
+  <div class="badge gold">CHIKYŪ <b>6281971</b></div>
+  <div class="badge">GAS <b>~0.02 DOGE/tx</b></div>
+  <div class="badge" id="clock">--:--:--</div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ LEFT: ARB SCANNER ============ -->
+  <section class="colstack">
+    <div class="panel flashable" id="scannerPanel">
+      <div class="phead">Arb Scanner · 7 stables vs wDOGE
+        <span class="r" id="scanMeta">sweep idle · band ±0.15% · Barkswap 0.05%/hop</span>
+      </div>
+      <table id="matrix">
+        <thead><tr>
+          <th>Pair</th><th>Price (wDOGE)</th><th>Reference</th><th>Dev</th><th>Signal</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="pills" id="pills"></div>
+      <div class="phead" style="border-top:1px solid var(--line);border-bottom:0">Recent loops
+        <span class="r">3-hop · gas 0.02 DOGE/hop · mock</span></div>
+      <div class="tape" id="tape">
+        <div><span class="t">--:--:--</span> awaiting first loop. much patience.</div>
+      </div>
+    </div>
+
+    <!-- positions -->
+    <div class="panel">
+      <div class="phead">Live positions · Chikyū
+        <span class="r">health metric: collateral ratio (not leverage)</span></div>
+      <table>
+        <thead><tr><th>Pos</th><th>Collateral</th><th>Collateral ratio</th><th>Liq. price</th><th>Status</th></tr></thead>
+        <tbody id="posBody"></tbody>
+      </table>
+    </div>
+
+    <!-- supply + savings + contracts -->
+    <div class="panel">
+      <div class="phead">Reserves desk · money supply (mock)
+        <span class="r">savings rate set by monetary policy · Leadrate 3.5%</span></div>
+      <div class="pbody">
+        <div class="supply" id="supply"></div>
+        <div class="addrblock" style="margin-top:10px" id="contracts"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT: BUILDER + ARENA ============ -->
+  <section class="colstack">
+    <div class="panel" id="builderPanel">
+      <div class="phead">Position builder
+        <span class="r">Frankencoin-style · oracle-free challenge game</span></div>
+      <div class="pbody">
+        <div style="display:flex;gap:10px">
+          <div class="field" style="flex:1">
+            <label>Collateral asset</label>
+            <select id="collat">
+              <option value="wDOGE">wDOGE · min CR 150%</option>
+              <option value="WUFF">WUFF · min CR 150%</option>
+              <option value="MOFX">MOFX · min CR 110%</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Collateral amount</label>
+            <input type="number" id="cAmt" value="100000" min="1000" step="1000">
+          </div>
+        </div>
+        <div class="field">
+          <label>Collateral ratio — you set the line, challengers check it</label>
+          <div class="sliderow">
+            <input type="range" id="cr" min="110" max="300" value="150" step="1">
+            <b id="crout">150%</b>
+          </div>
+        </div>
+        <div class="readout">
+          <div class="ro gold"><label>Mint (K9USD)</label><b id="rMint">—</b></div>
+          <div class="ro warn"><label>Liquidation price</label><b id="rLiq">—</b></div>
+          <div class="ro"><label>Challenge bounty (2%)</label><b id="rBounty">—</b></div>
+        </div>
+        <button class="bigbtn" id="openBtn">Open position</button>
+        <div class="micro">no promises. the Dutch-auction challenge game does the enforcing.</div>
+      </div>
+    </div>
+
+    <div class="panel" id="arenaPanel">
+      <div class="phead">Arena · challenge feed
+        <span class="r">challenger earns 2% · Dutch auction</span></div>
+      <div class="feed" id="arena"></div>
+    </div>
+  </section>
+</div>
+
+<div class="refnote">REFERENCE RATES (mock, per 1 USD) · USD 1.00 · EUR 0.92 · JPY 149 · GBP 0.79 · AUD 1.52 · CNY 7.12 · BRL 5.45 · DOGE $0.085
+· arb round-trip band ≈0.15% · MOFX/K9USD ref pool 0xe67d…461B · K9USD/wDOGE star pool 0x4380…89E2 · live positions: P1 MOFX CR 171% · P2 MOFX 116% · P3 MOFX 104% (arena-bait)</div>
+
+<footer class="foot">
+  <span class="draft">INTERACTIVE DRAFT</span>
+  <span>mock data</span>
+  <span>Chikyū testnet · chain 6281971</span>
+  <span>nothing on this screen is financial advice or a promise of any kind</span>
+  <span style="margin-left:auto">DOGEWORLD MONETARY FUND // TERMINAL v0 — such terminal, very terminal</span>
+</footer>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* ================= mock data ================= */
+const DOGE = 0.085;
+const STABLES = [
+  {code:"K9USD", fx:1.00}, {code:"K9EUR", fx:0.92}, {code:"K9JPY", fx:149},
+  {code:"K9GBP", fx:0.79}, {code:"K9AUD", fx:1.52}, {code:"K9CNY", fx:7.12},
+  {code:"K9BRL", fx:5.45}
+];
+const state = STABLES.map(s => ({...s, price: s.fx/DOGE, dev: 0, flash: false}));
+const POSITIONS = [
+  {pos:"P1", col:"MOFX", cr:171, liq:"0.0683", st:["SAFE","st-safe"]},
+  {pos:"P2", col:"MOFX", cr:116, liq:"0.0748", st:["WATCH","st-watch"]},
+  {pos:"P3", col:"MOFX", cr:104, liq:"0.0778", st:["ARENA-BAIT","st-bait"]},
+  {pos:"—",  col:"wDOGE",cr:150, liq:"0.0567", st:["AT FLOOR","st-watch"]},
+  {pos:"—",  col:"WUFF", cr:150, liq:"0.0567", st:["AT FLOOR","st-watch"]}
+];
+const SUPPLY = [["K9USD","4,208,311"],["K9EUR","1,933,022"],["K9JPY","812,554,109"],["K9GBP","640,118"],
+  ["K9AUD","1,204,777"],["K9CNY","5,930,441"],["K9BRL","3,377,205"],["Σ all","829m"]];
+const CONTRACTS = [
+  ["K9USD",  "0x7cd12A6C4CbcfE87af588d9c3FF8576aB4FBF5A8"],
+  ["Hub",    "0x0bADA8D887573Cc47eBef4ff5BBE42942B580F9b"],
+  ["Equity", "0x61B9193ef708972D694f98DbBF2dA9ccfD614C4E"],
+  ["Savings","0x80958D976149d1Dcf522682EB105aC3F7566ca05"],
+  ["wDOGE",  "0x5300000000000000000000000000000000000004"],
+  ["WUFF",   "0x03538800942cF78fb59550532496164D1d3bE31D"],
+  ["MOFX",   "0x2F0393CEb21b040722D36b628DB2C75aB0E0b156"],
+  ["Pool★",  "0x4380BF2aDb03DC4089A8d0b2887493361Ac489E2"],
+  ["Pool⇄",  "0xe67d57f33414cCDF267adC9eCCa414cb10657461B"]
+];
+const CMDS = [
+  ["loop",     "execute best 3-hop loop (mock)"],
+  ["scan",     "force full arb sweep"],
+  ["position", "jump to position builder"],
+  ["arena",    "jump to arena feed"],
+  ["supply",   "show money supply"],
+  ["leadrate", "show monetary policy"],
+  ["wagmi",    "???"]
+];
+
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const fmt = (n,d=4) => n.toLocaleString("en-US",{minimumFractionDigits:d, maximumFractionDigits:d});
+const time = () => new Date().toTimeString().slice(0,8);
+const rndAddr = () => "0x" + Array.from({length:4},()=>"0123456789abcdef"[Math.floor(Math.random()*16)]).join("").toUpperCase() + "…";
+function toast(msg, cls=""){
+  const t = document.createElement("div");
+  t.className = "toast " + cls; t.innerHTML = msg;
+  $("#toasts").appendChild(t);
+  setTimeout(()=>{ t.style.opacity="0"; t.style.transition="opacity .4s"; }, 3400);
+  setTimeout(()=> t.remove(), 3900);
+}
+
+/* ================= matrix render ================= */
+const tbody = document.querySelector("#matrix tbody");
+function renderMatrix(){
+  tbody.innerHTML = state.map((s,i)=>`
+    <tr>
+      <td class="pair">${s.code}<i>/wDOGE</i></td>
+      <td id="px${i}">${fmt(s.price, s.price<20?4:2)}</td>
+      <td style="color:var(--dim)">${fmt(s.fx/DOGE, (s.fx/DOGE)<20?4:2)}</td>
+      <td id="dv${i}" class="dev-pos">+0.00%</td>
+      <td class="sig" id="sg${i}">NOMINAL</td>
+    </tr>`).join("");
+}
+function updateDevs(){
+  state.forEach((s,i)=>{
+    s.dev += (Math.random()-0.5)*0.04;
+    if(!s.flash && Math.abs(s.dev) > 0.12) s.dev *= 0.6;   // mean-revert unless dislocated
+    const live = s.price * (1 + s.dev/100);
+    const dv = $("#dv"+i), sg = $("#sg"+i), px = $("#px"+i);
+    px.textContent = fmt(live, live<20?4:2);
+    dv.textContent = (s.dev>=0?"+":"") + s.dev.toFixed(2) + "%";
+    dv.className = Math.abs(s.dev)>0.15 ? "dev-hot" : (s.dev>=0 ? "dev-pos" : "dev-neg");
+    sg.textContent = Math.abs(s.dev)>0.15 ? "DISLOC" : "NOMINAL";
+    sg.className = "sig" + (Math.abs(s.dev)>0.15 ? " hot" : (s.dev<=-0.15?" neg":""));
+  });
+}
+
+/* ================= dislocations + loop pills ================= */
+const pillLog = [];
+function dislocate(){
+  const i = Math.floor(Math.random()*state.length);
+  let j = Math.floor(Math.random()*state.length);
+  if(j===i) j = (j+1)%state.length;
+  const s = state[i];
+  s.flash = true;
+  s.dev = (Math.random()<0.5?-1:1) * (0.16 + Math.random()*0.27);
+  updateDevs();
+  const cell = document.querySelectorAll("#matrix tbody tr")[i].children[3];
+  cell.classList.remove("cellflash"); void cell.offsetWidth; cell.classList.add("cellflash");
+  const gain = (Math.abs(s.dev) + Math.abs(state[j].dev) + 0.05);
+  const profit = (0.31 + Math.random()*0.22).toFixed(2);
+  $("#scanMeta").textContent = `dislocation ${s.code} ${s.dev>=0?"+":""}${s.dev.toFixed(2)}% · spawning loop`;
+  $("#scannerPanel").classList.add("hit");
+  setTimeout(()=>{ $("#scannerPanel").classList.remove("hit"); s.flash=false; }, 1600);
+
+  const pill = document.createElement("button");
+  pill.className = "pill";
+  pill.innerHTML = `${s.code}→${state[j].code}→wDOGE <b>+${profit}%</b> <small>loop</small>`;
+  pill.dataset.pair = JSON.stringify([i,j]);
+  pill.dataset.profit = profit;
+  pill.onclick = () => runLoop(pill);
+  $("#pills").appendChild(pill);
+  pillLog.push(pill);
+  if(pillLog.length > 5){ const old = pillLog.shift(); old.remove(); }
+  scheduleDisloc();
+}
+function scheduleDisloc(){ setTimeout(dislocate, 3000 + Math.random()*3000); }
+
+function runLoop(pill){
+  const [a,b] = JSON.parse(pill.dataset.pair);
+  const profit = pill.dataset.profit;
+  const rows = document.querySelectorAll("#matrix tbody tr");
+  const cells = [
+    rows[a].children[3],
+    rows[b].children[3],
+    rows[a].children[1]
+  ];
+  cells.forEach(c=>{c.classList.remove("hop1","hop2","hop3");});
+  cells[0].classList.add("hop1");
+  setTimeout(()=>cells[1].classList.add("hop2"), 220);
+  setTimeout(()=>cells[2].classList.add("hop3"), 440);
+  setTimeout(()=>cells.forEach(c=>c.classList.remove("hop1","hop2","hop3")), 1900);
+  const tape = $("#tape");
+  const line = document.createElement("div");
+  line.innerHTML = `<span class="t">${time()}</span> LOOP ` +
+    `<span class="y">${state[a].code}→${state[b].code}→wDOGE</span> · ` +
+    `<span class="g">+${profit}%</span> gross · ~0.15% band · gas 0.06 DOGE · mock`;
+  tape.prepend(line);
+  while(tape.children.length > 8) tape.lastChild.remove();
+  toast(`LOOP STAGED (mock) · ${state[a].code}→${state[b].code}→wDOGE · est +${profit}% gross · not financial advice`, "green");
+}
+
+/* ================= position builder ================= */
+const MINCR = {wDOGE:150, WUFF:150, MOFX:110};
+function recalc(){
+  const col = $("#collat").value;
+  const amt = Math.max(0, +$("#cAmt").value || 0);
+  const cr = Math.max(MINCR[col], +$("#cr").value);
+  if(+$("#cr").value < MINCR[col]) $("#cr").value = MINCR[col];
+  $("#crout").textContent = cr + "%";
+  $("#crout").style.color = cr < 130 ? "var(--red)" : cr < 160 ? "var(--gold2)" : "var(--green)";
+  const value = amt * DOGE;                    // collateral value in USD terms (mock)
+  const minted = value / (cr/100);             // K9USD minted
+  const liq = DOGE * (100/cr);                 // liquidation price of collateral
+  const bounty = minted * 0.02;                // challenger earns 2%
+  $("#rMint").textContent = fmt(minted,2) + " K9USD";
+  $("#rLiq").textContent = "$" + fmt(liq,4) + " / " + col;
+  $("#rBounty").textContent = fmt(bounty,2) + " K9USD";
+  $("#rLiq").parentElement.classList.toggle("warn", cr < 130);
+}
+["collat","cAmt","cr"].forEach(id => $("#"+id).addEventListener("input", recalc));
+
+let posCount = 0;
+$("#openBtn").addEventListener("click", () => {
+  recalc();
+  const col = $("#collat").value, cr = $("#cr").value;
+  const mint = $("#rMint").textContent;
+  posCount++;
+  const tx = "0x" + Array.from({length:6},()=>"0123456789abcdef"[Math.floor(Math.random()*16)]).join("");
+  toast(`<b>POSITION OPENED (mock)</b> · ${col} @ ${cr}% CR → mint ${mint}<br>tx ${tx}… · gas 0.02 DOGE · the challenge game is watching. much collateral.`, "red");
+  addArena(`<span class="t">${time()}</span><b>NEW POSITION</b> #N${posCount} ${col} CR ${cr}% · minted ${mint}`, "cr-ok");
+});
+
+/* ================= arena feed ================= */
+const ARENA_SRC = [
+  {p:"P3", col:"MOFX", cr:104, bounty:"70 K9USD", cls:"cr-bad"},
+  {p:"P3", col:"MOFX", cr:104, bounty:"70 K9USD", cls:"cr-bad"},
+  {p:"P2", col:"MOFX", cr:116, bounty:"41 K9USD", cls:"cr-mid"},
+  {p:"P2", col:"MOFX", cr:116, bounty:"41 K9USD", cls:"cr-mid"},
+  {p:"P1", col:"MOFX", cr:171, bounty:"12 K9USD", cls:"cr-ok"}
+];
+function addArena(html, cls){
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  $("#arena").prepend(d);
+  while($("#arena").children.length > 11) $("#arena").lastChild.remove();
+}
+function arenaTick(){
+  const a = ARENA_SRC[Math.floor(Math.random()*ARENA_SRC.length)];
+  addArena(`<span class="t">${time()}</span><b>${a.p}</b> ${a.col} ` +
+    `<span class="${a.cls}">CR ${a.cr}%</span> challenged by <b>${rndAddr()}</b> ` +
+    `· Dutch auction · bounty <span class="b">${a.bounty}</span> · 2% to challenger`);
+  setTimeout(arenaTick, 4000 + Math.random()*4000);
+}
+
+/* ================= command palette ================= */
+const cmdInput = $("#cmd"), drop = $("#cmddrop");
+function renderDrop(list){
+  drop.innerHTML = list.map(c=>`<div data-k="${c[0]}"><b style="color:var(--gold)">${c[0]}</b><span>${c[1]}</span></div>`).join("");
+  drop.classList.toggle("on", list.length>0);
+}
+cmdInput.addEventListener("input", () => {
+  const q = cmdInput.value.trim().toLowerCase();
+  renderDrop(q ? CMDS.filter(c=>c[0].startsWith(q)) : CMDS);
+});
+cmdInput.addEventListener("keydown", e => {
+  if(e.key === "Enter"){
+    const k = cmdInput.value.trim().toLowerCase() || "loop";
+    execCmd(CMDS.find(c=>c[0].startsWith(k)) ? CMDS.find(c=>c[0].startsWith(k))[0] : k);
+    cmdInput.value = ""; drop.classList.remove("on"); cmdInput.blur();
+  }
+  if(e.key === "Escape"){ cmdInput.value=""; drop.classList.remove("on"); cmdInput.blur(); }
+});
+drop.addEventListener("click", e => {
+  const d = e.target.closest("[data-k]");
+  if(d){ execCmd(d.dataset.k); cmdInput.value=""; drop.classList.remove("on"); }
+});
+function execCmd(k){
+  if(k === "loop"){ const p = pillLog[pillLog.length-1]; p ? runLoop(p) : toast("no loop pill yet — wait for a dislocation", "red"); }
+  else if(k === "scan"){ dislocate(); toast("SWEEP COMPLETE (mock) · 1 dislocation forced"); }
+  else if(k === "position") jump("#builderPanel", "POSITION BUILDER — set your collateral ratio, mind the challenge bounty");
+  else if(k === "arena")    jump("#arenaPanel", "ARENA — challengers earn 2% via Dutch auction");
+  else if(k === "supply")   jump("#scannerPanel", "Σ money supply 829m across 7 stables (mock)");
+  else if(k === "leadrate") toast("LEADRATE 3.5% — savings rate set by monetary policy, adjustable by governance (mock)");
+  else if(k === "wagmi")    toast("very terminal. much reserves. <b>wagmi.</b>", "green");
+  else toast(`unknown command “${k}” · try: loop, scan, position, arena, leadrate`, "red");
+}
+function jump(sel, msg){
+  const el = $(sel);
+  el.scrollIntoView({behavior:"smooth", block:"center"});
+  el.classList.remove("flash-target"); void el.offsetWidth; el.classList.add("flash-target");
+  toast(msg);
+}
+document.addEventListener("keydown", e => {
+  if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if(e.key === "/"){ e.preventDefault(); cmdInput.focus(); }
+  else if(e.key === "l" || e.key === "L"){ const p = pillLog[pillLog.length-1]; p ? runLoop(p) : toast("no loop pill yet", "red"); }
+  else if(e.key === "p" || e.key === "P") execCmd("position");
+  else if(e.key === "a" || e.key === "A") execCmd("arena");
+});
+
+/* ================= static panels ================= */
+$("#posBody").innerHTML = POSITIONS.map(p=>`
+  <tr><td style="color:var(--gold)">${p.pos}</td><td>${p.col}</td>
+  <td>${p.cr}%</td><td style="color:var(--dim)">$${p.liq}</td>
+  <td style="text-align:right"><span class="status ${p.st[1]}">${p.st[0]}</span></td></tr>`).join("");
+$("#supply").innerHTML = SUPPLY.map(s=>`<div><label>${s[0]}</label><span>${s[1]}</span></div>`).join("");
+$("#contracts").innerHTML = "CONTRACTS · Chikyū<br>" + CONTRACTS.map(c=>
+  `<div><b>${c[0]}</b> <span data-addr="${c[1]}" title="click to copy">${c[1].slice(0,6)}…${c[1].slice(-4)}</span></div>`).join("");
+$("#contracts").addEventListener("click", e => {
+  const s = e.target.closest("[data-addr]");
+  if(!s) return;
+  const full = s.dataset.addr;
+  (navigator.clipboard ? navigator.clipboard.writeText(full) : Promise.reject())
+    .then(()=> toast(`copied ${full.slice(0,10)}… <br>${full}`, "green"))
+    .catch(()=> toast(full));
+});
+
+/* ================= clocks ================= */
+setInterval(()=>{ $("#clock").textContent = time() + " UTC" }, 1000);
+setInterval(updateDevs, 1200);
+
+/* ================= boot ================= */
+renderMatrix(); updateDevs(); recalc();
+$("#clock").textContent = time() + " UTC";
+setTimeout(dislocate, 1200);
+setTimeout(arenaTick, 800);
+addArena(`<span class="t">${time()}</span>ARENA ONLINE · challenge game = Dutch auction · challenger earns 2%`);
+</script>
+</body>
+</html>

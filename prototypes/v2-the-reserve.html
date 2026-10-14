@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DogeForex — The Reserve · Prototype V2</title>
+<style>
+  :root{
+    --paper:#f7f4ec;
+    --card:#fffdf6;
+    --ink:#12263a;
+    --ink-soft:rgba(18,38,58,.62);
+    --accent:#b8860b;
+    --hair:rgba(18,38,58,.16);
+    --hair-2:rgba(18,38,58,.08);
+    --green:#2f7d4f;
+    --amber:#a97a1a;
+    --red:#a83a32;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font:16px/1.6 var(--serif);
+    border-top:6px double var(--accent);
+    -webkit-font-smoothing:antialiased;
+  }
+  .sans{font-family:var(--sans)}
+  .num{font-variant-numeric:tabular-nums}
+  a{color:inherit}
+
+  /* ---------- notice bar ---------- */
+  .notice{
+    background:var(--ink);color:var(--paper);
+    font:11px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;
+    text-align:center;padding:9px 12px;
+  }
+  .notice b{color:#e7c65a;font-weight:600}
+
+  /* ---------- masthead ---------- */
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+  .masthead{
+    display:flex;align-items:center;gap:26px;
+    padding:34px 0 26px;border-bottom:1px solid var(--hair);
+  }
+  .seal{flex:0 0 108px}
+  .wordmark .over{
+    font:600 10.5px/1 var(--sans);letter-spacing:.32em;color:var(--accent);
+    text-transform:uppercase;display:block;margin-bottom:8px;
+  }
+  .wordmark h1{
+    font-size:30px;line-height:1.12;font-weight:600;letter-spacing:.045em;
+    text-transform:uppercase;
+  }
+  .wordmark .sub{font:13.5px/1.5 var(--serif);font-style:italic;color:var(--ink-soft);margin-top:7px}
+  .wordmark .est{font:10px/1 var(--sans);letter-spacing:.22em;color:var(--ink-soft);margin-top:10px;text-transform:uppercase}
+  .session-clock{
+    margin-left:auto;text-align:right;font:10px/1.7 var(--sans);
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);
+  }
+  .session-clock b{display:block;color:var(--ink);font-size:12px;letter-spacing:.1em}
+
+  /* ---------- ticker ---------- */
+  .ticker{
+    border-bottom:1px solid var(--hair);overflow-x:auto;white-space:nowrap;
+    font:11.5px/1 var(--sans);letter-spacing:.08em;padding:11px 0;
+  }
+  .ticker span{display:inline-block;margin-right:26px;color:var(--ink-soft)}
+  .ticker b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .ticker i{font-style:normal;color:var(--accent)}
+
+  /* ---------- currency nav ---------- */
+  .curnav{
+    display:flex;gap:2px;flex-wrap:wrap;
+    border-bottom:1px solid var(--hair);margin-bottom:38px;
+  }
+  .curnav button{
+    appearance:none;background:none;border:none;cursor:pointer;
+    font:600 12px/1 var(--sans);letter-spacing:.14em;color:var(--ink-soft);
+    padding:15px 18px 13px;border-bottom:2px solid transparent;margin-bottom:-1px;
+    transition:color .25s,border-color .25s;
+  }
+  .curnav button small{display:block;font-weight:400;font-size:9.5px;letter-spacing:.2em;margin-top:5px;opacity:.7}
+  .curnav button:hover{color:var(--ink)}
+  .curnav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* ---------- sections ---------- */
+  section{margin-bottom:52px}
+  .sec-head{margin-bottom:22px}
+  .sec-head .no{
+    font:600 10px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;
+    color:var(--accent);display:block;margin-bottom:8px;
+  }
+  .sec-head h2{font-size:23px;font-weight:600;letter-spacing:.02em}
+  .sec-head .rule{height:1px;background:var(--hair);margin-top:14px}
+  .sec-head p{font-size:14px;color:var(--ink-soft);margin-top:10px;font-style:italic;max-width:640px}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .card{
+    background:var(--card);border:1px solid var(--hair);
+    padding:26px 28px;position:relative;
+  }
+  .card h3{
+    font:600 10.5px/1 var(--sans);letter-spacing:.26em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:20px;
+  }
+  .card h3 em{color:var(--accent);font-style:normal}
+
+  /* ---------- hero stats ---------- */
+  .hero{display:grid;grid-template-columns:1.55fr 1fr 1fr;gap:26px;margin-bottom:52px}
+  .stat .lab{
+    font:600 10px/1.5 var(--sans);letter-spacing:.2em;text-transform:uppercase;
+    color:var(--accent);display:block;margin-bottom:12px;transition:color .4s;
+  }
+  .stat .big{font-size:46px;line-height:1;font-weight:600;letter-spacing:.01em}
+  .stat .big small{font-size:20px;color:var(--ink-soft);font-weight:400}
+  .stat .sub{font:11.5px/1.6 var(--sans);color:var(--ink-soft);margin-top:12px;letter-spacing:.05em}
+  .stat .val{font-size:34px;line-height:1;font-weight:600}
+  #spark{width:100%;height:64px;margin-top:18px;display:block}
+  #spark path{transition:stroke .4s}
+
+  /* ---------- donut ---------- */
+  .donut-flex{display:flex;gap:30px;align-items:center}
+  .donut-box{flex:0 0 216px;position:relative}
+  .donut-box svg{display:block;width:216px;height:216px}
+  .dnum{font:600 26px var(--serif);fill:var(--ink)}
+  .dlab{font:600 9.5px var(--sans);letter-spacing:.22em;fill:var(--ink-soft);text-transform:uppercase}
+  .legend{list-style:none;flex:1}
+  .legend li{
+    display:flex;align-items:baseline;gap:11px;padding:10px 6px;
+    border-bottom:1px solid var(--hair-2);cursor:default;transition:background .2s;
+  }
+  .legend li:hover{background:rgba(184,134,11,.06)}
+  .legend .sw{flex:0 0 11px;height:11px;transform:translateY(1px)}
+  .legend .k{font:12.5px var(--sans);letter-spacing:.06em;flex:1}
+  .legend .v{font:600 14px var(--serif);font-variant-numeric:tabular-nums}
+  .legend .note{font:11px var(--serif);font-style:italic;color:var(--ink-soft);padding:10px 6px 0;border:none}
+
+  /* ---------- minting desk ---------- */
+  .field{margin-bottom:18px}
+  .field label{font:600 10px/1 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:9px}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+  select{
+    width:100%;background:var(--paper);border:1px solid var(--hair);color:var(--ink);
+    font:14px var(--sans);padding:9px 10px;cursor:pointer;
+  }
+  .amt-out{font-size:26px;font-weight:600;margin:-6px 0 18px}
+  .amt-out em{font:12px var(--sans);font-style:normal;letter-spacing:.2em;color:var(--ink-soft)}
+  .calc{border-top:1px solid var(--hair);margin-bottom:20px}
+  .calc>div{display:flex;justify-content:space-between;gap:18px;padding:9px 0;border-bottom:1px solid var(--hair-2)}
+  .calc dt{font:12px/1.45 var(--sans);color:var(--ink-soft)}
+  .calc dd{font:600 13.5px/1.45 var(--serif);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cta{
+    appearance:none;border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+    font:600 11px/1 var(--sans);letter-spacing:.22em;text-transform:uppercase;
+    padding:14px 22px;cursor:pointer;transition:background .25s,border-color .25s;
+  }
+  .cta:hover{background:var(--accent);border-color:var(--accent)}
+  .mint-msg,.log{font:12.5px/1.6 var(--serif);font-style:italic;color:var(--ink-soft);margin-top:12px;min-height:20px}
+
+  /* ---------- policy table ---------- */
+  .ptable{border-top:2px solid var(--ink)}
+  .phead,.prow{
+    display:grid;grid-template-columns:1.1fr 1.15fr .9fr 1.25fr 34px;
+    gap:14px;align-items:center;padding:13px 10px;
+  }
+  .phead{
+    font:600 9.5px/1.4 var(--sans);letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink-soft);border-bottom:1px solid var(--hair);
+  }
+  .prow{border-bottom:1px solid var(--hair);cursor:pointer;transition:background .2s}
+  .prow:hover{background:rgba(18,38,58,.035)}
+  .prow .pc{font:600 15px var(--serif);letter-spacing:.04em}
+  .prow .pr{font:600 17px var(--serif);font-variant-numeric:tabular-nums}
+  .prow .pd,.prow .pt{font:12.5px var(--sans);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .prow .px{text-align:right;color:var(--accent);font-weight:600;transition:transform .3s}
+  .prow.open .px{transform:rotate(45deg)}
+  .minutes{
+    max-height:0;overflow:hidden;transition:max-height .45s ease,padding .45s ease;
+    border-bottom:1px solid var(--hair-2);padding:0 10px;
+  }
+  .prow:hover+.minutes,.minutes.open{max-height:100px;padding:4px 10px 14px}
+  .minutes p{
+    font:italic 14px/1.6 var(--serif);color:var(--ink-soft);
+    border-left:2px solid var(--accent);padding-left:16px;
+  }
+  .minutes p b{font:600 9.5px var(--sans);letter-spacing:.22em;color:var(--accent);text-transform:uppercase;font-style:normal;display:block;margin-bottom:3px}
+
+  /* ---------- MD statement + auction ---------- */
+  blockquote{
+    font-size:21px;line-height:1.55;font-style:italic;font-weight:400;
+    min-height:130px;transition:opacity .4s ease;
+  }
+  blockquote.fade{opacity:0}
+  .sig{margin-top:18px;font:11px/1.7 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft)}
+  .dots{margin-top:16px;display:flex;gap:7px}
+  .dots i{width:6px;height:6px;border-radius:50%;background:var(--hair);transition:background .3s}
+  .dots i.on{background:var(--accent)}
+  .lot{font:italic 14.5px/1.5 var(--serif);color:var(--ink-soft);margin-bottom:18px}
+  .arow{display:flex;align-items:baseline;gap:10px;font:12px var(--sans);color:var(--ink-soft);letter-spacing:.05em}
+  .arow b{font:600 30px var(--serif);color:var(--ink);font-variant-numeric:tabular-nums}
+  .bar{height:4px;background:var(--hair-2);margin:16px 0 10px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);width:0%;transition:width 1s linear}
+  .anote{font:11px/1.8 var(--sans);color:var(--ink-soft);letter-spacing:.04em;margin-bottom:18px}
+  #clog{font-style:normal}
+
+  /* ---------- ledger ---------- */
+  .ledger{width:100%;border-collapse:collapse;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+  .ledger th{
+    font:600 9.5px/1.4 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);
+    text-align:left;padding:11px 12px;border-bottom:1px solid var(--hair);
+  }
+  .ledger th.r,.ledger td.r{text-align:right}
+  .ledger td{
+    padding:13px 12px;border-bottom:1px solid var(--hair-2);
+    font:14px var(--sans);font-variant-numeric:tabular-nums;
+  }
+  .ledger td.id{font:600 14.5px var(--serif)}
+  .ledger tr{transition:background .2s}
+  .ledger tr:hover{background:rgba(18,38,58,.03)}
+  .ledger td:first-child{border-left:3px solid transparent}
+  tr.safe td:first-child{border-left-color:var(--green)}
+  tr.watch td:first-child{border-left-color:var(--amber)}
+  tr.chal td:first-child{border-left-color:var(--red)}
+  .bandtag{font:600 10px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase}
+  tr.safe .bandtag{color:var(--green)}
+  tr.watch .bandtag{color:var(--amber)}
+  tr.chal .bandtag{color:var(--red)}
+  .ledger-foot{font:italic 12.5px/1.7 var(--serif);color:var(--ink-soft);margin-top:12px}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--hair);padding:40px 0 56px;margin-top:20px}
+  .fgrid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:36px;margin-bottom:34px}
+  .fgrid h4{font:600 10px/1 var(--sans);letter-spacing:.26em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  .fgrid p{font:11.5px/1.9 var(--sans);color:var(--ink-soft);word-break:break-all}
+  .fgrid p b{color:var(--ink);font-weight:600}
+  .charter{
+    text-align:center;font:12px/1 var(--sans);letter-spacing:.3em;text-transform:uppercase;
+    color:var(--ink);border-top:1px solid var(--hair-2);border-bottom:1px solid var(--hair-2);
+    padding:16px 0;margin-bottom:22px;
+  }
+  .refnote{font:italic 12.5px/1.9 var(--serif);color:var(--ink-soft);text-align:center;max-width:760px;margin:0 auto}
+
+  @media (max-width:920px){
+    .grid,.hero,.fgrid{grid-template-columns:1fr}
+    .masthead{flex-direction:column;text-align:center;gap:16px}
+    .session-clock{margin:0;text-align:center}
+    blockquote{min-height:150px}
+    .phead,.prow{grid-template-columns:1fr 1fr 34px}
+    .phead .h3col,.prow .pt{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="notice"><b>DRAFT</b> &nbsp;·&nbsp; MOCK DATA &nbsp;·&nbsp; CHIKYŪ TESTNET &nbsp;·&nbsp; PROTOTYPE V2 — THE RESERVE</div>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <svg class="seal" viewBox="0 0 120 120" role="img" aria-label="Seal of the Fund — geometric shiba silhouette placeholder">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="#b8860b" stroke-width="2"/>
+      <circle cx="60" cy="60" r="50" fill="none" stroke="#b8860b" stroke-width="1"/>
+      <polygon points="34,56 44,20 59,44" fill="#12263a"/>
+      <polygon points="86,56 76,20 61,44" fill="#12263a"/>
+      <circle cx="60" cy="64" r="29" fill="#12263a"/>
+      <circle cx="50" cy="60" r="2.7" fill="#f7f4ec"/>
+      <circle cx="70" cy="60" r="2.7" fill="#f7f4ec"/>
+      <ellipse cx="60" cy="72" rx="13" ry="9.5" fill="#f7f4ec"/>
+      <polygon points="60,66 56.4,70 60,74 63.6,70" fill="#12263a"/>
+    </svg>
+    <div class="wordmark">
+      <span class="over">DogeForex · Prototype Version II</span>
+      <h1>International Money Fund of DogeWorld</h1>
+      <p class="sub">Reserve system of the doge economy — seven collateralized forex stablecoins, one charter.</p>
+      <div class="est">Est. 2026, much stable</div>
+    </div>
+    <div class="session-clock">
+      Session of the Board
+      <b id="clock">--:--:-- UTC</b>
+      Chain Chikyū · 6281971
+    </div>
+  </header>
+
+  <div class="ticker sans" id="ticker"></div>
+
+  <nav class="curnav" id="curnav" aria-label="Currency switcher"></nav>
+
+  <main>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="card stat">
+        <span class="lab" id="heroLab">K9USD per 1 USD — administered reference rate (mock)</span>
+        <div class="big num" id="heroRate">1.0000</div>
+        <svg id="spark" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true">
+          <path id="sparkPath" fill="none" stroke="#b8860b" stroke-width="1.6"/>
+        </svg>
+        <div class="sub">Indicative print · refreshed on session tick · managed within the ≈0.15% round-trip band (Barkswap 0.05%/hop, mock)</div>
+      </div>
+      <div class="card stat">
+        <span class="lab">Leadrate — savings rate set by monetary policy</span>
+        <div class="val num" id="leadVal">3.50%</div>
+        <div class="sub" id="leadSub">last decision −25 bp · next review 28 Oct</div>
+      </div>
+      <div class="card stat">
+        <span class="lab">Collateral mark — wDOGE (Chikyū)</span>
+        <div class="val num">$0.0850</div>
+        <div class="sub">gas ≈0.02 DOGE/tx · Dutch-auction challenge window open · challenger earns 2% on the awarded portion</div>
+      </div>
+    </div>
+
+    <!-- SECTION I -->
+    <section>
+      <div class="sec-head">
+        <span class="no">Section I</span>
+        <h2>Reserve Composition &amp; Minting Desk</h2>
+        <div class="rule"></div>
+        <p>Assets held against minted K9 liabilities, per the proposed charter. Figures are illustrative mock marks.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>Reserve Composition <em>· as of this session</em></h3>
+          <div class="donut-flex">
+            <div class="donut-box">
+              <svg viewBox="0 0 200 200" id="donut">
+                <g transform="rotate(-90 100 100)" id="donutG"></g>
+                <text x="100" y="96" text-anchor="middle" class="dnum" id="dNum">—</text>
+                <text x="100" y="116" text-anchor="middle" class="dlab" id="dLab">RESERVE</text>
+              </svg>
+            </div>
+            <ul class="legend" id="legend"></ul>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Minting Desk <em>· simulated</em></h3>
+          <div class="field">
+            <label for="amt">Mint amount — <span id="curCode1">K9USD</span></label>
+            <input type="range" id="amt" min="1000" max="250000" step="1000" value="25000">
+          </div>
+          <div class="amt-out num"><span id="amtVal">25,000</span> <em id="curCode2">K9USD</em></div>
+          <div class="field">
+            <label for="col">Collateral</label>
+            <select id="col">
+              <option value="wDOGE">wDOGE — $0.085 (canonical)</option>
+              <option value="WUFF">WUFF — $0.42 (mock mark)</option>
+              <option value="MOFX">MOFX — $1.25 (mock mark)</option>
+            </select>
+          </div>
+          <dl class="calc">
+            <div><dt>Required collateral value (110% minimum)</dt><dd id="cVal">$27,500</dd></div>
+            <div><dt>Units of <span id="cUnit">wDOGE</span></dt><dd id="cUnits">323,529</dd></div>
+            <div><dt>Minting fee (0.5%, mock)</dt><dd id="cFee">125 K9USD</dd></div>
+            <div><dt>Resulting collateral ratio</dt><dd>110.0% (minimum)</dd></div>
+          </dl>
+          <button class="cta" id="mintBtn">Open position (simulated)</button>
+          <div class="mint-msg" id="mintMsg"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION II -->
+    <section>
+      <div class="sec-head">
+        <span class="no">Section II</span>
+        <h2>Policy Rates of the Seven Currencies</h2>
+        <div class="rule"></div>
+        <p>Central-bank release, condensed. Hover — or tap — a row to read that session’s minutes.</p>
+      </div>
+      <div class="ptable">
+        <div class="phead">
+          <span>Currency</span><span>Leadrate (savings)</span>
+          <span class="h3col">Last decision</span><span>Next review</span><span></span>
+        </div>
+        <div id="pbody"></div>
+      </div>
+    </section>
+
+    <!-- SECTION III + IV -->
+    <section>
+      <div class="grid">
+        <div class="card">
+          <h3>Section III — Statement of the Managing Director</h3>
+          <blockquote id="mdLine">“The Fund administers reference rates against collateral, not promises. Such is the charter.”</blockquote>
+          <div class="sig">Office of the Managing Director · For immediate release (mock)</div>
+          <div class="dots" id="mdDots"></div>
+        </div>
+        <div class="card">
+          <h3>Section IV — Open Challenge Auction</h3>
+          <p class="lot" id="aLot">Lot №247 · P3 remainder · 61,000 K9USD exposure · MOFX collateral</p>
+          <div class="arow">Dutch price <b id="aPrice">1.0650</b> per 1.00 face</div>
+          <div class="bar"><i id="aBar"></i></div>
+          <div class="anote">floor 0.8000 · count <span id="aCount">150</span>s · challenger earns 2% on the awarded portion · gas ≈0.02 DOGE/tx (Chikyū)</div>
+          <button class="cta" id="chalBtn">Submit challenge (simulated)</button>
+          <div class="log sans" id="clog"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION V -->
+    <section>
+      <div class="sec-head">
+        <span class="no">Section V</span>
+        <h2>Balance Sheet — Minted Positions</h2>
+        <div class="rule"></div>
+        <p>Open positions on the MintingHub. Health is expressed as collateral ratio; bands per charter: sound ≥150%, watch 120–149%, below 120% enters the challenge zone.</p>
+      </div>
+      <table class="ledger">
+        <thead>
+          <tr><th>Pos.</th><th>Collateral</th><th class="r">Minted (K9USD)</th><th class="r">Collateral ratio</th><th>Band</th></tr>
+        </thead>
+        <tbody id="posBody"></tbody>
+      </table>
+      <p class="ledger-foot">P3 is deliberately thin — kept on the books as Arena-bait for would-be challengers. Ratio marks drift on a mock session tick.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="fgrid">
+      <div>
+        <h4>Contracts — Chikyū Testnet</h4>
+        <p>
+          <b>K9USD Token</b> 0x7cd12A6C4CbcfE87af588d9c3FF8576aB4FBF5A8<br>
+          <b>MintingHub</b> 0x0bADA8D887573Cc47eBef4ff5BBE42942B580F9b<br>
+          <b>Equity</b> 0x61B9193ef708972D694f98DbBF2dA9ccfD614C4E<br>
+          <b>Savings</b> 0x80958D976149d1Dcf522682EB105aC3F7566ca05
+        </p>
+      </div>
+      <div>
+        <h4>Pools &amp; Collateral</h4>
+        <p>
+          <b>K9USD/wDOGE</b> 0x4380BF2aDb03DC4089A8d0b2887493361Ac489E2<br>
+          <b>MOFX/K9USD</b> 0xe67d57f33414cCDF267adC9eCCa414cb10657461B<br>
+          <b>wDOGE</b> 0x5300000000000000000000000000000000000004<br>
+          <b>WUFF</b> 0x03538800942cF78fb59550532496164D1d3bE31D<br>
+          <b>MOFX</b> 0x2F0393CEb21b040722D36b628DB2C75aB0E0b156
+        </p>
+      </div>
+      <div>
+        <h4>Protocol Notes</h4>
+        <p>
+          Chain Chikyū · ID 6281971 · DOGE gas ≈0.02/tx<br>
+          Challenge game: Dutch auction, challenger earns 2%<br>
+          Arb round-trip band ≈0.15% (Barkswap 0.05%/hop)<br>
+          Health metric: collateral ratio, full stop.
+        </p>
+      </div>
+    </div>
+    <div class="charter">INTERNATIONAL MONEY FUND OF DOGEWORLD · PROPOSED CHARTER</div>
+    <p class="refnote">
+      Reference rates (mock): USD 1.00 · EUR 0.92 · JPY 149 · GBP 0.79 · AUD 1.52 · CNY 7.12 · BRL 5.45 per 1 USD; DOGE $0.085.
+      This page is a draft prototype running on mock data over the Chikyū testnet. Nothing here is an offer, a rate commitment, or financial advice.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(s){ return document.querySelector(s); };
+
+  /* ============ data ============ */
+  var CUR = [
+    {sym:"USD", code:"K9USD", rate:1.00,  lead:"3.50%", chg:"−25 bp", next:"28 Oct", color:"#1a7a4a", dec:4, min:"Demand judged steady; committee in agreement. Much confidence."},
+    {sym:"EUR", code:"K9EUR", rate:0.92,  lead:"2.75%", chg:"−25 bp", next:"28 Oct", color:"#2255aa", dec:4, min:"Hold, with patience. Very steady."},
+    {sym:"JPY", code:"K9JPY", rate:149,   lead:"0.25%", chg:"±0 bp",  next:"30 Oct", color:"#7a2d5a", dec:2, min:"Carry flows monitored; intervention discussed. Wow, volatility."},
+    {sym:"GBP", code:"K9GBP", rate:0.79,  lead:"3.25%", chg:"−50 bp", next:"28 Oct", color:"#0f766e", dec:4, min:"Caution prevails; no dissent recorded. Such discipline."},
+    {sym:"AUD", code:"K9AUD", rate:1.52,  lead:"3.75%", chg:"±0 bp",  next:"01 Nov", color:"#b45309", dec:4, min:"Commodity tailwinds acknowledged. Much stable."},
+    {sym:"CNY", code:"K9CNY", rate:7.12,  lead:"2.25%", chg:"−10 bp", next:"30 Oct", color:"#b91c1c", dec:2, min:"Managed range reaffirmed. Very orderly."},
+    {sym:"BRL", code:"K9BRL", rate:5.45,  lead:"6.50%", chg:"+75 bp", next:"01 Nov", color:"#4d7c0f", dec:2, min:"High carry invites high watch. Wow."}
+  ];
+  var active = 0;
+  var COLPX = { wDOGE:0.085, WUFF:0.42, MOFX:1.25 };
+  var RES = [
+    {k:"WDOGE", v:38, c:"#12263a"},
+    {k:"WUFF",  v:12, c:"#b8860b"},
+    {k:"MOFX",  v:20, c:"#4f6f52"},
+    {k:"K9 FLOATS", v:30, c:"#cdbd92"}
+  ];
+  var POS = [
+    {id:"P1", col:"MOFX", mint:427500, cr:171.0},
+    {id:"P4", col:"wDOGE", mint:180000, cr:150.4},
+    {id:"P7", col:"MOFX", mint:132000, cr:138.2},
+    {id:"P5", col:"WUFF", mint:66000,  cr:149.6},
+    {id:"P2", col:"MOFX", mint:95000,  cr:116.3},
+    {id:"P3", col:"MOFX", mint:61000,  cr:104.1}
+  ];
+  var MD = [
+    "The Fund administers reference rates against collateral, not promises. Such is the charter.",
+    "Seven currencies, one reserve, and a challenge window that never sleeps. Very orderly.",
+    "The savings rate is set by monetary policy, reviewed every session, and advertised nowhere.",
+    "Undercollateralized positions go to auction in the open. Wow — transparency.",
+    "Arbitrageurs keep our rates honest; supervision keeps them civil. Much respect."
+  ];
+
+  function fmt(n, d){
+    return n.toLocaleString("en-US",{minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+
+  /* ============ clock ============ */
+  setInterval(function(){
+    var d = new Date();
+    $("#clock").textContent = ("0"+d.getUTCHours()).slice(-2)+":"+("0"+d.getUTCMinutes()).slice(-2)+":"+("0"+d.getUTCSeconds()).slice(-2)+" UTC";
+  }, 1000);
+
+  /* ============ currency nav + accent re-theme ============ */
+  var nav = $("#curnav");
+  CUR.forEach(function(c, i){
+    var b = document.createElement("button");
+    b.innerHTML = c.sym + "<small>" + c.code + "</small>";
+    b.addEventListener("click", function(){
+      active = i;
+      var btns = nav.querySelectorAll("button");
+      for (var j=0;j<btns.length;j++) btns[j].classList.remove("active");
+      b.classList.add("active");
+      document.documentElement.style.setProperty("--accent", c.color);
+      renderHero(); drawSpark(true);
+    });
+    nav.appendChild(b);
+  });
+  nav.querySelector("button").classList.add("active");
+
+  function renderHero(){
+    var c = CUR[active];
+    $("#heroLab").textContent = c.code + " per 1 USD — administered reference rate (mock)";
+    $("#heroRate").textContent = fmt(c.rate, c.dec);
+    $("#leadVal").textContent = c.lead;
+    $("#leadSub").textContent = "last decision " + c.chg + " · next review " + c.next;
+    $("#curCode1").textContent = c.code;
+    $("#curCode2").textContent = c.code;
+    recalcMint();
+  }
+
+  /* ============ sparkline ============ */
+  function drawSpark(animate){
+    var c = CUR[active], path = $("#sparkPath");
+    var pts = [], v = c.rate;
+    for (var i=0;i<48;i++){
+      v = v * (1 + (Math.random()-0.5)*0.0011);
+      pts.push(v);
+    }
+    var min = Math.min.apply(null,pts), max = Math.max.apply(null,pts), span = (max-min) || 1;
+    var dstr = "M";
+    for (var j=0;j<pts.length;j++){
+      var x = (j/(pts.length-1))*298 + 1;
+      var y = 58 - ((pts[j]-min)/span)*50;
+      dstr += (j?" L":"") + x.toFixed(1) + " " + y.toFixed(1);
+    }
+    path.setAttribute("d", dstr);
+    path.style.stroke = c.color;
+    if (animate){
+      var len = 600;
+      try { len = path.getTotalLength(); } catch(e){}
+      path.style.transition = "none";
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+      path.getBoundingClientRect();
+      path.style.transition = "stroke-dashoffset 1.1s ease";
+      path.style.strokeDashoffset = "0";
+    } else {
+      path.style.strokeDasharray = "none";
+    }
+  }
+
+  /* ============ ticker ============ */
+  function renderTicker(){
+    var t = $("#ticker"), html = "";
+    CUR.forEach(function(c){
+      html += "<span><i>" + c.code + "</i> <b>" + fmt(c.rate, c.dec) + "</b></span>";
+    });
+    html += "<span>INDICATIVE · MOCK</span>";
+    t.innerHTML = html;
+  }
+  setInterval(function(){
+    CUR.forEach(function(c){ c.rate = c.rate * (1 + (Math.random()-0.5)*0.0007); });
+    renderTicker(); renderHero();
+  }, 3200);
+
+  /* ============ donut ============ */
+  var R = 64, C = 2*Math.PI*R, g = $("#donutG"), segEls = [];
+  var acc = 0;
+  RES.forEach(function(s){
+    var el = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    el.setAttribute("cx",100); el.setAttribute("cy",100); el.setAttribute("r",R);
+    el.setAttribute("fill","none"); el.setAttribute("stroke",s.c);
+    el.setAttribute("stroke-width",26);
+    el.setAttribute("stroke-dasharray","0 " + C);
+    el.setAttribute("stroke-dashoffset", -acc/100*C);
+    g.appendChild(el); segEls.push(el);
+    acc += s.v;
+  });
+  var t0 = performance.now();
+  (function frame(now){
+    var p = Math.min(1,(now-t0)/1400), e = 1-Math.pow(1-p,3);
+    segEls.forEach(function(el,i){
+      el.setAttribute("stroke-dasharray", (RES[i].v/100*C*e) + " " + C);
+    });
+    if (p<1) requestAnimationFrame(frame);
+  })(t0);
+
+  var legend = $("#legend");
+  RES.forEach(function(s,i){
+    var li = document.createElement("li");
+    li.innerHTML = '<span class="sw" style="background:'+s.c+'"></span><span class="k">'+s.k+'</span><span class="v">'+s.v+'%</span>';
+    li.addEventListener("mouseenter", function(){
+      segEls.forEach(function(el,j){ el.setAttribute("stroke-width", j===i?32:26); el.style.opacity = j===i?1:.3; });
+      $("#dNum").textContent = s.v + "%";
+      $("#dLab").textContent = s.k;
+    });
+    li.addEventListener("mouseleave", function(){
+      segEls.forEach(function(el){ el.setAttribute("stroke-width",26); el.style.opacity = 1; });
+      $("#dNum").textContent = "100%";
+      $("#dLab").textContent = "RESERVE";
+    });
+    legend.appendChild(li);
+    if (i === RES.length-1){
+      var note = document.createElement("li");
+      note.className = "note";
+      note.textContent = "K9 floats: unsettled family mints held as intraday liquidity. Such buffer.";
+      legend.appendChild(note);
+    }
+  });
+
+  /* ============ minting desk ============ */
+  function recalcMint(){
+    var amt = +$("#amt").value, col = $("#col").value, px = COLPX[col];
+    $("#amtVal").textContent = fmt(amt,0);
+    $("#cVal").textContent = "$" + fmt(amt*1.10, 0);
+    $("#cUnits").textContent = fmt(Math.round(amt*1.10/px), 0);
+    $("#cUnit").textContent = col;
+    $("#cFee").textContent = fmt(amt*0.005, 0) + " " + CUR[active].code;
+  }
+  $("#amt").addEventListener("input", recalcMint);
+  $("#col").addEventListener("change", recalcMint);
+  $("#mintBtn").addEventListener("click", function(){
+    $("#mintMsg").textContent = "Position queued for the next session. Much patience.";
+    setTimeout(function(){ $("#mintMsg").textContent = ""; }, 4000);
+  });
+
+  /* ============ policy table ============ */
+  var pb = $("#pbody");
+  CUR.forEach(function(c){
+    var row = document.createElement("div");
+    row.className = "prow";
+    row.innerHTML =
+      '<span class="pc">'+c.code+'</span>'+
+      '<span class="pr">'+c.lead+'</span>'+
+      '<span class="pd h3col">'+c.chg+'</span>'+
+      '<span class="pt">'+c.next+' session</span>'+
+      '<span class="px">+</span>';
+    var mn = document.createElement("div");
+    mn.className = "minutes";
+    mn.innerHTML = '<p><b>Minutes</b>“'+c.min+'”</p>';
+    row.addEventListener("click", function(){ row.classList.toggle("open"); mn.classList.toggle("open"); });
+    pb.appendChild(row); pb.appendChild(mn);
+  });
+
+  /* ============ MD statement rotation ============ */
+  var mdi = 0, mdLine = $("#mdLine"), dots = $("#mdDots");
+  MD.forEach(function(_,i){
+    var d = document.createElement("i");
+    if (i===0) d.className = "on";
+    dots.appendChild(d);
+  });
+  setInterval(function(){
+    mdLine.classList.add("fade");
+    setTimeout(function(){
+      mdi = (mdi+1) % MD.length;
+      mdLine.textContent = "“" + MD[mdi] + "”";
+      var ds = dots.querySelectorAll("i");
+      for (var i=0;i<ds.length;i++) ds[i].className = (i===mdi?"on":"");
+      mdLine.classList.remove("fade");
+    }, 420);
+  }, 6500);
+
+  /* ============ challenge auction ============ */
+  var A = { start:1.065, floor:0.80, dur:150, left:150, lot:247 };
+  function aReset(){
+    A.left = A.dur = 110 + Math.round(Math.random()*80);
+    A.start = 1.02 + Math.random()*0.06;
+    A.lot++;
+    $("#aLot").textContent = "Lot №"+A.lot+" · P3 remainder · 61,000 K9USD exposure · MOFX collateral";
+  }
+  setInterval(function(){
+    A.left -= 1;
+    if (A.left <= 0) aReset();
+    var p = A.start - (A.start - A.floor) * (1 - A.left/A.dur);
+    $("#aPrice").textContent = p.toFixed(4);
+    $("#aCount").textContent = A.left;
+    $("#aBar").style.width = ((1 - A.left/A.dur)*100) + "%";
+  }, 1000);
+  var clog = $("#clog");
+  $("#chalBtn").addEventListener("click", function(){
+    var p = $("#aPrice").textContent;
+    var line = document.createElement("div");
+    line.textContent = "№"+(A.lot)+" challenged at "+p+"× face — challenger earns 2% (simulated). Much nerve.";
+    clog.insertBefore(line, clog.firstChild);
+    while (clog.children.length > 3) clog.removeChild(clog.lastChild);
+    aReset();
+  });
+
+  /* ============ positions ledger ============ */
+  function bandOf(cr){
+    if (cr >= 150) return ["Sound","safe"];
+    if (cr >= 120) return ["Watch","watch"];
+    return ["Challenge zone","chal"];
+  }
+  var tbody = $("#posBody"), rowEls = [];
+  POS.forEach(function(p){
+    var tr = document.createElement("tr");
+    var b = bandOf(p.cr);
+    tr.className = b[1];
+    var label = p.id === "P3" ? "Auction open" : b[0];
+    tr.innerHTML =
+      '<td class="id">'+p.id+'</td><td>'+p.col+'</td>'+
+      '<td class="r">'+fmt(p.mint,0)+'</td>'+
+      '<td class="r crv">'+p.cr.toFixed(1)+'%</td>'+
+      '<td class="bandtag">'+label+'</td>';
+    tbody.appendChild(tr); rowEls.push(tr);
+  });
+  setInterval(function(){
+    POS.forEach(function(p,i){
+      p.cr = Math.max(100.5, Math.min(220, p.cr + (Math.random()-0.5)*0.9));
+      var b = bandOf(p.cr), tr = rowEls[i];
+      tr.className = b[1];
+      tr.querySelector(".crv").textContent = p.cr.toFixed(1) + "%";
+      tr.querySelector(".bandtag").textContent = (p.id === "P3") ? "Auction open" : b[0];
+    });
+  }, 3000);
+
+  /* ============ init ============ */
+  renderTicker(); renderHero(); drawSpark(true); recalcMint();
+})();
+</script>
+</body>
+</html>
