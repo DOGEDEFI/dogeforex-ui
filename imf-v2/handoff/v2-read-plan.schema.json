@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IMF read-only V2 position plan",
+  "description": "A planning and evidence document, not transaction calldata, simulation, an eligibility guarantee or authorization. Numeric inputs and raw values are strings; live status requires independently verified registry, state and quote evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "executionEnabled", "simulationStatus", "signatureStatus", "action", "project", "currency", "chainId", "inputs", "evidence"],
+  "properties": {
+    "schema": { "const": "imf.v2-read-plan.v1" },
+    "status": { "enum": ["local-read-plan", "read-backed-plan"] },
+    "executionEnabled": { "const": false },
+    "simulationStatus": { "const": "not-run" },
+    "signatureStatus": { "const": "not-requested" },
+    "action": { "enum": ["new", "clone", "mint"] },
+    "project": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S" },
+    "currency": { "enum": ["USD", "EUR", "JPY", "GBP", "AUD", "CNY", "BRL", "PKR", "BDT", "INR", "NGN"] },
+    "chainId": { "type": ["string", "null"], "pattern": "^[1-9][0-9]*$" },
+    "inputs": { "type": "object" },
+    "evidence": { "type": "object" },
+    "id": { "type": "string", "description": "Browser-local draft identity only; stripped from a normal plan export." },
+    "savedAt": { "type": "string", "format": "date-time", "description": "Browser-local save timestamp only." }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "read-backed-plan" } } },
+      "then": {
+        "properties": {
+          "evidence": {
+            "required": ["registry", "state", "quote"],
+            "properties": {
+              "registry": {
+                "type": "object",
+                "required": ["status"],
+                "properties": { "status": { "const": "verified-read" } }
+              },
+              "state": { "type": "object" },
+              "quote": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "not": { "required": ["calldata", "transaction", "privateKey", "mnemonic", "signature"] }
+    }
+  ]
+}

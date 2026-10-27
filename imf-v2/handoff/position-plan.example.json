@@ -1,0 +1,28 @@
+{
+  "schema": "imf.position-plan.v1",
+  "status": "local-draft",
+  "executionEnabled": false,
+  "project": "Fictional example project",
+  "collateral": {
+    "tokenAddress": "0x1111111111111111111111111111111111111111",
+    "amount": "1000000"
+  },
+  "currency": "USD",
+  "assumptions": {
+    "grossMint": "50000",
+    "reservePercent": "20",
+    "upfrontFeePercent": "1"
+  },
+  "illustrativeResult": {
+    "gross": 50000,
+    "reserve": 10000,
+    "fee": 500,
+    "net": 39500
+  },
+  "excludedCosts": [
+    "opening fee",
+    "gas",
+    "DEX costs"
+  ],
+  "nextAction": "Retrieve verified V2 terms and eligibility before preparing transactions"
+}

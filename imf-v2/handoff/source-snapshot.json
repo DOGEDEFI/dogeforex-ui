@@ -1,0 +1,157 @@
+{
+  "schema": "imf.source-snapshot.v1",
+  "source": "/Users/tonicaradonna/dogeforex-institutional",
+  "sourceVerification": "npm run verify passed before import: 86 references, 13 guides, 11 currencies, both interaction harnesses",
+  "files": [
+    {
+      "path": "index.html",
+      "source": "index.html",
+      "sha256": "5febb16dd276725f2f035c40eb0beb0773345532720447e22f1c293ee0992575",
+      "bytes": 18013
+    },
+    {
+      "path": "app/index.html",
+      "source": "app/index.html",
+      "sha256": "eb95349ba99fcf926a8ef32991506b222c9677d37388064f4f0ba617b6b795b7",
+      "bytes": 10766
+    },
+    {
+      "path": "handoff/position-plan.schema.json",
+      "source": "handoff/position-plan.schema.json",
+      "sha256": "03f38b0e0a5cdaa10cd08bd854a7991875bf2ce0cc1698ef7d2bcd5da3c38b49",
+      "bytes": 3476
+    },
+    {
+      "path": "handoff/asset-provenance.json",
+      "source": "handoff/asset-provenance.json",
+      "sha256": "cfa5bfe18ab88ebc984eb7f1919fc864511718e66e40c7c398aa45297bc532b1",
+      "bytes": 3893
+    },
+    {
+      "path": "handoff/position-plan.example.json",
+      "source": "handoff/position-plan.example.json",
+      "sha256": "09610787421069e3d9c4a2f1b6cd9f69c66ec8520ad3dfeded316ba2a19a0df9",
+      "bytes": 648
+    },
+    {
+      "path": "docs/index.html",
+      "source": "docs/index.html",
+      "sha256": "290fcec743e9820d55a765caebeb9a9c57d86afb6e27ec6ce5655b06bae4dafa",
+      "bytes": 2382
+    },
+    {
+      "path": "scripts/check-content.py",
+      "source": "scripts/check-content.py",
+      "sha256": "75bc34e1c883982e2b8e5ff9e2ddbb1bc2896b8794d2560469e33155ac2dff80",
+      "bytes": 1933
+    },
+    {
+      "path": "scripts/check-explorer.cjs",
+      "source": "scripts/check-explorer.cjs",
+      "sha256": "4d3adbf22a960bf62239e585fd237afde654edae4ea8767fbd8afe588607997c",
+      "bytes": 2476
+    },
+    {
+      "path": "scripts/check-planning.cjs",
+      "source": "scripts/check-planning.cjs",
+      "sha256": "35295a9eafc2f726e691caf120675b823e36ad1bb591f1892ec497cede5f70d6",
+      "bytes": 2609
+    },
+    {
+      "path": "assets/world.png",
+      "source": "assets/world.png",
+      "sha256": "8268f5a79cd2fc4be55e312d32ac4004dc73ea83fce0cd627592fb8d8b9cfa9c",
+      "bytes": 913417
+    },
+    {
+      "path": "assets/arena-world.png",
+      "source": "assets/arena-world.png",
+      "sha256": "f785e53c8fed19f947b87cb3b82850434928ecebe20ea03a5a177fd58083ef96",
+      "bytes": 991622
+    },
+    {
+      "path": "assets/imf.svg",
+      "source": "assets/imf.svg",
+      "sha256": "0b6568781d8436e083f2c7902fcdd2db671b026f359022cd3817055f225d322e",
+      "bytes": 249
+    },
+    {
+      "path": "assets/docs.js",
+      "source": "assets/docs.js",
+      "sha256": "5b185098adb42fb5da88c2136957a4910290bcec1a49410c43f80a81efa63637",
+      "bytes": 1967
+    },
+    {
+      "path": "assets/mint-world.png",
+      "source": "assets/mint-world.png",
+      "sha256": "f02a29e4c03d06b9dc96031337a0594a412a0babe41c356bbc02f75953c38d69",
+      "bytes": 1034224
+    },
+    {
+      "path": "assets/chairpup.png",
+      "source": "assets/chairpup.png",
+      "sha256": "014742c8e55bc99b436af87122891c25c84e774d755490e65fa102f4b9fec49e",
+      "bytes": 529448
+    },
+    {
+      "path": "assets/village-world.png",
+      "source": "assets/village-world.png",
+      "sha256": "6eb07040b443d27396362835aa27cf769341d43654f90a9ac504de035b0277d3",
+      "bytes": 945963
+    },
+    {
+      "path": "assets/vault-world.png",
+      "source": "assets/vault-world.png",
+      "sha256": "9f1ca5da3c028ccbd42cf05a147290b10b64995c0900c196c33623cd9ba4e900",
+      "bytes": 1310442
+    },
+    {
+      "path": "assets/dogeos.svg",
+      "source": "assets/dogeos.svg",
+      "sha256": "f0cdc813e8a62ed11dc0e9d21e57ee845f0faabd272d82e7e4721fec7a88a675",
+      "bytes": 105707
+    },
+    {
+      "path": "assets/style.css",
+      "source": "assets/style.css",
+      "sha256": "45e0f34ffc98eb820e9380994255d92f2570cb0a43a82fee94ad08a8c819bd66",
+      "bytes": 26936
+    },
+    {
+      "path": "assets/currencies.json",
+      "source": "assets/currencies.json",
+      "sha256": "3b75095a797150e44125e5876feb13f385bceee0586e2120349014d669ec0632",
+      "bytes": 282
+    },
+    {
+      "path": "assets/articles.json",
+      "source": "assets/articles.json",
+      "sha256": "25382e5217063ad921501ec65ac335e3aa19fc3114a858e5facb85ad939c6225",
+      "bytes": 32058
+    },
+    {
+      "path": "assets/shared.js",
+      "source": "assets/shared.js",
+      "sha256": "fcfbb6df1d12d78394f92644cc284408fc44568d1f5119f920b2196639f837bf",
+      "bytes": 703
+    },
+    {
+      "path": "assets/explore.js",
+      "source": "assets/explore.js",
+      "sha256": "54f89b69248c516a82c4cacdfa735e2755c8d37f065710a22b075be637128bd3",
+      "bytes": 4429
+    },
+    {
+      "path": "assets/app.js",
+      "source": "assets/app.js",
+      "sha256": "4ee5b3b76826b327459b4b00c6733aca14d97f459ab125f987bfba171025daf3",
+      "bytes": 9168
+    },
+    {
+      "path": "assets/guide-dog.png",
+      "source": "assets/guide-dog.png",
+      "sha256": "28586d1b8aa3695f2dc15899502c71d085af8ee7048eb3277b70f9d6e96ea560",
+      "bytes": 885644
+    }
+  ]
+}

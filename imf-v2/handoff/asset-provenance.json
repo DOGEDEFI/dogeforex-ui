@@ -1,0 +1,85 @@
+{
+  "schema": "imf.asset-provenance.v1",
+  "assets": [
+    {
+      "path": "assets/world.png",
+      "source": "../dogeforex-frontend/assets/raw/low-poly-3d-floating-treasure-island-diorama-in.png",
+      "usage": "Retained original island; not currently displayed",
+      "bytes": 913417,
+      "sha256": "8268f5a79cd2fc4be55e312d32ac4004dc73ea83fce0cd627592fb8d8b9cfa9c",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/chairpup.png",
+      "source": "../dogeforex-frontend/assets/raw/minimal-flat-logo-mark-of-a-faceted-low-poly-shi.png",
+      "usage": "Retained original dog mark; not currently displayed",
+      "bytes": 529448,
+      "sha256": "014742c8e55bc99b436af87122891c25c84e774d755490e65fa102f4b9fec49e",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/guide-dog.png",
+      "source": "../dogeforex-frontend/assets/raw/low-poly-3d-shiba-inu-dog-mascot-character--thre.png",
+      "usage": "Hero and learning guide",
+      "bytes": 885644,
+      "sha256": "28586d1b8aa3695f2dc15899502c71d085af8ee7048eb3277b70f9d6e96ea560",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/mint-world.png",
+      "source": "../dogeforex-frontend/assets/raw/low-poly-3d-diorama-of-a-whimsical-gumball-treat.png",
+      "usage": "Currency issuance step",
+      "bytes": 1034224,
+      "sha256": "f02a29e4c03d06b9dc96031337a0594a412a0babe41c356bbc02f75953c38d69",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/vault-world.png",
+      "source": "../dogeforex-frontend/assets/raw/low-poly-3d-diorama-of-a-grassy-hillside-with-a.png",
+      "usage": "Collateral and docs",
+      "bytes": 1310442,
+      "sha256": "9f1ca5da3c028ccbd42cf05a147290b10b64995c0900c196c33623cd9ba4e900",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/arena-world.png",
+      "source": "../dogeforex-frontend/assets/raw/low-poly-3d-diorama-of-a-small-ancient-colosseum.png",
+      "usage": "Challenge introduction",
+      "bytes": 991622,
+      "sha256": "f785e53c8fed19f947b87cb3b82850434928ecebe20ea03a5a177fd58083ef96",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/village-world.png",
+      "source": "../dogeforex-frontend/assets/raw/low-poly-3d-diorama-of-a-cozy-village-square-in.png",
+      "usage": "Liquidity and docs",
+      "bytes": 945963,
+      "sha256": "6eb07040b443d27396362835aa27cf769341d43654f90a9ac504de035b0277d3",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/dogeos.svg",
+      "source": "../dogeforex-frontend/research/dogeos-refs/dogeos-icon.svg",
+      "usage": "Retained ecosystem reference; not currently displayed",
+      "bytes": 105707,
+      "sha256": "f0cdc813e8a62ed11dc0e9d21e57ee845f0faabd272d82e7e4721fec7a88a675",
+      "licenseStatus": "Verify with supplied collection owner; no new license granted here",
+      "identicalToSourceAtHandoff": true
+    },
+    {
+      "path": "assets/imf.svg",
+      "source": null,
+      "usage": "Locally authored IMF text favicon",
+      "bytes": 249,
+      "sha256": "0b6568781d8436e083f2c7902fcdd2db671b026f359022cd3817055f225d322e",
+      "licenseStatus": "Authored in this workspace"
+    }
+  ]
+}

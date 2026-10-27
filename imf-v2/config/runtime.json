@@ -1,0 +1,9 @@
+{
+  "schema": "imf.frontend-runtime.v1",
+  "protocolVersion": 2,
+  "mode": "read-only",
+  "registry": null,
+  "rpcUrl": null,
+  "status": "unconfigured",
+  "message": "No verified V2 deployment registry is configured. Offline planning and documentation remain available."
+}

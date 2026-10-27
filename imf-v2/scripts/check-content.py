@@ -1,0 +1,107 @@
+from pathlib import Path
+from html.parser import HTMLParser
+from urllib.parse import urlsplit, unquote
+import json
+import sys
+
+source_mode = len(sys.argv) == 1
+root = Path.cwd()
+output = root / 'dist'
+if len(sys.argv) > 1 and sys.argv[1].startswith('--dist='):
+    output = (root / sys.argv[1].split('=', 1)[1]).resolve()
+articles = json.loads((root / 'assets/articles.json').read_text())
+article_ids = {article['id'] for article in articles}
+required_ids = {'overview', 'project-guide', 'collateral', 'mechanism', 'currencies', 'liquidity', 'agents', 'responsibilities', 'overcollateralization', 'oracle-free', 'governance', 'equity', 'architecture', 'borrowing-costs', 'repayment', 'maturity', 'source-bridge', 'savings'}
+assert len(articles) == len(article_ids) >= 18 and required_ids <= article_ids
+codes = json.loads((root / 'assets/currencies.json').read_text())
+assert len(codes) == 11 and len({code for code, _ in codes}) == 11
+
+class Check(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links = []
+        self.ids = set()
+        self.scripts = []
+        self.buttons = []
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if 'id' in attrs:
+            assert attrs['id'] not in self.ids, 'Duplicate ID ' + attrs['id']
+            self.ids.add(attrs['id'])
+        if tag == 'script' and 'src' in attrs:
+            self.scripts.append(attrs['src'])
+        if 'data-view' in attrs:
+            self.buttons.append(attrs['data-view'])
+        for attr in ['src', 'href']:
+            if attr in attrs:
+                self.links.append(attrs[attr])
+        if 'srcset' in attrs:
+            self.links.extend(candidate.strip().split()[0] for candidate in attrs['srcset'].split(','))
+
+files = [Path('index.html'), Path('app/index.html'), Path('docs/index.html')] if source_mode else sorted(output.glob('**/*.html'))
+parsers = {}
+for file in files:
+    parser = Check()
+    parser.feed(file.read_text())
+    parsers[file.resolve()] = parser
+    for view in parser.buttons:
+        assert (file.parent / f'{view}-view.html').exists() or f'id="{view}-view"' in file.read_text(), f'Missing view {view}'
+
+count = 0
+for file, parser in parsers.items():
+    for link in parser.links:
+        if '{{' in link:
+            continue
+        parsed = urlsplit(link)
+        if parsed.scheme or parsed.netloc:
+            continue
+        if parsed.path.startswith('/') and not source_mode:
+            surface = file.relative_to(output).parts[0]
+            target = (output / surface / unquote(parsed.path.lstrip('/'))).resolve()
+        else:
+            target = (file.parent / unquote(parsed.path)).resolve() if parsed.path else file
+        if target.is_dir():
+            target = target / 'index.html'
+        assert target.exists(), f'{file}: missing {link}'
+        if parsed.fragment:
+            if target == (root / 'docs/index.html').resolve():
+                assert parsed.fragment in article_ids or parsed.fragment in parsers[target].ids, link
+            elif target in parsers:
+                assert parsed.fragment in parsers[target].ids, link
+        count += 1
+
+for article in articles:
+    parser = Check()
+    parser.feed(article['html'])
+    for link in parser.links:
+        if '{{' in link:
+            continue
+        parsed = urlsplit(link)
+        if parsed.scheme or parsed.netloc:
+            continue
+        if not parsed.path and parsed.fragment:
+            assert parsed.fragment in article_ids, link
+        elif parsed.path:
+            if source_mode:
+                target = (root / 'docs' / unquote(parsed.path)).resolve()
+            elif parsed.path.startswith('../assets/'):
+                target = (output / 'docs/assets' / parsed.path.removeprefix('../assets/')).resolve()
+            else:
+                target = (output / 'docs' / unquote(parsed.path)).resolve()
+            if target.is_dir():
+                target = target / 'index.html'
+            assert target.exists(), f'{article["id"]}: missing {link}'
+        count += 1
+    assert '<figure' in article['html'] and '<figcaption' in article['html'], article['id']
+
+if not source_mode:
+    for surface in ['website', 'docs', 'app']:
+        base = output / surface
+        for required in ['index.html', 'robots.txt', 'sitemap.xml', 'llms.txt', 'assets/imf-social.jpg', 'assets/style.css', 'assets/shared.js', 'assets/site-config.js', 'assets/currencies.js', 'assets/runtime.json']:
+            assert (base / required).is_file(), f'{surface}: missing {required}'
+        for internal in ['PLAN.html', 'AGENTS.md', 'handoff', 'scripts', 'node_modules']:
+            assert not (base / internal).exists(), f'{surface}: internal file published: {internal}'
+    for required in ['protocol.js', 'planning.js', 'offline.js', 'v2.js', 'app.js']:
+        assert (output / 'app/assets' / required).is_file(), f'app: missing {required}'
+
+print(f'PASS: {count} local references, unique page IDs, {len(articles)} illustrated guide routes, 11 currencies, separate surface assets')

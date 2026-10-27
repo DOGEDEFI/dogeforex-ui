@@ -1,0 +1,90 @@
+{
+  "schema": "imf.frontend-runtime.v1",
+  "protocolVersion": 2,
+  "mode": "read-only",
+  "registry": {
+    "address": "0xf17e000000000000000000000000000000000003",
+    "abi": [],
+    "linkedData": {
+      "schemaVersion": "2.0",
+      "network": "fixture-v2",
+      "chainId": "6281971",
+      "code": "USD",
+      "sourceEvidence": {
+        "synthetic": true,
+        "evidenceType": "synthetic",
+        "message": "SYNTHETIC V2 FIXTURE — not deployed or live state",
+        "address": "0xf17e000000000000000000000000000000000002",
+        "decimals": "6",
+        "onchainDecimals": "6",
+        "decimalMultiplier": "1000000000000",
+        "bytecodeValidated": false,
+        "fundingMode": "synthetic reads only; no funding or deployment"
+      },
+      "rateEvidence": {
+        "synthetic": true,
+        "evidenceType": "synthetic",
+        "message": "SYNTHETIC V2 FIXTURE — not an observed or live rate",
+        "code": "USD",
+        "leadratePPM": 59400
+      },
+      "constructorArgs": {
+        "TestUSDC": [],
+        "Token": ["86400", "SYNTHETIC V2 Fixture Dollar", "sK9USD"],
+        "Equity": ["0xf17e000000000000000000000000000000000003", "SYNTHETIC V2 Fixture Dollar", "sK9USD"],
+        "PositionFactory": [],
+        "PositionRoller": ["0xf17e000000000000000000000000000000000003"],
+        "Savings": ["0xf17e000000000000000000000000000000000003", "59400"],
+        "MintingHub": [
+          "0xf17e000000000000000000000000000000000003",
+          "0xf17e000000000000000000000000000000000007",
+          "0xf17e000000000000000000000000000000000006",
+          "0xf17e000000000000000000000000000000000005"
+        ],
+        "Bridge": [
+          "0xf17e000000000000000000000000000000000002",
+          "0xf17e000000000000000000000000000000000003",
+          "2000000000000000000000000"
+        ]
+      },
+      "addresses": {
+        "deployer": "0xf17e000000000000000000000000000000000001",
+        "source": "0xf17e000000000000000000000000000000000002",
+        "Token": "0xf17e000000000000000000000000000000000003",
+        "Equity": "0xf17e000000000000000000000000000000000004",
+        "PositionFactory": "0xf17e000000000000000000000000000000000005",
+        "PositionRoller": "0xf17e000000000000000000000000000000000006",
+        "Savings": "0xf17e000000000000000000000000000000000007",
+        "MintingHub": "0xf17e000000000000000000000000000000000008",
+        "Bridge": "0xf17e000000000000000000000000000000000009"
+      },
+      "transactions": {
+        "deployments": {
+          "TestUSDC": null,
+          "Token": null,
+          "Equity": null,
+          "PositionFactory": null,
+          "PositionRoller": null,
+          "Savings": null,
+          "MintingHub": null,
+          "Bridge": null
+        },
+        "initialize": {},
+        "sourceFunding": null,
+        "sourceApproval": null,
+        "bridgeMint": null,
+        "equityInvestment": null
+      },
+      "postconditions": {
+        "complete": false,
+        "synthetic": true,
+        "deployed": false,
+        "message": "SYNTHETIC V2 FIXTURE — postconditions are intentionally incomplete"
+      }
+    }
+  },
+  "rpcUrl": "fixture://v2",
+  "status": "fixture",
+  "message": "SYNTHETIC V2 FIXTURE — not deployed or live state",
+  "fixture": true
+}

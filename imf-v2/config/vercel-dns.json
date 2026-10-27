@@ -1,0 +1,15 @@
+{
+  "schema": "imf.infomaniak-dns.v1",
+  "description": "Per-host recommendations returned by vercel domains verify using Vercel CLI 59.10.0 on 2026-10-26. Keep Infomaniak nameservers and unrelated records unchanged.",
+  "replaceAddressRecords": true,
+  "records": [
+    { "zone": "imf.li", "source": ".", "type": "A", "target": "216.150.1.1", "ttl": 300 },
+    { "zone": "imf.li", "source": ".", "type": "A", "target": "216.150.16.1", "ttl": 300 },
+    { "zone": "imf.li", "source": "www", "type": "CNAME", "target": "0d63af6ec312a27d.vercel-dns-016.com.", "ttl": 300 },
+    { "zone": "imf.li", "source": "docs", "type": "CNAME", "target": "891c91968e1fcc26.vercel-dns-016.com.", "ttl": 300 },
+    { "zone": "imf.li", "source": "app", "type": "CNAME", "target": "02cc43d352c636cb.vercel-dns-016.com.", "ttl": 300 },
+    { "zone": "doge.forex", "source": ".", "type": "A", "target": "216.150.1.1", "ttl": 300 },
+    { "zone": "doge.forex", "source": ".", "type": "A", "target": "216.150.16.1", "ttl": 300 },
+    { "zone": "doge.forex", "source": "www", "type": "CNAME", "target": "0d63af6ec312a27d.vercel-dns-016.com.", "ttl": 300 }
+  ]
+}

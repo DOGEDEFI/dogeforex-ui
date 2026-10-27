@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IMF legacy teaching position plan",
+  "description": "A validated legacy teaching export, not a V2 quote, eligibility assessment, transaction or authorization. Numeric results are illustrative only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "executionEnabled",
+    "project",
+    "collateral",
+    "currency",
+    "assumptions",
+    "illustrativeResult",
+    "excludedCosts",
+    "nextAction"
+  ],
+  "properties": {
+    "schema": {
+      "const": "imf.position-plan.v1"
+    },
+    "status": {
+      "const": "local-draft"
+    },
+    "executionEnabled": {
+      "const": false
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "collateral": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tokenAddress",
+        "amount"
+      ],
+      "properties": {
+        "tokenAddress": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Format only; no code, compatibility, checksum or eligibility assertion."
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?$",
+          "description": "Human-unit decimal string; normalize/reject exponent notation before validation."
+        }
+      }
+    },
+    "currency": {
+      "enum": [
+        "USD",
+        "EUR",
+        "JPY",
+        "GBP",
+        "AUD",
+        "CNY",
+        "BRL",
+        "PKR",
+        "BDT",
+        "INR",
+        "NGN"
+      ]
+    },
+    "assumptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grossMint",
+        "reservePercent",
+        "upfrontFeePercent"
+      ],
+      "properties": {
+        "grossMint": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?$",
+          "description": "Human-unit decimal string; normalize/reject exponent notation before validation."
+        },
+        "reservePercent": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?$",
+          "description": "Human-unit decimal string; normalize/reject exponent notation before validation."
+        },
+        "upfrontFeePercent": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?$",
+          "description": "Human-unit decimal string; normalize/reject exponent notation before validation."
+        }
+      }
+    },
+    "illustrativeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gross",
+        "reserve",
+        "fee",
+        "net"
+      ],
+      "properties": {
+        "gross": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reserve": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fee": {
+          "type": "number",
+          "minimum": 0
+        },
+        "net": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "excludedCosts": {
+      "const": [
+        "opening fee",
+        "gas",
+        "DEX costs"
+      ]
+    },
+    "nextAction": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "description": "Present only in stored entries; not exported by the current download action."
+    },
+    "savedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Present only in stored entries."
+    }
+  }
+}

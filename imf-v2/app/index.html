@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Plan project collateral positions and inspect verified V2 state with exact, read-only workflows.">
+  <meta name="theme-color" content="#fff8ee">
+  <title>Project workspace · IMF</title>
+  <link rel="icon" href="../assets/imf.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script src="../assets/shared.js" defer></script>
+  <script src="../assets/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="header">
+  <div class="wrap nav">
+    <a class="brand" href="../"><span class="monogram">imf</span><span class="brand-name">International<br>Multicurrency Framework</span></a>
+    <button class="menu" aria-expanded="false" aria-controls="navigation">Menu</button>
+    <nav class="navlinks" id="navigation" aria-label="Main navigation">
+      <a href="../index.html#framework">The framework</a>
+      <a href="../index.html#participants">For your organization</a>
+      <a href="../docs/">Documentation</a>
+      <a class="btn small light" href="../app/">Project workspace</a>
+    </nav>
+  </div>
+</header>
+<div class="notice" id="release-notice">Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution</div>
+<main id="main" class="wrap shell">
+  <aside class="sidebar" aria-label="Workspace navigation">
+    <button type="button" class="sidebar-toggle" aria-expanded="true" aria-controls="sidebar-content">Workspace views <span aria-hidden="true">⌄</span></button>
+    <div class="sidebar-content" id="sidebar-content">
+      <p>Project workspace</p>
+      <nav aria-label="Workspace">
+        <button class="active" data-view="create">V2 position planner</button>
+        <button data-view="manage">Manage a position</button>
+        <button data-view="ecosystem">Bridge, savings & equity</button>
+        <button data-view="connection">Registry & network</button>
+        <button data-view="offline">Teaching & legacy plans</button>
+        <button data-view="drafts">Saved drafts</button>
+        <button data-view="lifecycle">Operating workflow</button>
+        <a href="../docs/#agents">Agent documentation</a>
+      </nav>
+      <p>Connection</p>
+      <span class="tag" id="sidebar-connection">V2 registry not configured</span>
+      <p>Execution boundary</p>
+      <span class="smalltext">Read and plan only. No wallet keys, simulation, signing, DEX actions or broadcasts.</span>
+      <noscript><p class="smalltext">Interactive V2 forms require JavaScript. The documentation and static operating guidance remain available without it.</p></noscript>
+    </div>
+  </aside>
+  <div class="workspace-content">
+    <div class="app-title">
+      <div><p class="smalltext">Project treasury · Independent system per currency</p><h1 id="view-title">V2 position planner</h1></div>
+      <div class="mode-switch" aria-label="Planning mode">
+        <button id="human-mode" class="active" aria-pressed="true">Human</button>
+        <button id="agent-mode" aria-pressed="false">Agent</button>
+      </div>
+    </div>
+    <div id="feedback" role="status" class="status" hidden></div>
+
+    <section id="create-view">
+      <div class="app-guide">
+        <img class="app-guide-image" src="../assets/guide-dog.png" alt="Chairpup, your planning guide">
+        <div><strong>Choose the operation before the terms.</strong><p>New proposals, cloned terms and existing-position mints have different prerequisites.</p><a href="../docs/#project-guide">Read the V2 project guide</a></div>
+      </div>
+      <form id="v2-position-form">
+        <fieldset class="action-picker">
+          <legend>Position operation</legend>
+          <label><input type="radio" name="action" value="new" checked> <span>Propose new terms<small>Open and fund a position; mint separately after initialization.</small></span></label>
+          <label><input type="radio" name="action" value="clone"> <span>Clone accepted terms<small>Fund a child of an eligible parent; initial mint can happen in the clone call.</small></span></label>
+          <label><input type="radio" name="action" value="mint"> <span>Mint an existing position<small>Check a specific position, caller, capacity and current quote.</small></span></label>
+        </fieldset>
+        <div class="app-grid">
+          <div>
+            <section class="panel">
+              <h2>Project and currency</h2>
+              <div class="field-grid">
+                <label class="field">Project name<input name="project" required maxlength="80" placeholder="Your project" autocomplete="organization"></label>
+                <label class="field">Currency system<select name="currency" id="v2-currency" required></select></label>
+              </div>
+              <label class="field">Public account address for read checks<input name="account" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false"><small>New: future owner. Clone: collateral funder. Existing mint: caller. Required for caller-specific checks; never enter a key.</small></label>
+              <div id="new-fields">
+                <label class="field">Collateral token address<input name="token" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false" data-required-action="new"><small>ERC20 metadata and bytecode must be verified before a read-backed quote.</small></label>
+                <div class="field-grid">
+                  <label class="field">Collateral decimals<input name="collateralDecimals" inputmode="numeric" value="18" data-required-action="new"><small>Planning hint only. Verified token metadata takes precedence; V2 accepts at most 24.</small></label>
+                  <label class="field">Liquidation price<input name="liquidationPrice" inputmode="decimal" value="1" data-required-action="new"><small>Local currency per whole token. Raw price uses 36 − collateral decimals.</small></label>
+                </div>
+                <div class="field-grid">
+                  <label class="field">Minimum collateral<input name="minimumCollateral" inputmode="decimal" value="4000" data-required-action="new"></label>
+                  <label class="field">Initial collateral<input name="collateral" inputmode="decimal" value="100000" data-required-action="new"></label>
+                </div>
+                <label class="field">Minting maximum<input name="mintingMaximum" inputmode="decimal" value="50000" data-required-action="new"><small>Gross local-currency capacity, not wallet proceeds.</small></label>
+                <div class="field-grid">
+                  <label class="field">Initialization (seconds)<input name="initPeriodSeconds" inputmode="numeric" value="259200" data-required-action="new"><small>Minimum 259,200 seconds = 3 days.</small></label>
+                  <label class="field">Duration (seconds)<input name="durationSeconds" inputmode="numeric" value="31536000" data-required-action="new"></label>
+                </div>
+                <div class="field-grid">
+                  <label class="field">Challenge period (seconds)<input name="challengePeriodSeconds" inputmode="numeric" value="86400" data-required-action="new"></label>
+                  <label class="field">Risk premium (PPM)<input name="riskPremiumPPM" inputmode="numeric" value="0" data-required-action="new"></label>
+                </div>
+                <label class="field">Reserve contribution (PPM)<input name="reservePPM" inputmode="numeric" value="200000" data-required-action="new"><small>20,000–1,000,000 PPM. A 100% reserve has repayment edge cases.</small></label>
+                <label class="field">Planned gross mint after initialization<input name="gross" inputmode="decimal" value="50000" data-required-action="new"><small>Separate from openPosition. This amount is not minted by opening a proposal.</small></label>
+              </div>
+              <div id="clone-fields" hidden>
+                <label class="field">Parent position address<input name="parent" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false" data-required-action="clone"></label>
+                <div class="field-grid">
+                  <label class="field">Initial collateral<input name="cloneCollateral" inputmode="decimal" value="10000" data-required-action="clone"><small>Uses the parent's collateral token and decimals.</small></label>
+                  <label class="field">Initial gross mint<input name="cloneGross" inputmode="decimal" value="1000" data-required-action="clone"></label>
+                </div>
+                <label class="field">Absolute child expiration<input name="cloneExpiration" type="datetime-local" data-required-action="clone"><small>Cannot exceed the original expiration. The clone requires a future mint time.</small></label>
+                <label class="field">Child owner (optional)<input name="cloneOwner" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="Defaults to collateral funder" spellcheck="false"><small>Collateral always comes from the funder, even when the owner differs.</small></label>
+                <button class="btn light" type="button" id="read-parent">Read parent and accepted terms</button>
+              </div>
+              <div id="mint-fields" hidden>
+                <label class="field">Existing position address<input name="position" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false" data-required-action="mint"></label>
+                <div class="field-grid">
+                  <label class="field">Gross amount to mint<input name="mintGross" inputmode="decimal" value="1000" data-required-action="mint"></label>
+                  <label class="field">Recipient (optional)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="Defaults to caller" spellcheck="false"></label>
+                </div>
+                <button class="btn light" type="button" id="read-position">Read position and eligibility</button>
+              </div>
+              <p class="error" id="v2-form-error" role="alert" hidden></p>
+              <div class="actions">
+                <button class="btn mint" type="submit" id="review-v2-plan">Review read-only V2 plan</button>
+                <button class="btn light" type="button" id="save-v2-plan">Save V2 plan</button>
+                <button class="btn light" type="button" id="export-v2-plan">Export V2 plan</button>
+              </div>
+              <p class="smalltext">Export is a planning document. It is not transaction calldata, simulation, authorization or an MCP execution request.</p>
+            </section>
+          </div>
+          <aside class="panel" id="v2-quote-panel">
+            <span class="tag" id="v2-quote-kind">Read-backed quote unavailable</span>
+            <div class="net"><span>Spendable currency</span><strong id="v2-net">Connect verified V2 state</strong></div>
+            <div class="metric"><span>Gross debt</span><strong id="v2-gross-out">—</strong></div>
+            <div class="metric"><span>Assigned / retained reserve</span><strong id="v2-reserve-out">—</strong></div>
+            <div class="metric"><span>Upfront fee</span><strong id="v2-fee-out">—</strong></div>
+            <p class="smalltext" id="v2-quote-meta">Offline inputs can be normalized, but no current leadrate, eligibility or quote is assumed.</p>
+            <div class="app-visual"><h3>Prerequisites and eligibility</h3><ul class="check-list" id="v2-eligibility"><li data-state="unknown">No verified V2 registry or current position state.</li></ul></div>
+            <div class="app-visual"><h3>Exact raw inputs</h3><pre id="v2-raw-preview">Choose an operation to inspect its amount units.</pre></div>
+            <a href="../docs/#borrowing-costs">How V2 borrowing quotes work</a>
+          </aside>
+        </div>
+      </form>
+    </section>
+
+    <section id="manage-view" hidden>
+      <div class="section-intro"><h2>Read the obligation, not only the wallet.</h2><p class="muted">Repayment, debt reduction, closure, withdrawal and expiry are separate states. These views never send a transaction.</p></div>
+      <form class="panel inline-form" id="manage-load-form">
+        <label class="field">Position address<input name="managePosition" required pattern="0x[a-fA-F0-9]{40}" placeholder="0x…" spellcheck="false"></label>
+        <label class="field">Public caller address<input name="manageAccount" pattern="0x[a-fA-F0-9]{40}" placeholder="Optional for caller-independent reads" spellcheck="false"></label>
+        <label class="field">Challenge index<input name="challengeIndex" required inputmode="numeric" pattern="[0-9]+" value="0"><small>One record, not a complete challenge history.</small></label>
+        <button class="btn mint" type="submit">Read current position</button>
+      </form>
+      <div id="manage-unavailable" class="callout">Configure a verified V2 registry before reading position state.</div>
+      <div id="manage-state" class="state-grid" aria-live="polite"></div>
+      <div class="app-grid">
+        <section class="panel">
+          <h2>Repayment quote</h2>
+          <p class="smalltext">Wallet currency excluding reserve is not necessarily the gross debt reduction. The current system reserve affects both.</p>
+          <form id="repayment-form">
+            <label class="field">Wallet currency amount<input name="repayAmount" inputmode="decimal" value="1000" required></label>
+            <div class="actions"><button class="btn light" type="submit">Quote repayment</button><button class="btn light" type="button" id="full-repayment">Read full-repayment candidate</button></div>
+          </form>
+          <div id="repayment-result" class="quote-result"></div>
+        </section>
+        <section class="panel">
+          <h2>Collateral and maturity</h2>
+          <form id="withdrawal-form">
+            <label class="field">Collateral to withdraw<input name="withdrawAmount" inputmode="decimal" value="1" required></label>
+            <button class="btn light" type="submit">Check withdrawal state</button>
+          </form>
+          <div id="withdrawal-result" class="quote-result"></div>
+          <div id="expiry-result" class="quote-result"></div>
+          <button class="btn light" type="button" id="read-challenge">Read the selected challenge record</button>
+          <div id="challenge-result" class="quote-result"></div>
+          <a href="../docs/#maturity">Maturity, challenges and rolling</a>
+        </section>
+      </div>
+    </section>
+
+    <section id="ecosystem-view" hidden>
+      <div class="section-intro"><h2>One selected currency. Four different relationships.</h2><p class="muted">Bridge conversion is nominal, not an FX trade. Savings, pool shares and position debt are not interchangeable.</p></div>
+      <form class="panel inline-form" id="ecosystem-load-form">
+        <label class="field">Currency system<select name="ecosystemCurrency" id="ecosystem-currency"></select><small id="ecosystem-availability">Only verified currency systems can be read. Planning codes do not imply deployment.</small></label>
+        <label class="field">Public account address<input name="ecosystemAccount" pattern="0x[a-fA-F0-9]{40}" placeholder="Optional for account reads" spellcheck="false"></label>
+        <button class="btn mint" type="submit">Read currency system</button>
+      </form>
+      <div class="app-grid">
+        <section class="panel"><h2>Source bridge & credits</h2><div id="bridge-state" class="state-grid"></div>
+          <form id="bridge-form"><label class="field">Source-token deposit amount<input name="sourceAmount" inputmode="decimal" value="100"></label><label class="field">Local amount to burn<input name="burnAmount" inputmode="decimal" value="100"></label><label class="check"><input type="checkbox" name="credit" checked><span>Plan an unpaid source credit instead of immediate redemption</span></label><button class="btn light" type="submit">Calculate units and remainder</button></form>
+          <div id="bridge-quote" class="quote-result"></div><a href="../docs/#source-bridge">Read source bridge units and redemption</a>
+        </section>
+        <section class="panel"><h2>Savings & rate state</h2><div id="savings-state" class="state-grid"></div><a href="../docs/#savings">Savings timing and interest limits</a><h2>Pool-share equity</h2><div id="equity-state" class="state-grid"></div>
+          <form id="equity-form"><label class="field">Local currency investment<input name="investmentAmount" inputmode="decimal" value="100"></label><label class="field">Pool shares to redeem<input name="sharesAmount" inputmode="decimal" value="1"></label><button class="btn light" type="submit">Read equity quotes</button></form>
+          <div id="equity-quote" class="quote-result"></div>
+        </section>
+      </div>
+      <section class="panel governance-panel"><h2>Participant qualification</h2><p class="smalltext">Strictly more than 2% of time-weighted votes. Token balances alone do not qualify. Helpers must be sorted, unique, valid delegators.</p>
+        <div id="minter-state" class="state-grid"></div>
+        <form id="governance-form"><label class="field">Helper addresses (one per line)<textarea name="helpers" rows="3" spellcheck="false"></textarea></label><button class="btn light" type="submit">Check votes and qualification</button></form>
+        <div id="governance-state" class="quote-result"></div><a href="../docs/#governance">Participant governance and proposal windows</a>
+      </section>
+    </section>
+
+    <section id="connection-view" hidden>
+      <div class="section-intro"><h2>Identify V2 before reading it.</h2><p class="muted">A chain ID or a schema containing “v2” is not enough. Registry identity, bytecode and contract links must agree.</p></div>
+      <div class="panel">
+        <span class="tag" id="connection-status">Unconfigured</span>
+        <p id="runtime-message">No verified V2 deployment registry is configured. You can inspect a V2 registry locally without sending it to a server.</p>
+        <form id="registry-form">
+          <label class="field">V2 registry JSON file<input type="file" id="registry-file" accept=".json,application/json"><small>Use an actual &lt;CODE&gt;_V2Registry.json artifact or an array of artifacts. Never substitute a V1 registry.</small></label>
+          <label class="field">Public RPC URL<input type="url" id="rpc-url" placeholder="https://…" autocomplete="off"><small>Use a browser-accessible public endpoint without credentials. It is used for read-only JSON-RPC requests.</small></label>
+          <div class="actions"><button class="btn mint" type="submit" id="connect-registry">Verify and connect read-only</button><button class="btn light" type="button" id="disconnect-registry">Disconnect</button></div>
+        </form>
+        <p class="error" id="connection-error" role="alert" hidden></p>
+        <div id="registry-summary" class="state-grid"></div>
+      </div>
+      <div class="callout">Only actual V2 deployment registries can enable live reads; V1 is never substituted. Deployment postconditions are historical evidence, not current state. Missing code, inconsistent links, unknown tokens and failed reads remain unavailable rather than becoming zero.</div>
+      <a href="../docs/#architecture">Registry and integration architecture</a>
+    </section>
+
+    <section id="offline-view" hidden>
+      <div class="callout"><strong>Teaching example, not a V2 quote.</strong> The 20% reserve and 1% fee below are arbitrary learning inputs. This model does not value collateral, check eligibility or construct a transaction.</div>
+      <div class="app-grid">
+        <form class="panel" id="position-form">
+          <h2>Legacy teaching inputs</h2>
+          <label class="field">Project name<input name="project" required maxlength="80" placeholder="Your project" autocomplete="organization"></label>
+          <label class="field">Collateral token address<input name="token" required pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false"><small>Format-only planning input; not a verified token.</small></label>
+          <label class="field">Currency system<select name="currency" id="offline-currency"></select></label>
+          <div class="field-grid"><label class="field">Collateral tokens<input name="collateral" inputmode="decimal" value="1000000" required></label><label class="field">Gross currency to mint<input name="gross" inputmode="decimal" value="50000" required></label></div>
+          <div class="field-grid"><label class="field">Teaching reserve (%)<input name="reserve" inputmode="decimal" value="20" required></label><label class="field">Teaching fee (%)<input name="fee" inputmode="decimal" value="1" required></label></div>
+          <p class="error" id="form-error" role="alert" hidden></p>
+          <button class="btn mint" type="submit">Review teaching plan</button>
+          <button class="btn light" type="button" id="import-legacy-plan">Import legacy JSON plan</button>
+          <input type="file" id="legacy-plan-file" accept=".json,application/json" hidden>
+        </form>
+        <aside class="panel"><span class="tag">Illustrative calculation</span><div class="net"><span>Net currency received</span><strong id="net">39,500 K9USD</strong></div><div class="metric"><span>Gross debt minted</span><strong id="gross-out">50,000 K9USD</strong></div><div class="metric"><span>Retained reserve</span><strong id="reserve-out">10,000 K9USD</strong></div><div class="metric"><span>Upfront fee</span><strong id="fee-out">500 K9USD</strong></div>
+          <div class="app-visual"><h3>Where the gross mint goes</h3><div class="allocation-bar" id="app-allocation" role="img" aria-label="79 percent spendable, 20 percent reserve, 1 percent fee"><span class="allocation-net" id="app-net-fill" style="width:79%"></span><span class="allocation-reserve" id="app-reserve-fill" style="width:20%"></span><span class="allocation-fee" id="app-fee-fill" style="width:1%"></span></div><div class="allocation-legend"><div><i class="swatch net-swatch"></i><span>Spendable currency</span></div><div><i class="swatch reserve-swatch"></i><span>Retained reserve</span></div><div><i class="swatch fee-swatch"></i><span>Upfront fee</span></div></div><p id="app-chart-note" class="smalltext">Illustrative allocation of the gross mint.</p></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="review-view" hidden><div class="panel"><span class="tag">Local teaching draft · Not submitted</span><h2>Review your position plan</h2><div id="review-summary"></div><label class="check"><input id="acknowledge" type="checkbox"><span>I understand this is an illustrative plan. It does not approve collateral, reserve capacity or authorize a transaction.</span></label><div class="actions"><button class="btn mint" id="save-plan" disabled>Save draft on this device</button><button class="btn light" id="export-plan" disabled>Export legacy JSON plan</button><button class="btn light" id="edit-plan">Edit inputs</button></div></div></section>
+
+    <section id="drafts-view" hidden><p class="muted">Drafts stay in this browser on this app origin. They are not synchronized or on-chain.</p><div class="actions"><button class="btn light" id="export-drafts">Export draft backup</button><button class="btn light" id="import-drafts">Import draft backup</button><input type="file" id="draft-backup-file" accept=".json,application/json" hidden></div><div class="panel" id="draft-list"></div></section>
+
+    <section id="lifecycle-view" hidden>
+      <div class="section-intro"><h2>A plan stops before authority begins.</h2><p class="muted">Human and agent workflows share inputs and evidence. Signing policy and transaction execution are outside this integration.</p></div>
+      <div class="panel"><ol class="workflow-list"><li><span class="step">1</span><div><b>Plan and identify</b><p>Choose new terms, accepted clone terms or an existing position. Identify the currency, chain and actual V2 contracts.</p></div></li><li><span class="step">2</span><div><b>Verify current reads</b><p>Read bytecode, contract links, token metadata, terms, funding, capacity and time at a source block. Failure is not zero.</p></div></li><li><span class="step">3</span><div><b>Review read-derived quotes</b><p>Separate gross debt, reserve, fees, spendable proceeds, repayment and collateral effects. Requote mutable state before any action.</p></div></li><li><span class="step">4</span><div><b>Separate simulation and treasury review</b><p>A later authorized integration must simulate the exact method and present spender, recipient and expected changes. This frontend does not do so.</p></div></li><li><span class="step">5</span><div><b>Separate DEX and execution decisions</b><p>Use a separate token allocation for DEX liquidity. Verify venue, pool, LP ownership and signing policy independently. Exported plans authorize none of these.</p></div></li></ol><a class="btn light" href="../docs/#agents">Read human and agent boundaries</a></div>
+    </section>
+
+    <section class="panel agent-code" id="agent-panel" hidden><h2>Structured read-only planning intent</h2><p class="muted">The same active form represented for an agent. No private data, execution authority or inferred live state.</p><pre id="agent-json"></pre><button class="btn light" type="button" id="export-agent-plan">Export active plan</button></section>
+  </div>
+</main>
+<footer class="footer"><div class="wrap"><div class="footer-row"><div><strong>IMF</strong><br>International Multicurrency Framework</div><div class="footer-links"><a href="../docs/#mechanism">Mechanism</a><a href="../docs/#agents">For agents</a><a href="../docs/#responsibilities">Participation</a><a href="../docs/#architecture">V2 architecture</a></div></div><p>An independent extension of Frankencoin mechanics, building on DogeOS. No official Frankencoin, DogeOS or International Monetary Fund affiliation is implied. Read-only preview; no production V2 registry, signing or execution is connected.</p></div></footer>
+</body>
+</html>

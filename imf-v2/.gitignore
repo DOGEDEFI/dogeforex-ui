@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+.fixture-dist/
+.production-dist/
+.vercel-output/
+.vercel/
+artifacts/
+coverage/
+__pycache__/
+*.pyc
+*.log
+.DS_Store
