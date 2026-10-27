@@ -149,7 +149,7 @@ Protocol mechanisms and protocol deployment records were not changed as part of 
 
 ## MetaMask wallet and local-EVM verification — 2026-10-27
 
-**Status: VERIFIED LOCALLY.** The new frontend and protocol journey test were run with Node 22 and Node 20 respectively. No commit, production deployment or public blockchain transaction was performed for this update.
+**Status: VERIFIED AND DEPLOYED TO THE PUBLIC TESTNET ORIGINS.** The frontend and protocol journey tests were run with Node 22 and Node 20 respectively, both repositories were pushed, and all three Vercel surfaces were deployed. No public blockchain transaction was performed.
 
 Actual results:
 
@@ -162,3 +162,17 @@ Actual results:
 - `npm run verify:testnet`: passed production-form build/content/package checks and real-Chrome live-read verification. It observed **104 read-only RPC requests** and completed **149 responsive checks**, with no forbidden methods, no browser errors, no injected wallet and **`transactionSent: false`**. Production packaging excludes fixture implementations and permits test hooks only behind explicit synthetic-runtime guards.
 
 The Hardhat coverage is local-only real-contract execution, not a public DogeOS transaction or production certification. Mock receipts demonstrate wallet/UI orchestration, not deployed-state transitions. Real MetaMask and assistive-technology review remains pending; DOM harnesses are not substitutes for that review. Production readiness remains unclaimed, tUSDC remains a test asset, and Blockscout display verification remains unresolved.
+
+## Public guided-testnet deployment — 2026-10-27
+
+Published GitHub commits: `dogeforex-ui` `ce75db7c5fe3f45c295b611140f98b451357cb6d` (`feat: add guided DogeOS wallet actions`) and `dogeforex-protocol` `b42f15bbd8d3f4d84c66f137d89dedd4e7dc5166` (`test: cover frontend protocol journeys`). Local `main` matched remote `main` after pushing, and both newly triggered gitleaks CI runs passed. Direct pushes emitted the existing PR-preferred admin-bypass notices.
+
+All three Vercel deployments reported **READY** and aliased their custom origins:
+
+- Website: `https://imf.li/` — `dpl_CSqh3s5QsKcWq5Y4dHU5245tj1zw`.
+- Documentation: `https://docs.imf.li/` — `dpl_BTm9gHp9fGNiqwPS2p7dwUQL4K9Y`.
+- Application: `https://app.imf.li/` — `dpl_FGTCY99DWfpqhRmw4wSVVfuKVT4X`.
+
+Public HTTP checks returned 200 for all three origins, confirmed the wallet/discovery/action assets and `testnet-metamask` runtime on chain `6281971`, returned 404 for missing/credential paths, and preserved the `www.imf.li` 308 redirect including path and query. No DNS changes were made.
+
+A fresh public-Chrome check verified the USD registry and bridge/savings/equity reads with no injected wallet. It observed **104 read-only RPC requests**, zero forbidden signing/broadcast methods and zero browser errors; mobile layout had no overflow and `transactionSent: false`. Evidence: `artifacts/live-app-desktop.png` and `artifacts/live-app-mobile.png`. Real MetaMask interaction and assistive-technology review were not performed. This is a deployed DogeOS testnet interface, not a production-readiness or Blockscout-verification claim.

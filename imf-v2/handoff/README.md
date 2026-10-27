@@ -34,6 +34,6 @@ Deferred/outside scope: circular-liquidity policy, automated challenger/keeper i
 
 The source baseline passed before import. [VERIFICATION.md](VERIFICATION.md) preserves the historical 2026-10-24/26 SDK, MCP, frontend build, real-browser, read-only testnet, deployment and DNS/TLS results, including 45 then-current browser checks. Those results do not verify the new wallet, action, arena or guided-journey behavior.
 
-The same file records the completed **2026-10-27 verification** for `check-actions.mjs`, `wallet-check.mjs`, `journey-check.mjs`, local Hardhat frontend journeys and the npm verify/browser/testnet commands. These are actual local/fixture and read-only live-RPC results; real MetaMask and assistive-technology review remains a separate gate.
+The same file records the completed **2026-10-27 verification** for `check-actions.mjs`, `wallet-check.mjs`, `journey-check.mjs`, local Hardhat frontend journeys and the npm verify/browser/testnet commands. It also records the three public Vercel deployment IDs and the live read-only browser checks. These are actual local/fixture and read-only live-RPC results; real MetaMask and assistive-technology review remains a separate gate.
 
 See the root `BACKLOG.md` for launch and remaining ecosystem gates.
