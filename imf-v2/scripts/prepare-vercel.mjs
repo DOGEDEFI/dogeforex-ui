@@ -32,10 +32,21 @@ for (const surface of ['website', 'docs', 'app']) {
   assert.deepEqual(siteConfig.origins, origins, `${surface}: unexpected public origins`);
   const runtime = JSON.parse(await readFile(path.join(source, 'assets', 'runtime.json'), 'utf8'));
   assert.equal(runtime.protocolVersion, 2);
-  assert.equal(runtime.mode, 'read-only');
-  assert.equal(runtime.fixture, undefined);
+  assert.equal(runtime.mode, 'testnet-metamask', `${surface}: production requires explicit testnet-metamask mode`);
+  assert.equal(runtime.status, 'configured-testnet-metamask', `${surface}: stale or unconfigured production status`);
+  assert.equal(runtime.fixture, undefined, `${surface}: fixture runtime cannot be deployed`);
   assert(runtime.registry, `${surface}: production registry is missing`);
+  assert.equal(String(runtime.registry.chainId), '6281971', `${surface}: registry chain ID mismatch`);
+  assert.equal(runtime.registry.network, 'chikyuV2', `${surface}: registry network mismatch`);
+  assert.equal(runtime.registry.code, 'USD', `${surface}: only the configured USD registry is approved`);
   assert.equal(runtime.rpcUrl, 'https://rpc.testnet.dogeos.com');
+  assert.deepEqual(runtime.chain, {
+    name: 'DogeOS Chikyū Testnet',
+    rpcUrl: 'https://rpc.testnet.dogeos.com',
+    explorerUrl: 'https://blockscout.testnet.dogeos.com',
+    nativeCurrency: { name: 'Test DOGE', symbol: 'tDOGE', decimals: 18 },
+  }, `${surface}: static DogeOS chain metadata mismatch`);
+  assert.equal(runtime.chain.rpcUrl, runtime.rpcUrl, `${surface}: registry RPC and wallet chain RPC differ`);
   const guideFiles = surface === 'docs'
     ? (await readdir(path.join(source, 'guides'), { recursive: true })).filter((file) => file.endsWith('.html')).map((file) => path.join(source, 'guides', file))
     : [];
@@ -51,9 +62,19 @@ for (const surface of ['website', 'docs', 'app']) {
     'no configured live V2 registry',
     'No current V2 deployment registry is configured',
     'No production source asset or live bridge registry is configured',
+    'Read-only V2 preview',
+    'read-only V2 tooling',
+    'network execution is not connected',
+    'No simulation, signing or transaction execution',
+    'no production V2 registry, signing or execution is connected',
+    'This frontend does not do so',
+    'The frontend is read-only',
   ]) {
-    assert(!publicText.includes(stale), `${surface}: stale unconfigured production content`);
+    assert(!publicText.includes(stale), `${surface}: stale production content: ${stale}`);
   }
+  assert(publicText.includes('MetaMask'), `${surface}: explicit MetaMask transaction disclosure is missing`);
+  assert(publicText.includes('tUSDC'), `${surface}: test-asset disclosure is missing`);
+  assert(publicText.toLowerCase().includes('production readiness is not claimed'), `${surface}: production readiness boundary is missing`);
   for (const file of ['robots.txt', 'sitemap.xml', 'llms.txt', 'assets/imf-social.jpg']) {
     const content = await readFile(path.join(source, file));
     assert(content.length > 0, `${surface}: missing public discovery asset ${file}`);
@@ -61,6 +82,27 @@ for (const surface of ['website', 'docs', 'app']) {
   const robots = await readFile(path.join(source, 'robots.txt'), 'utf8');
   assert(robots.includes('User-agent: *\nAllow: /'), `${surface}: public crawlers are blocked`);
   assert(robots.includes(`Sitemap: ${origins[surface]}sitemap.xml`), `${surface}: wrong sitemap origin`);
+
+  const sourceFiles = await readdir(source, { recursive: true });
+  assert(!sourceFiles.some((file) => file.endsWith('.map')), `${surface}: source maps are not allowed in production`);
+  for (const forbidden of ['runtime.fixture.json', 'mock-eip1193.mjs', 'browser-fixture.ts', 'browser-fixture.js']) {
+    assert(!sourceFiles.some((file) => path.basename(file) === forbidden), `${surface}: test-only file is not allowed: ${forbidden}`);
+  }
+  if (surface === 'app') {
+    const protocol = await readFile(path.join(source, 'assets/protocol.js'), 'utf8');
+    for (const marker of ['__IMF_TEST_WALLET__', 'createFixtureProvider', 'fixtureControls', '__IMF_TEST_DECORATE_PROVIDER__', 'fixture://v2']) {
+      assert(!protocol.includes(marker), `${surface}: test implementation ${marker} is not allowed in the production SDK bundle`);
+    }
+    const wallet = await readFile(path.join(source, 'assets/wallet.js'), 'utf8');
+    assert(wallet.includes("policy.writeMode === 'mock-only' ? window.__IMF_TEST_WALLET__ : window.ethereum"), `${surface}: production wallet must use window.ethereum outside the explicit mock policy`);
+    const actions = await readFile(path.join(source, 'assets/actions.js'), 'utf8');
+    if (actions.includes('__IMF_TEST_DECORATE_PROVIDER__')) {
+      assert(actions.includes('v2.state.fixture && window.__IMF_TEST_DECORATE_PROVIDER__'), `${surface}: test provider decoration must be gated by the synthetic fixture`);
+    }
+    const reads = await readFile(path.join(source, 'assets/v2.js'), 'utf8');
+    assert(reads.includes('state.fixture ? sdk.createFixtureProvider() : new sdk.JsonRpcProvider'), `${surface}: production reads must not fall back to the fixture provider`);
+    assert(reads.includes("state.fixture ? 'fixture://v2' : rpcUrl(rpc)"), `${surface}: fixture RPC must be confined to the explicit synthetic branch`);
+  }
 
   const staticOutput = path.join(output, 'static');
   await mkdir(staticOutput, { recursive: true });

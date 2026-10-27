@@ -26,6 +26,8 @@ for index, surface in enumerate(['website', 'docs', 'app']):
 def stop(*_):
     for server in servers:
         server.shutdown()
+        server.server_close()
+    raise SystemExit(0)
 
 signal.signal(signal.SIGINT, stop)
 signal.signal(signal.SIGTERM, stop)

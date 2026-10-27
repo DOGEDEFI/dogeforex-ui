@@ -2,6 +2,8 @@
 
 Reviewed 2026-10-24, on the local working trees. This is implementation and test evidence, not a protocol audit or live-deployment certification.
 
+**Historical scope:** except for the dated 2026-10-27 wallet verification section at the end, this file records the earlier read-only integration and public release as of 2026-10-24/26. Those results remain valid only for that historical scope; they do not verify the new MetaMask wallet, 37-action encoder, discovery, arena or guided transaction journeys.
+
 ## Source preservation and import
 
 - The source `/Users/tonicaradonna/dogeforex-institutional` passed `npm run verify` before import: 86 local references, 13 guides, 11 currency systems, and both original interaction harnesses.
@@ -141,6 +143,22 @@ No contract deployment, transaction simulation, signing or blockchain broadcast 
 - **The long `.com` remains inactive.** Activate its redirect only after registration and DNS become available.
 - **Production assets and economics remain open:** DogeOS stablecoin selection and issuer/freeze/upgrade/decimal/ERC20 behavior, source caps/redemption/liquidity, production collateral, initial-investor custody, current rate review, mainnet chain/RPC parameters and initial equity custody.
 - **Review remains open:** independent contract audit, live challenge/bridge rehearsals, MiCA/legal assessment, source-asset trust, supplied-art redistribution permissions and production accessibility review. Publishing does not mark those permissions or reviews as complete.
-- **Not implemented here:** position/challenge discovery from chain history, transaction simulation/signing, DEX execution, circular-liquidity policy, challenger infrastructure, cross-currency exposure and launch communications.
+- **Still not implemented here:** DEX execution, circular-liquidity policy, keeper/challenger infrastructure, cross-currency exposure and launch communications. The newer guided-wallet work adds event-log discovery, exact simulation and wallet-confirmed testnet transactions, not those separate services.
 
 Protocol mechanisms and protocol deployment records were not changed as part of this frontend integration. Existing V1 operational files and the uncommitted V2 protocol work were preserved.
+
+## MetaMask wallet and local-EVM verification — 2026-10-27
+
+**Status: VERIFIED LOCALLY.** The new frontend and protocol journey test were run with Node 22 and Node 20 respectively. No commit, production deployment or public blockchain transaction was performed for this update.
+
+Actual results:
+
+- `node scripts/check-actions.mjs`: **37/37 canonical calldata comparisons**, 26 event-decoding checks and 26 invalid-input checks passed, including receipt-source validation and both browser entries. The action encoder adds no provider, private-key or message-signing path.
+- `node scripts/wallet-check.mjs`: **27 isolated-Chrome wallet checks passed**, covering production/mock separation, connection and switching, stale responses and sessions, exact approvals, simulation/gas failures, double submission, rejection, pending/reverted/confirmed receipts, unknown outcomes and reload reconciliation without resubmission.
+- `node scripts/journey-check.mjs`: **36 visible-app checks passed with zero browser errors**, including exact collateral approval, opening and `PositionOpened` reconciliation, existing mint, an auction bid and every visible operation form. Evidence: `artifacts/journey-app-desktop.png` and `artifacts/journey-app-mobile.png`.
+- `npx hardhat test test/FrontendJourneysV2Tests.ts`: **9 local-EVM tests passed**; its coverage guard confirmed all 37 operations executed through `signer.sendTransaction`. This proves actual local contract calls, not merely encoding, and includes challenges, auctions, expired purchases, rolling, savings, equity and advanced governance.
+- `npm run verify`: passed syntax, review/fixture builds, content and discovery, planning schemas, fixture/read models and the action checks.
+- `npm run verify:browser`: passed **52 existing fixture/default checks**, the **27 wallet checks** and **36 journey checks**. This includes all nine workspace views, legacy documentation shortcuts, downloads, keyboard/no-JavaScript behavior, responsive layouts, 200% zoom and reduced motion. When the old default preview ports were occupied by unresponsive earlier processes, the checker selected a free port range and rebuilt local preview origins; it did not stop those existing processes.
+- `npm run verify:testnet`: passed production-form build/content/package checks and real-Chrome live-read verification. It observed **104 read-only RPC requests** and completed **149 responsive checks**, with no forbidden methods, no browser errors, no injected wallet and **`transactionSent: false`**. Production packaging excludes fixture implementations and permits test hooks only behind explicit synthetic-runtime guards.
+
+The Hardhat coverage is local-only real-contract execution, not a public DogeOS transaction or production certification. Mock receipts demonstrate wallet/UI orchestration, not deployed-state transitions. Real MetaMask and assistive-technology review remains pending; DOM harnesses are not substitutes for that review. Production readiness remains unclaimed, tUSDC remains a test asset, and Blockscout display verification remains unresolved.

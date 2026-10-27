@@ -73,6 +73,8 @@ for surface in ['website', 'docs', 'app']:
     base = output / surface
     site_config_text = (base / 'assets/site-config.js').read_text().strip()
     site_config = json.loads(site_config_text.removeprefix('window.IMF_SITE=').removesuffix(';'))
+    runtime = json.loads((base / 'assets/runtime.json').read_text())
+    testnet_transactions = runtime['mode'] == 'testnet-metamask'
     origin = site_config['origins'][surface]
     robots = (base / 'robots.txt').read_text()
     assert 'User-agent: *\nAllow: /' in robots, f'{surface}: crawler access is not explicit'
@@ -82,6 +84,13 @@ for surface in ['website', 'docs', 'app']:
     assert 'International Multicurrency Framework' in llms
     assert 'not the International Monetary Fund' in llms
     assert 'not transaction authorization' in llms
+    if testnet_transactions:
+        assert 'MetaMask' in llms and 'DogeOS Chikyū testnet' in llms
+        assert 'tUSDC is a test asset' in llms
+        assert 'The frontend is read-only' not in llms
+    elif runtime.get('fixture'):
+        assert 'isolated mock wallet' in llms
+        assert 'non-production fixture' in llms
     for article in articles:
         assert f'{origin if surface == "docs" else site_config["origins"]["docs"]}guides/{article["id"]}/' in llms
     sitemap = ET.parse(base / 'sitemap.xml')
@@ -104,7 +113,7 @@ for surface in ['website', 'docs', 'app']:
         elif surface == 'docs':
             expected_scripts.append('/assets/docs.js')
         else:
-            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/v2.js', '/assets/app.js'])
+            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/discovery.js', '/assets/v2.js', '/assets/actions.js', '/assets/app.js'])
         assert page.scripts == expected_scripts, f'{file}: incorrect ordered scripts: {page.scripts}'
         assert len(page.titles) == 1 and page.titles[0].strip(), f'{file}: missing unique title'
         assert len(page.descriptions) == 1 and 60 <= len(page.descriptions[0]) <= 220, f'{file}: missing or inadequate description'
@@ -141,8 +150,24 @@ for surface in ['website', 'docs', 'app']:
                 assert entity['acceptedAnswer']['text'] == text(answer)
             assert any(node.get('@type') == 'WebApplication' for node in graph)
         if surface == 'app':
-            assert any(node.get('@type') == 'WebApplication' for node in graph)
-            assert 'Read-only' in page.titles[0] or 'Read-only' in page.descriptions[0]
+            application = next(node for node in graph if node.get('@type') == 'WebApplication')
+            if testnet_transactions:
+                assert page.titles[0] == 'IMF Workspace | DogeOS Testnet V2 & MetaMask'
+                assert 'guided MetaMask transactions after current simulation and explicit review' in page.descriptions[0]
+                assert 'production readiness is not claimed' in page.descriptions[0]
+                assert 'Read-only' not in page.titles[0] and 'Read-only' not in page.descriptions[0]
+                assert 'MetaMask' in application['description']
+                assert any('explicit MetaMask confirmation' in feature for feature in application['featureList'])
+                assert 'MetaMask is optional' in application['browserRequirements']
+            else:
+                assert page.titles[0] == 'IMF Workspace | V2 Position Planning'
+                assert 'non-executable' in page.descriptions[0]
+                assert 'No signing or execution in this review' in page.descriptions[0]
+        if surface == 'docs' and testnet_transactions and relative == Path('index.html'):
+            assert 'Guided DogeOS testnet transactions require current simulation' in source
+            assert 'Imported registries and custom RPC connections remain read-only' in source
+            assert 'other ten codes are planning identifiers' in source
+            assert 'DEX support is not asserted' in source
         if surface == 'docs' and relative != Path('index.html'):
             guide_id = relative.parent.name
             article = guides[guide_id]

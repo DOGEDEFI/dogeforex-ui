@@ -1,11 +1,12 @@
 (() => {
   'use strict';
-  const views = ['create', 'manage', 'ecosystem', 'connection', 'offline', 'review', 'drafts', 'lifecycle'];
+  const views = ['create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'review', 'drafts', 'lifecycle'];
   const titles = {
-    create: 'V2 position planner',
-    manage: 'Manage a position',
+    create: 'Create & mint',
+    manage: 'Manage & close',
+    arena: 'Challenges & auctions',
     ecosystem: 'Bridge, savings & equity',
-    connection: 'Registry & network',
+    connection: 'Wallet, registry & network',
     offline: 'Teaching & legacy plans',
     review: 'Review teaching plan',
     drafts: 'Saved drafts',
@@ -211,7 +212,8 @@
       }
     });
     window.IMF_OFFLINE.init({ store, onView: showView, onPlan: updateAgent, notify });
-    v2 = window.IMF_V2_APP.init({ store, onView: showView, onPlan: updateAgent, onRegistry: currencies, notify });
+    v2 = window.IMF_V2_APP.init({ store, onView: showView, onPlan: updateAgent, onRegistry: () => { currencies(); window.IMF_ACTIONS?.refreshPolicy(); }, notify });
+    window.IMF_ACTIONS.init(v2, { onView: showView, notify });
     setMode(agentMode);
     showView('create', false);
   }

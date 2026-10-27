@@ -72,17 +72,24 @@ try {
   browser = await chromium.launch({ executablePath, headless: true });
   const forbiddenMethods = [];
   const rpcMethods = [];
+  const rpcRequests = [];
   const errors = [];
+  const isForbiddenMethod = (method) => /^(?:eth_send|eth_sign|personal_(?:sign|send)|wallet_)/i.test(method)
+    || /(?:broadcast|submit(?:work|hashrate)|senduseroperation)/i.test(method);
   const monitor = (page) => {
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('request', (request) => {
-      if (new URL(request.url()).origin !== rpcOrigin) return;
       try {
-        const body = JSON.parse(request.postData() || '{}');
-        const methods = Array.isArray(body) ? body.map((entry) => entry.method) : [body.method];
-        rpcMethods.push(...methods);
+        const body = JSON.parse(request.postData() || 'null');
+        if (!body) return;
+        const entries = Array.isArray(body) ? body : [body];
+        const methods = entries.filter((entry) => entry && typeof entry.method === 'string').map((entry) => entry.method);
+        if (!methods.length) return;
+        const origin = new URL(request.url()).origin;
         for (const method of methods) {
-          if (/^(eth_send|eth_sign|personal_sign|wallet_)/.test(method || '')) forbiddenMethods.push(method);
+          rpcMethods.push(method);
+          rpcRequests.push({ origin, method });
+          if (isForbiddenMethod(method)) forbiddenMethods.push(method);
         }
       } catch {}
     });
@@ -93,7 +100,30 @@ try {
   monitor(page);
   const response = await page.goto(endpoint(portBase + 2), { waitUntil: 'networkidle' });
   assert.equal(response.status(), 200);
-  await page.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'V2 read-only · 1 verified currency', undefined, { timeout: 60000 });
+  await page.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'DogeOS testnet · 1 verified currency', undefined, { timeout: 60000 });
+  const noInjectedWallet = await page.evaluate(async () => {
+    let connectError = null;
+    try { await window.IMF_WALLET.connect(); } catch (error) { connectError = error.code; }
+    return {
+      providerAbsent: typeof window.ethereum === 'undefined',
+      available: window.IMF_WALLET.getState().available,
+      account: window.IMF_WALLET.getState().account,
+      prepared: window.IMF_WALLET.getState().prepared,
+      connectError,
+      connectDisabled: document.querySelector('#wallet-connect').disabled,
+      transactionPanelHidden: document.querySelector('#transaction-panel').hidden,
+      transactionSendDisabled: document.querySelector('#transaction-send').disabled,
+    };
+  });
+  assert.equal(noInjectedWallet.providerAbsent, true, 'The live read test must not inject or require MetaMask');
+  assert.equal(noInjectedWallet.available, false);
+  assert.equal(noInjectedWallet.account, null);
+  assert.equal(noInjectedWallet.prepared, null);
+  assert.equal(noInjectedWallet.connectError, 'WALLET_UNAVAILABLE');
+  assert.equal(noInjectedWallet.connectDisabled, true);
+  assert.equal(noInjectedWallet.transactionPanelHidden, true);
+  assert.equal(noInjectedWallet.transactionSendDisabled, true);
+  assert.deepEqual(forbiddenMethods, [], 'No injected wallet means no signing or broadcast path may run');
   assert.deepEqual(await page.locator('#ecosystem-currency option:not([disabled])').evaluateAll((options) => options.map((option) => option.value)), ['USD']);
   assert.equal(await page.locator('#ecosystem-currency option').count(), 11);
   assert((await page.locator('#ecosystem-availability').textContent()).includes('1 of 11'));
@@ -118,7 +148,7 @@ try {
   await mkdir(path.join(root, 'artifacts'), { recursive: true });
 
   async function checkWorkspace(targetPage) {
-    for (const view of ['create', 'manage', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
+    for (const view of ['create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
       await targetPage.evaluate((name) => document.querySelector(`[data-view="${name}"]`).click(), view);
       await targetPage.waitForFunction((name) => document.querySelector(`#${name}-view`).hidden === false, view);
       for (const width of [320, 390, 768, 1440]) await checkLayout(targetPage, `app/${view}`, width);
@@ -140,7 +170,7 @@ try {
   const mobilePage = await mobile.newPage();
   monitor(mobilePage);
   await mobilePage.goto(endpoint(portBase + 2), { waitUntil: 'networkidle' });
-  await mobilePage.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'V2 read-only · 1 verified currency', undefined, { timeout: 60000 });
+  await mobilePage.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'DogeOS testnet · 1 verified currency', undefined, { timeout: 60000 });
   const mobileOverflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   assert.equal(mobileOverflow, false);
   await checkWorkspace(mobilePage);

@@ -16,14 +16,16 @@ assert.deepEqual(runtime.registry, registry, 'runtime and TypeScript registries 
 
 assert.deepEqual(
   Object.keys(runtime).sort(),
-  [...Object.keys(defaultRuntime), 'fixture'].sort(),
-  'fixture runtime must retain the default runtime shape plus fixture',
+  [...Object.keys(defaultRuntime), 'fixture', 'chain'].sort(),
+  'fixture runtime must retain the default runtime shape plus fixture and static chain metadata',
 );
 for (const key of ['schema', 'protocolVersion', 'mode']) assert.equal(runtime[key], defaultRuntime[key], key);
 assert.equal(runtime.fixture, true);
 assert.equal(runtime.status, 'fixture');
-assert.equal(runtime.message, 'SYNTHETIC V2 FIXTURE — not deployed or live state');
+assert.match(runtime.message, /^SYNTHETIC V2 FIXTURE — not deployed or live state/);
 assert.equal(runtime.rpcUrl, 'fixture://v2');
+const testnetRuntime = JSON.parse(readFileSync(resolve(root, 'config/runtime.testnet.json'), 'utf8'));
+assert.deepEqual(runtime.chain, testnetRuntime.chain, 'fixture wallet metadata must match the approved static DogeOS chain');
 
 assert.deepEqual(Object.keys(registry).sort(), ['abi', 'address', 'linkedData']);
 assert.ok(Array.isArray(registry.abi) && registry.abi.length === 0, 'outer ABI must be empty');

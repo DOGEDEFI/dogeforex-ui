@@ -85,6 +85,12 @@
   },
   "rpcUrl": "fixture://v2",
   "status": "fixture",
-  "message": "SYNTHETIC V2 FIXTURE — not deployed or live state",
-  "fixture": true
+  "message": "SYNTHETIC V2 FIXTURE — not deployed or live state; only the isolated test wallet is permitted",
+  "fixture": true,
+  "chain": {
+    "name": "DogeOS Chikyū Testnet",
+    "rpcUrl": "https://rpc.testnet.dogeos.com",
+    "explorerUrl": "https://blockscout.testnet.dogeos.com",
+    "nativeCurrency": { "name": "Test DOGE", "symbol": "tDOGE", "decimals": 18 }
+  }
 }

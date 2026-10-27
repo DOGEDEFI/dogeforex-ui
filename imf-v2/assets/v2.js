@@ -21,6 +21,8 @@
     manage: null,
     ecosystem: {},
     nonce: 0,
+    manageNonce: 0,
+    ecosystemNonce: 0,
   };
   let hooks;
 
@@ -269,10 +271,11 @@
     let notice = 'Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution';
     if (state.fixture && state.registry) {
       message = `SYNTHETIC V2 FIXTURE · ${count} read model${count === 1 ? '' : 's'}`;
-      notice = 'SYNTHETIC V2 FIXTURE · Not deployed or live state · No simulation, signing or transaction execution';
+      notice = 'SYNTHETIC V2 FIXTURE · Not deployed or live state · Isolated test wallet only · No live transactions';
     } else if (state.registry) {
-      message = count ? `V2 read-only · ${count} verified currenc${count === 1 ? 'y' : 'ies'}` : 'V2 registry unverified';
-      notice = 'Read-only V2 registry state · No simulation, signing or transaction execution';
+      const writes = state.runtime?.mode === 'testnet-metamask' && state.source === 'runtime-config';
+      message = count ? writes ? `DogeOS testnet · ${count} verified currenc${count === 1 ? 'y' : 'ies'}` : `V2 read-only · ${count} verified currenc${count === 1 ? 'y' : 'ies'}` : 'V2 registry unverified';
+      notice = writes ? 'DogeOS Chikyū testnet · Explicit wallet-confirmed transactions · tUSDC test asset · No production readiness claimed' : 'Read-only V2 registry state · Imported registries and custom RPC cannot authorize transactions';
     }
     $('#sidebar-connection').textContent = message;
     $('#release-notice').textContent = notice;
@@ -288,7 +291,7 @@
       ['Chain ID', state.registry.chainId.toString()],
       ['Registry currencies', state.registry.codes.join(', ')],
       ['Verified read models', [...state.verified.entries()].filter(([, valid]) => valid).map(([code]) => code).join(', ') || 'None'],
-      ['Read-only mode', true],
+      ['Transaction policy', state.fixture ? 'Synthetic test wallet only' : state.runtime?.mode === 'testnet-metamask' && state.source === 'runtime-config' ? 'Explicit DogeOS testnet wallet transactions' : 'Read-only'],
     ] : [['Status', 'No V2 registry configured'], ['V1 substitution', 'Not permitted']];
     for (const [code, message] of state.verificationErrors) rows.push([`${code} verification`, message]);
     metrics('#registry-summary', rows);
@@ -414,7 +417,7 @@
       }
       renderRegistry();
       invalidate();
-      hooks.notify(state.fixture ? 'Synthetic V2 fixture connected. These are not live contracts or operational quotes.' : 'V2 registry verified for the listed currencies. Read-only state is available; no signing or simulation was performed.');
+      hooks.notify(state.fixture ? 'Synthetic V2 fixture connected. These are not live contracts or operational quotes.' : state.runtime?.mode === 'testnet-metamask' && state.source === 'runtime-config' ? 'DogeOS testnet registry verified. Connect MetaMask to prepare explicit transactions; no wallet prompt has been requested.' : 'V2 registry verified for read-only inspection. Local registries and custom RPC cannot authorize transactions.');
     } catch (cause) {
       state.provider = null;
       connectionError(errorMessage(cause));
@@ -424,6 +427,8 @@
 
   function disconnect() {
     state.nonce += 1;
+    state.manageNonce += 1;
+    state.ecosystemNonce += 1;
     state.registry = null;
     state.rawRegistry = null;
     state.provider = null;
@@ -461,6 +466,24 @@
       $('#v2-raw-preview').textContent = json({ error: errorMessage(cause) });
     }
     hooks.onPlan();
+  }
+
+  async function refresh() {
+    const create = Boolean(state.currentRead);
+    const manage = Boolean(state.manage);
+    const ecosystem = Boolean(state.ecosystem.client);
+    state.manageNonce += 1;
+    state.ecosystemNonce += 1;
+    state.manage = null;
+    state.ecosystem = {};
+    invalidate();
+    const pending = [];
+    if (create && form.reportValidity()) pending.push(readAction());
+    if (manage && $('#manage-load-form').reportValidity()) pending.push(readManage());
+    if (ecosystem && $('#ecosystem-load-form').reportValidity()) pending.push(readEcosystem());
+    const results = await Promise.allSettled(pending);
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed) hooks.notify(`Confirmed, but a follow-up read failed: ${errorMessage(failed.reason)}`, true);
   }
 
   function setAction() {
@@ -691,21 +714,24 @@
       ['Closed', snapshot.closed],
       ['Expired', snapshot.expired],
     ]);
-    resultText('#expiry-result', `Expired-purchase price at ${block(snapshot)}: ${money(snapshot.expiredPurchasePrice, snapshot.priceDecimals)}. This is not the ordinary challenge-auction quote. Forced sale requires expiration and no outstanding challenge. Rolling requires complete separately authorized simulation; none is offered here.`);
+    resultText('#expiry-result', `Expired-purchase price at ${block(snapshot)}: ${money(snapshot.expiredPurchasePrice, snapshot.priceDecimals)}. This is not the ordinary challenge-auction quote. Forced sale requires expiration and no outstanding challenge. Rolling and expired purchases use fresh reads, exact simulation and explicit wallet confirmation in their guided journeys.`);
   }
 
   async function readManage() {
     const loadForm = $('#manage-load-form');
     if (!loadForm.reportValidity()) return null;
+    const nonce = ++state.manageNonce;
     const { position, account } = manageFormValues();
     try {
       const client = await clientFor(field('currency').value);
       const snapshot = await client.positionSnapshot(address(position, 'Position'), withCaller({}, account));
+      if (nonce !== state.manageNonce) return null;
       state.manage = { client, address: snapshot.address, account: account ? address(account, 'Account') : null, snapshot };
       renderPosition(snapshot);
       $('#manage-unavailable').textContent = `Current position state at ${block(snapshot)}. Repayment and withdrawal are evaluated separately.`;
       return snapshot;
     } catch (cause) {
+      if (nonce !== state.manageNonce) return null;
       resultText('#manage-state', errorMessage(cause), true);
       $('#manage-unavailable').textContent = 'Position state could not be read; no zero or empty state has been substituted.';
       return null;
@@ -817,6 +843,7 @@
   async function readEcosystem() {
     const loadForm = $('#ecosystem-load-form');
     if (!loadForm.reportValidity()) return;
+    const nonce = ++state.ecosystemNonce;
     const code = $('#ecosystem-currency').value;
     const account = ecoAccount();
     const client = await clientFor(code);
@@ -828,6 +855,7 @@
       client.minterSnapshot(),
       client.tokenSnapshot(),
     ]);
+    if (nonce !== state.ecosystemNonce) return;
     state.ecosystem = { client, account, code };
     for (const [name, result] of Object.entries({ bridge, savings, equity, minters, token })) {
       state.ecosystem[name] = result.status === 'fulfilled' ? result.value : { error: errorMessage(result.reason) };
@@ -968,7 +996,7 @@
       ]);
       const note = document.createElement('p');
       note.className = 'smalltext';
-      note.textContent = 'Quotes are nonlinear and state-dependent. Holding eligibility alone does not validate a share amount; redemption must leave more than one share in total supply. Minimum outputs and execution simulation are outside this integration.';
+      note.textContent = 'Quotes are nonlinear and state-dependent. Holding eligibility alone does not validate a share amount; redemption must leave more than one share in total supply. The guided transaction requires a minimum output and fresh exact simulation.';
       $('#equity-quote').append(note);
     } catch (cause) {
       resultText('#equity-quote', errorMessage(cause), true);
@@ -1054,14 +1082,16 @@
       }
     });
     submitHandler('#registry-form', async () => {
-      let raw = state.rawRegistry ?? state.runtime?.registry;
-      if (!raw) {
-        const file = $('#registry-file').files[0];
-        if (!file) throw new Error('Choose a V2 registry JSON file');
+      const file = $('#registry-file').files[0];
+      let raw = state.runtime?.registry;
+      let source = state.runtime?.fixture ? 'fixture' : 'runtime-config';
+      if (file) {
         if (file.size > 5000000) throw new Error('Registry file must be smaller than 5 MB');
         raw = JSON.parse(await file.text());
+        source = 'local-file';
       }
-      await connect(raw, $('#rpc-url').value.trim(), state.runtime?.fixture ? 'fixture' : state.rawRegistry ? 'local-file' : 'runtime-config');
+      if (!raw) throw new Error('Choose a V2 registry JSON file');
+      await connect(raw, $('#rpc-url').value.trim(), source);
     });
     $('#disconnect-registry').addEventListener('click', disconnect);
     submitHandler('#manage-load-form', readManage);
@@ -1092,7 +1122,7 @@
     }).catch((cause) => {
       connectionError(`Runtime configuration could not be loaded: ${errorMessage(cause)}`);
     });
-    return { getPlan, loadPlan, readAction, clientFor, state };
+    return { getPlan, loadPlan, readAction, clientFor, refresh, state };
   }
 
   window.IMF_V2_APP = { init, get state() { return state; } };

@@ -101,7 +101,24 @@ if not source_mode:
             assert (base / required).is_file(), f'{surface}: missing {required}'
         for internal in ['PLAN.html', 'AGENTS.md', 'handoff', 'scripts', 'node_modules']:
             assert not (base / internal).exists(), f'{surface}: internal file published: {internal}'
-    for required in ['protocol.js', 'planning.js', 'offline.js', 'v2.js', 'app.js']:
+    for required in ['protocol.js', 'planning.js', 'offline.js', 'wallet.js', 'discovery.js', 'v2.js', 'actions.js', 'app.js']:
         assert (output / 'app/assets' / required).is_file(), f'app: missing {required}'
+    app_html = (output / 'app/index.html').read_text()
+    runtime = json.loads((output / 'app/assets/runtime.json').read_text())
+    if runtime['mode'] == 'testnet-metamask':
+        assert runtime['status'] == 'configured-testnet-metamask'
+        assert '<title>IMF Workspace | DogeOS Testnet V2 &amp; MetaMask</title>' in app_html
+        assert 'guided MetaMask transactions after current simulation and explicit review' in app_html
+        assert 'DogeOS testnet · 1 verified currency' in app_html
+        assert 'tUSDC is a test asset; production readiness is not claimed' in app_html
+        for stale in ['Read-only V2 preview', 'network execution is not connected', 'no production V2 registry', 'This frontend does not do so']:
+            assert stale not in app_html, f'app: stale testnet content: {stale}'
+    else:
+        assert '<title>IMF Workspace | V2 Position Planning</title>' in app_html
+        assert 'No signing or execution in this review' in app_html
+        if runtime.get('fixture'):
+            site_config = (output / 'app/assets/site-config.js').read_text()
+            assert 'explicitly synthetic, non-production fixture' in site_config
+            assert 'isolated mock wallet' in site_config
 
-print(f'PASS: {count} local references, unique page IDs, {len(articles)} illustrated guide routes, 11 currencies, separate surface assets')
+print(f'PASS: {count} local references, unique page IDs, {len(articles)} illustrated guide routes, 11 currencies, separate surface assets and runtime-specific metadata')

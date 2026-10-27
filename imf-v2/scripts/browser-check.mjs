@@ -5,9 +5,11 @@ import os from 'node:os';
 import { chromium } from 'playwright-core';
 
 const fixture = !process.argv.includes('--default');
-const origins = fixture
-  ? { website: 'http://127.0.0.1:5190/', docs: 'http://127.0.0.1:5191/', app: 'http://127.0.0.1:5192/' }
-  : { website: 'http://127.0.0.1:5180/', docs: 'http://127.0.0.1:5181/', app: 'http://127.0.0.1:5182/' };
+const reviewBase = Number(process.env.IMF_REVIEW_PORT_BASE || 5180);
+const fixtureBase = Number(process.env.IMF_FIXTURE_PORT_BASE || 5190);
+const portBase = fixture ? fixtureBase : reviewBase;
+const origins = Object.fromEntries(['website', 'docs', 'app'].map((surface, index) => [surface, `http://127.0.0.1:${portBase + index}/`]));
+const publicOrigins = origins;
 const artifacts = path.resolve('artifacts');
 const downloads = path.join(artifacts, 'downloads');
 fs.mkdirSync(downloads, { recursive: true });
@@ -32,7 +34,17 @@ const pages = new Map();
 let pendingDownload = null;
 
 async function command(action, args = {}) {
-  if (action === 'evaluate') return currentPage.evaluate(args.code);
+  if (action === 'evaluate') {
+    let timer;
+    try {
+      return await Promise.race([
+        currentPage.evaluate(args.code),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Browser evaluation timed out: ${args.code.slice(0, 220)}`)), 20000); }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   if (action === 'fill') return currentPage.fill(args.selector, args.value);
   if (action === 'click') {
     pendingDownload = args.selector.includes('export') ? currentPage.waitForEvent('download', { timeout: 10000 }).catch(() => null) : null;
@@ -73,7 +85,13 @@ async function waitFor(code, timeout = 20000) {
   try {
     return await currentPage.waitForFunction(code, undefined, { timeout });
   } catch (cause) {
-    throw new Error(`Timed out: ${code}; ${JSON.stringify(await evaluate(`({text:document.body.innerText.slice(-1500),error:document.querySelector('#v2-form-error')?.textContent,connection:document.querySelector('#connection-error')?.textContent})`))}`, { cause });
+    let context = '';
+    try {
+      context = JSON.stringify(await evaluate(`({text:document.body.innerText.slice(-1500),error:document.querySelector('#v2-form-error')?.textContent,connection:document.querySelector('#connection-error')?.textContent})`));
+    } catch (diagnostic) {
+      context = `Diagnostic evaluation failed: ${diagnostic.message}`;
+    }
+    throw new Error(`Timed out: ${code}; cause: ${cause?.message}; ${context}`, { cause });
   }
 }
 
@@ -434,7 +452,7 @@ for (const guide of guides) {
   const response = await command('navigate', { url });
   assert.equal(response.status(), 200);
   await waitFor(`document.querySelector('#article h1')?.textContent === ${JSON.stringify(guide.title)}`);
-  assert.equal(await evaluate(`document.querySelector('link[rel="canonical"]').href`), url);
+  assert.equal(await evaluate(`document.querySelector('link[rel="canonical"]').href`), `${publicOrigins.docs}guides/${guide.id}/`);
   assert.equal(await evaluate(`document.querySelector('#doc-links a[aria-current="page"]').dataset.guide`), guide.id);
   assert(await evaluate(`JSON.parse(document.querySelector('script[type="application/ld+json"]').textContent)['@graph'].some(node=>node['@type']==='TechArticle' && node.headline===${JSON.stringify(guide.title)})`));
   assert(await evaluate(`document.querySelectorAll('#article figure').length >= 1 && document.querySelector('#article figcaption') !== null`));
@@ -448,10 +466,10 @@ pass('18 statically rendered documentation routes, canonical metadata, figures a
 await command('navigate', { url: `${origins.docs}guides/overview/` });
 await waitFor(`document.querySelector('#article h1')?.textContent.includes('multicurrency')`);
 const articleLinks = await evaluate(`[...document.querySelectorAll('#article a')].map(link=>link.href)`);
-assert(articleLinks.some((href) => href.startsWith(origins.app)));
+assert(articleLinks.some((href) => href.startsWith(publicOrigins.app)));
 await command('navigate', { url: `${origins.docs}guides/source-bridge/` });
 await waitFor(`document.querySelector('#article h1')?.textContent.includes('Normalize decimals')`);
-assert((await evaluate(`document.querySelector('.lesson-nav a[href$="/guides/source-bridge/"]').href`)).startsWith(origins.docs));
+assert((await evaluate(`document.querySelector('.lesson-nav a[href$="/guides/source-bridge/"]').href`)).startsWith(publicOrigins.docs));
 await waitFor(`document.querySelector('#doc-search').dataset.ready === 'true'`);
 await fill('#doc-search', 'nonexistent-query-xyz');
 assert.equal(await evaluate(`document.querySelector('#search-status').textContent`), '0 guides found');
@@ -477,12 +495,12 @@ await currentPage.reload({ waitUntil: 'load' });
 await waitFor(`document.querySelector('#doc-search').dataset.ready === 'true'`);
 pass('failed search index request preserves the full static guide and navigation');
 
-for (const origin of Object.values(origins)) {
+for (const [surface, origin] of Object.entries(origins)) {
   const robots = await fetch(new URL('robots.txt', origin)).then((response) => response.text());
   const sitemap = await fetch(new URL('sitemap.xml', origin)).then((response) => response.text());
   const llms = await fetch(new URL('llms.txt', origin)).then((response) => response.text());
   assert(robots.includes('User-agent: *\nAllow: /'));
-  assert(sitemap.includes('<urlset') && sitemap.includes(`<loc>${origin}</loc>`));
+  assert(sitemap.includes('<urlset') && sitemap.includes(`<loc>${publicOrigins[surface]}</loc>`));
   assert(llms.includes('International Multicurrency Framework'));
   assert(llms.includes('not transaction authorization'));
 }
@@ -522,7 +540,7 @@ assert.equal(await evaluate(`document.querySelector('[data-story="2"]').getAttri
 await evaluate(`(() => { const slider=document.querySelector('#learn-debt'); slider.value='65'; slider.dispatchEvent(new Event('input',{bubbles:true})); })()`);
 await select('#learn-currency', 'JPY');
 assert.equal(await evaluate(`document.querySelector('#learn-net').textContent`), '51,350 K9JPY');
-assert((await evaluate(`document.querySelector('#learn-plan').href`)).startsWith(`${origins.app}?currency=JPY&gross=65000`));
+assert((await evaluate(`document.querySelector('#learn-plan').href`)).startsWith(`${publicOrigins.app}?currency=JPY&gross=65000`));
 for (const { code, symbol } of await evaluate(`window.IMF_CURRENCIES`)) {
   await click(`[data-system="${code}"]`);
   assert.equal(await evaluate(`document.querySelector('#system-coin').textContent`), symbol);
@@ -606,7 +624,7 @@ await viewport(1440);
 await screenshot('docs-guide-desktop');
 
 await open(origins.app);
-for (const view of ['create', 'manage', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
+for (const view of ['create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
   await evaluate(`document.querySelector('[data-view="${view}"]').click()`);
   await waitFor(`document.querySelector('#${view}-view').hidden === false`);
   for (const width of [320, 390, 768, 1440]) await checkLayout(`app/${view}`, width);
@@ -625,7 +643,7 @@ await evaluate(`window.scrollTo({top:0,behavior:'auto'})`);
 await screenshot('app-mobile');
 await viewport(1440);
 await screenshot('app-desktop');
-pass('320–1440px overflow checks on the website, all 18 guides and all 8 workspace views, including 16px mobile form inputs');
+pass('320–1440px overflow checks on the website, all 18 guides and all 9 workspace views, including 16px mobile form inputs');
 
 await open(origins.app);
 await click('[data-view="create"]');

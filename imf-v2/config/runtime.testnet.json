@@ -1,7 +1,7 @@
 {
   "schema": "imf.frontend-runtime.v1",
   "protocolVersion": 2,
-  "mode": "read-only",
+  "mode": "testnet-metamask",
   "registry": {
     "schemaVersion": "2.0",
     "network": "chikyuV2",
@@ -104,6 +104,12 @@
     }
   },
   "rpcUrl": "https://rpc.testnet.dogeos.com",
-  "status": "configured-testnet-read-only",
-  "message": "DogeOS Chikyū testnet · USD V2 · tUSDC is a deployer-minted test asset, not USDC or a production reserve. Read-only: no simulation, signing or transactions."
+  "status": "configured-testnet-metamask",
+  "chain": {
+    "name": "DogeOS Chikyū Testnet",
+    "rpcUrl": "https://rpc.testnet.dogeos.com",
+    "explorerUrl": "https://blockscout.testnet.dogeos.com",
+    "nativeCurrency": { "name": "Test DOGE", "symbol": "tDOGE", "decimals": 18 }
+  },
+  "message": "DogeOS Chikyū testnet · USD V2 · tUSDC is a deployer-minted test asset, not USDC or a production reserve. Explicit testnet transactions require current simulation, review and MetaMask confirmation. Production readiness is not claimed."
 }

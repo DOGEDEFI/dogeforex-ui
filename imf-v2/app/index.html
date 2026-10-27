@@ -32,10 +32,11 @@
     <div class="sidebar-content" id="sidebar-content">
       <p>Project workspace</p>
       <nav aria-label="Workspace">
-        <button class="active" data-view="create">V2 position planner</button>
-        <button data-view="manage">Manage a position</button>
+        <button class="active" data-view="create">Create & mint</button>
+        <button data-view="manage">Manage & close</button>
+        <button data-view="arena">Challenges & auctions</button>
         <button data-view="ecosystem">Bridge, savings & equity</button>
-        <button data-view="connection">Registry & network</button>
+        <button data-view="connection">Wallet, registry & network</button>
         <button data-view="offline">Teaching & legacy plans</button>
         <button data-view="drafts">Saved drafts</button>
         <button data-view="lifecycle">Operating workflow</button>
@@ -44,7 +45,7 @@
       <p>Connection</p>
       <span class="tag" id="sidebar-connection">V2 registry not configured</span>
       <p>Execution boundary</p>
-      <span class="smalltext">Read and plan only. No wallet keys, simulation, signing, DEX actions or broadcasts.</span>
+      <span class="smalltext">DogeOS testnet transactions only after explicit review and MetaMask confirmation. Planning documents never grant authority. No private keys, DEX or keeper execution.</span>
       <noscript><p class="smalltext">Interactive V2 forms require JavaScript. The documentation and static operating guidance remain available without it.</p></noscript>
     </div>
   </aside>
@@ -57,6 +58,20 @@
       </div>
     </div>
     <div id="feedback" role="status" class="status" hidden></div>
+    <section class="wallet-bar" aria-label="Connected wallet">
+      <div><span class="tag" id="wallet-status">MetaMask not connected</span><p id="wallet-account" class="wallet-address">No wallet account connected</p><small id="wallet-chain">DogeOS Chikyū testnet · chain 6281971</small></div>
+      <div class="actions"><button class="btn mint" type="button" id="wallet-connect">Connect MetaMask</button><button class="btn light" type="button" id="wallet-switch">Switch to DogeOS</button><button class="btn light" type="button" id="wallet-forget">Forget wallet</button></div>
+    </section>
+    <details class="pending-transactions" id="pending-transactions" hidden><summary>Pending or uncertain transactions</summary><div id="pending-list"></div><button class="btn light" type="button" id="wallet-reconcile">Check receipts</button><p class="smalltext">Receipt checks never resubmit a transaction. An unknown outcome needs an externally verified hash, not another blind attempt.</p></details>
+    <section class="panel transaction-panel" id="transaction-panel" hidden aria-labelledby="transaction-title">
+      <span class="tag">Guided transaction</span><h2 id="transaction-title">Review transaction</h2>
+      <ol class="transaction-steps"><li class="complete">1. Current terms</li><li class="complete">2. Simulate</li><li aria-current="step">3. Review</li><li>4. Confirm & receipt</li></ol>
+      <p id="transaction-status" role="status" aria-live="polite"></p>
+      <div id="transaction-review" class="state-grid"></div>
+      <details><summary>Inspect exact calldata</summary><pre id="transaction-calldata"></pre></details>
+      <p class="smalltext">Simulation checks the current state, not a future guarantee. MetaMask provides the final network-fee review. Rejecting or closing the wallet never authorizes another attempt.</p>
+      <button class="btn mint" type="button" id="transaction-send" disabled>Confirm in MetaMask</button>
+    </section>
 
     <section id="create-view">
       <div class="app-guide">
@@ -121,10 +136,13 @@
               </div>
               <p class="error" id="v2-form-error" role="alert" hidden></p>
               <div class="actions">
-                <button class="btn mint" type="submit" id="review-v2-plan">Review read-only V2 plan</button>
+                <button class="btn light" type="submit" id="review-v2-plan">Read terms & quote</button>
+                <button class="btn mint" type="button" id="prepare-position">Review transaction</button>
                 <button class="btn light" type="button" id="save-v2-plan">Save V2 plan</button>
                 <button class="btn light" type="button" id="export-v2-plan">Export V2 plan</button>
+                <button class="btn light" type="button" data-wallet-target="#v2-position-form [name=account]">Use connected wallet for reads</button>
               </div>
+              <p class="smalltext">The transaction review rereads current terms and checks the exact call before MetaMask opens. Opening a proposal does not mint; cloning and minting use different prerequisites.</p>
               <p class="smalltext">Export is a planning document. It is not transaction calldata, simulation, authorization or an MCP execution request.</p>
             </section>
           </div>
@@ -144,7 +162,10 @@
     </section>
 
     <section id="manage-view" hidden>
-      <div class="section-intro"><h2>Read the obligation, not only the wallet.</h2><p class="muted">Repayment, debt reduction, closure, withdrawal and expiry are separate states. These views never send a transaction.</p></div>
+      <div class="section-intro"><h2>Your positions, from debt to collateral.</h2><p class="muted">Discover positions from hub events, reread their current state, then choose one guided action at a time.</p></div>
+      <div class="journey-actions"><button class="btn light" type="button" id="discover-positions">Find my positions</button><button class="btn light" type="button" data-wallet-target="#manage-load-form [name=manageAccount]">Use connected wallet for reads</button></div>
+      <p class="smalltext" id="discovery-status" role="status">Connect a wallet to discover positions. You can also enter an address directly.</p>
+      <div id="position-discovery" class="discovery-list"></div>
       <form class="panel inline-form" id="manage-load-form">
         <label class="field">Position address<input name="managePosition" required pattern="0x[a-fA-F0-9]{40}" placeholder="0x…" spellcheck="false"></label>
         <label class="field">Public caller address<input name="manageAccount" pattern="0x[a-fA-F0-9]{40}" placeholder="Optional for caller-independent reads" spellcheck="false"></label>
@@ -155,13 +176,24 @@
       <div id="manage-state" class="state-grid" aria-live="polite"></div>
       <div class="app-grid">
         <section class="panel">
-          <h2>Repayment quote</h2>
-          <p class="smalltext">Wallet currency excluding reserve is not necessarily the gross debt reduction. The current system reserve affects both.</p>
+          <h2>Repay or close</h2>
+          <p class="smalltext">Repayment uses wallet currency excluding reclaimed reserve. Full repayment and collateral withdrawal are separate confirmed transactions.</p>
           <form id="repayment-form">
             <label class="field">Wallet currency amount<input name="repayAmount" inputmode="decimal" value="1000" required></label>
             <div class="actions"><button class="btn light" type="submit">Quote repayment</button><button class="btn light" type="button" id="full-repayment">Read full-repayment candidate</button></div>
           </form>
           <div id="repayment-result" class="quote-result"></div>
+          <form data-operation="position.repay" data-position-input>
+            <input type="hidden" name="position" required>
+            <label class="field">Amount to repay<input name="amount" inputmode="decimal" value="1000" required></label>
+            <label class="check"><input type="checkbox" name="full"><span>Use a fresh full-repayment quote instead of the amount above</span></label>
+            <button class="btn mint" type="submit">Review repayment</button>
+          </form>
+          <form data-operation="position.close" data-position-input>
+            <label class="field">Position to repay and close<input name="position" required pattern="0x[a-fA-F0-9]{40}" placeholder="0x…" spellcheck="false"></label>
+            <p class="smalltext">If debt remains, this prepares full repayment first. After its receipt, submit this journey again to withdraw all collateral and close. No automatic follow-up is sent.</p>
+            <button class="btn light" type="submit">Review next close step</button>
+          </form>
         </section>
         <section class="panel">
           <h2>Collateral and maturity</h2>
@@ -173,7 +205,69 @@
           <div id="expiry-result" class="quote-result"></div>
           <button class="btn light" type="button" id="read-challenge">Read the selected challenge record</button>
           <div id="challenge-result" class="quote-result"></div>
+          <form data-operation="position.withdrawCollateral" data-position-input>
+            <label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+            <label class="field">Collateral to withdraw<input name="amount" inputmode="decimal" value="1" required></label>
+            <label class="field">Recipient (blank = connected wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+            <button class="btn mint" type="submit">Review collateral withdrawal</button>
+          </form>
           <a href="../docs/#maturity">Maturity, challenges and rolling</a>
+        </section>
+      </div>
+      <details class="panel advanced-actions"><summary>Adjust debt, collateral or liquidation price</summary>
+        <p class="smalltext">The combined adjustment takes absolute resulting values, not changes. Adding collateral requires an exact approval to the position. Raising the price triggers a cooldown.</p>
+        <form data-operation="position.adjust" data-position-input>
+          <label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+          <div class="field-grid"><label class="field">New gross debt<input name="newMinted" inputmode="decimal" required></label><label class="field">New total collateral<input name="newCollateral" inputmode="decimal" required></label></div>
+          <label class="field">New liquidation price<input name="newPrice" inputmode="decimal" required></label>
+          <button class="btn mint" type="submit">Review combined adjustment</button>
+        </form>
+        <form data-operation="position.adjustPrice" data-position-input>
+          <label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+          <label class="field">New liquidation price<input name="price" inputmode="decimal" required></label>
+          <button class="btn light" type="submit">Review price change</button>
+        </form>
+      </details>
+      <details class="panel advanced-actions"><summary>Roll, transfer ownership or rescue a token</summary>
+        <form data-operation="roller.rollFully" data-position-input>
+          <h3>Roll a position</h3><p class="smalltext">Both positions must use the same collateral. The roller may use wallet currency to cover a shortfall. An exact collateral approval to the roller is checked first.</p>
+          <label class="field">Owned source position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+          <label class="field">Target or clone-parent position<input name="target" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+          <label class="field">Custom expiration (optional)<input name="expiration" type="datetime-local"><small>Leave blank to use the target's current expiration.</small></label>
+          <button class="btn light" type="submit">Review position roll</button>
+        </form>
+        <details><summary>Specify manual roll parameters</summary><p class="smalltext">Expert journey. Repayment excludes reserve; target mint is gross debt. These values are not independent quotes.</p><form data-operation="roller.roll" data-position-input>
+          <label class="field">Owned source position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Target or clone-parent position<input name="target" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label>
+          <div class="field-grid"><label class="field">Wallet repayment excluding reserve<input name="repay" inputmode="decimal" required></label><label class="field">Gross target mint<input name="mint" inputmode="decimal" required></label></div>
+          <div class="field-grid"><label class="field">Collateral to withdraw<input name="collateralWithdraw" inputmode="decimal" required></label><label class="field">Collateral to deposit<input name="collateralDeposit" inputmode="decimal" required></label></div>
+          <label class="field">Absolute target expiration<input name="expiration" type="datetime-local" required></label><button class="btn light" type="submit">Review manual roll</button>
+        </form></details>
+        <form data-operation="position.transferOwnership" data-position-input>
+          <h3>Transfer ownership</h3><label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">New owner<input name="newOwner" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review ownership transfer</button>
+        </form>
+        <form data-operation="position.withdraw" data-position-input>
+          <h3>Rescue a non-collateral token</h3><label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Token contract<input name="token" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Amount<input name="amount" inputmode="decimal" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review token rescue</button>
+        </form>
+      </details>
+    </section>
+
+    <section id="arena-view" hidden>
+      <div class="section-intro"><h2>Challenges and auctions, with the clock visible.</h2><p class="muted">First comes the aversion window, then the Dutch auction. Expired collateral purchases use a different price curve.</p></div>
+      <button class="btn light" type="button" id="discover-challenges">Find challenges</button><div id="challenge-discovery" class="discovery-list"></div>
+      <div class="app-grid">
+        <section class="panel"><h2>Start a challenge</h2><p class="smalltext">You supply the challenged collateral. The minimum-price guard protects against a lower price being inserted before your transaction.</p>
+          <form data-operation="hub.challenge" data-position-input><label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Collateral to challenge<input name="amount" inputmode="decimal" required></label><label class="field">Minimum liquidation price (blank = current)<input name="minimumPrice" inputmode="decimal"></label><button class="btn mint" type="submit">Review challenge</button></form>
+        </section>
+        <section class="panel"><h2>Bid or cancel</h2><p class="smalltext">In the aversion window, a non-challenger buys collateral at the liquidation price; the challenger can cancel. In the auction, price declines with time.</p>
+          <form data-operation="hub.bid"><label class="field">Challenge index<input name="index" inputmode="numeric" pattern="[0-9]+" required></label><label class="field">Maximum collateral to buy<input name="amount" inputmode="decimal" required></label><label class="check"><input type="checkbox" name="postpone"><span>Postpone the challenger's collateral return in auction settlement</span></label><button class="btn mint" type="submit">Review current bid</button></form>
+        </section>
+      </div>
+      <div class="app-grid">
+        <section class="panel"><h2>Buy expired collateral</h2><p class="smalltext">Only expired positions without an outstanding challenge. The current price and total currency cost are reread before simulation.</p>
+          <form data-operation="hub.buyExpiredCollateral" data-position-input><label class="field">Expired position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Maximum collateral to buy<input name="amount" inputmode="decimal" required></label><button class="btn light" type="submit">Review expired purchase</button></form>
+        </section>
+        <section class="panel"><h2>Withdraw postponed collateral</h2><p class="smalltext">For a challenger with a pending return. The entire pending amount goes to the selected recipient.</p>
+          <form data-operation="hub.returnPostponedCollateral"><label class="field">Collateral token<input name="collateral" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review postponed return</button></form>
         </section>
       </div>
     </section>
@@ -185,20 +279,45 @@
         <label class="field">Public account address<input name="ecosystemAccount" pattern="0x[a-fA-F0-9]{40}" placeholder="Optional for account reads" spellcheck="false"></label>
         <button class="btn mint" type="submit">Read currency system</button>
       </form>
+      <button class="btn light" type="button" data-wallet-target="#ecosystem-load-form [name=ecosystemAccount]">Use connected wallet for account reads</button>
       <div class="app-grid">
         <section class="panel"><h2>Source bridge & credits</h2><div id="bridge-state" class="state-grid"></div>
           <form id="bridge-form"><label class="field">Source-token deposit amount<input name="sourceAmount" inputmode="decimal" value="100"></label><label class="field">Local amount to burn<input name="burnAmount" inputmode="decimal" value="100"></label><label class="check"><input type="checkbox" name="credit" checked><span>Plan an unpaid source credit instead of immediate redemption</span></label><button class="btn light" type="submit">Calculate units and remainder</button></form>
-          <div id="bridge-quote" class="quote-result"></div><a href="../docs/#source-bridge">Read source bridge units and redemption</a>
+          <div id="bridge-quote" class="quote-result"></div>
+          <details class="action-disclosure" open><summary>Deposit source tokens</summary><form data-operation="bridge.mintTo" data-currency="ecosystem"><label class="field">Source amount<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Local-token recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn mint" type="submit">Review bridge deposit</button></form></details>
+          <details class="action-disclosure"><summary>Redeem for source tokens now</summary><form data-operation="bridge.burnAndSend" data-currency="ecosystem"><label class="field">Local amount<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Source-token recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">The burn rounds down to a whole source unit; the remainder stays in your wallet.</p><button class="btn mint" type="submit">Review immediate redemption</button></form></details>
+          <details class="action-disclosure"><summary>Redeem to unpaid credit</summary><form data-operation="bridge.burnAndCredit" data-currency="ecosystem"><label class="field">Local amount<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Credit recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review credit redemption</button></form><form data-operation="bridge.payoutCredit" data-currency="ecosystem"><label class="field">Credit recipient to pay<input name="recipient" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review credit payout</button></form></details>
+          <a href="../docs/#source-bridge">Read source bridge units and redemption</a>
         </section>
-        <section class="panel"><h2>Savings & rate state</h2><div id="savings-state" class="state-grid"></div><a href="../docs/#savings">Savings timing and interest limits</a><h2>Pool-share equity</h2><div id="equity-state" class="state-grid"></div>
-          <form id="equity-form"><label class="field">Local currency investment<input name="investmentAmount" inputmode="decimal" value="100"></label><label class="field">Pool shares to redeem<input name="sharesAmount" inputmode="decimal" value="1"></label><button class="btn light" type="submit">Read equity quotes</button></form>
-          <div id="equity-quote" class="quote-result"></div>
+        <section class="panel"><h2>Savings</h2><div id="savings-state" class="state-grid"></div><a href="../docs/#savings">Savings timing and interest limits</a>
+          <form data-operation="savings.save" data-currency="ecosystem"><label class="field">Amount to save<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Savings account owner (blank = wallet)<input name="owner" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">New deposits have a weighted lock of up to three days. Interest depends on the current rate and available system equity.</p><button class="btn mint" type="submit">Review savings deposit</button></form>
+          <form data-operation="savings.withdraw" data-currency="ecosystem"><label class="field">Amount to withdraw<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review savings withdrawal</button></form>
+          <details class="action-disclosure"><summary>Adjust or refresh savings</summary><form data-operation="savings.adjust" data-currency="ecosystem"><label class="field">Absolute target savings balance<input name="amount" inputmode="decimal" required></label><button class="btn light" type="submit">Review target balance</button></form><form data-operation="savings.refreshMyBalance" data-currency="ecosystem"><p class="smalltext">Refresh the connected account and compound accrued interest, subject to available equity.</p><button class="btn light" type="submit">Review interest refresh</button></form><form data-operation="savings.refreshBalance" data-currency="ecosystem"><label class="field">Other savings account to refresh<input name="owner" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">Permissionless refresh: you pay the transaction fee; any interest is credited to the selected account.</p><button class="btn light" type="submit">Review account refresh</button></form></details>
         </section>
       </div>
-      <section class="panel governance-panel"><h2>Participant qualification</h2><p class="smalltext">Strictly more than 2% of time-weighted votes. Token balances alone do not qualify. Helpers must be sorted, unique, valid delegators.</p>
+      <section class="panel governance-panel"><h2>Buy and sell pool shares</h2><p class="smalltext">These are protocol-native investment and reserve redemption, not a DEX market. Quotes are nonlinear and state-dependent. Minimum outputs protect against changes before confirmation.</p><div id="equity-state" class="state-grid"></div>
+        <form id="equity-form"><label class="field">Local currency investment<input name="investmentAmount" inputmode="decimal" value="100"></label><label class="field">Pool shares to redeem<input name="sharesAmount" inputmode="decimal" value="1"></label><button class="btn light" type="submit">Read equity quotes</button></form><div id="equity-quote" class="quote-result"></div>
+        <div class="app-grid"><form data-operation="equity.invest" data-currency="ecosystem"><h3>Invest for shares</h3><label class="field">Currency investment<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Minimum shares to receive<input name="minimum" inputmode="decimal" value="1" required></label><button class="btn mint" type="submit">Review share investment</button></form>
+        <form data-operation="equity.redeemExpected" data-currency="ecosystem"><h3>Redeem shares</h3><label class="field">Shares to redeem<input name="shares" inputmode="decimal" value="1" required></label><label class="field">Minimum currency proceeds<input name="minimum" inputmode="decimal" value="1" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">The average holding period must be satisfied and more than one share must remain outstanding.</p><button class="btn mint" type="submit">Review share redemption</button></form></div>
+      </section>
+      <section class="panel governance-panel"><h2>Participant governance</h2><p class="smalltext">Strictly more than 2% of time-weighted votes is required for qualified actions. Token balances alone do not qualify. Helpers must be strictly address-sorted, unique, valid delegators.</p>
         <div id="minter-state" class="state-grid"></div>
-        <form id="governance-form"><label class="field">Helper addresses (one per line)<textarea name="helpers" rows="3" spellcheck="false"></textarea></label><button class="btn light" type="submit">Check votes and qualification</button></form>
-        <div id="governance-state" class="quote-result"></div><a href="../docs/#governance">Participant governance and proposal windows</a>
+        <form id="governance-form"><label class="field">Helper addresses (one per line)<textarea name="helpers" rows="3" spellcheck="false"></textarea></label><button class="btn light" type="submit">Check votes and qualification</button></form><div id="governance-state" class="quote-result"></div>
+        <details class="action-disclosure"><summary>Delegation and proposal veto</summary>
+          <form data-operation="equity.delegateVoteTo" data-currency="ecosystem"><label class="field">Delegate (blank clears delegation)<input name="delegate" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review vote delegation</button></form>
+          <form data-operation="position.deny"><h3>Deny a proposed position</h3><label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Helpers<textarea name="helpers" rows="2" spellcheck="false"></textarea></label><label class="field">Reason<input name="message" maxlength="200" required></label><label class="check"><input type="checkbox" required><span>I understand a qualified veto irreversibly closes this proposal before its start.</span></label><button class="btn light" type="submit">Review position veto</button></form>
+        </details>
+        <details class="action-disclosure"><summary>Minter and savings-rate proposals</summary>
+          <form data-operation="token.suggestMinter" data-currency="ecosystem"><h3>Propose a minter</h3><label class="field">Minter address<input name="minter" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Application period (seconds)<input name="applicationPeriod" inputmode="numeric" value="900" required></label><label class="field">Application fee<input name="applicationFee" inputmode="decimal" value="1000" required></label><label class="field">Message<input name="message" maxlength="200" required></label><button class="btn light" type="submit">Review minter application</button></form>
+          <form data-operation="token.denyMinter" data-currency="ecosystem"><h3>Deny a pending minter</h3><label class="field">Minter address<input name="minter" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Helpers<textarea name="helpers" rows="2" spellcheck="false"></textarea></label><label class="field">Reason<input name="message" maxlength="200" required></label><button class="btn light" type="submit">Review minter denial</button></form>
+          <form data-operation="savings.proposeChange" data-currency="ecosystem"><h3>Propose a savings rate</h3><label class="field">New annual rate (PPM)<input name="ratePPM" inputmode="numeric" value="59400" required></label><label class="field">Helpers<textarea name="helpers" rows="2" spellcheck="false"></textarea></label><button class="btn light" type="submit">Review rate proposal</button></form>
+          <form data-operation="savings.applyChange" data-currency="ecosystem"><p class="smalltext">Anyone can apply a pending rate once its application time has arrived.</p><button class="btn light" type="submit">Review rate application</button></form>
+        </details>
+        <details class="action-disclosure danger-zone"><summary>Irreversible expert governance</summary><p class="error">These operations can destroy voting power or burn every share owned by listed addresses. They are not routine portfolio actions.</p>
+          <form data-operation="equity.kamikaze" data-currency="ecosystem"><h3>Destroy votes</h3><label class="field">Target addresses<textarea name="targets" rows="2" required spellcheck="false"></textarea></label><label class="field">Maximum own votes to sacrifice (raw units)<input name="votes" inputmode="numeric" required></label><label class="check"><input type="checkbox" required><span>I understand this sacrifices my votes and irreversibly destroys target votes.</span></label><button class="btn light" type="submit">Review vote destruction</button></form>
+          <form data-operation="equity.restructureCapTable" data-currency="ecosystem"><h3>Restructure the cap table</h3><label class="field">Helpers<textarea name="helpers" rows="2" spellcheck="false"></textarea></label><label class="field">Addresses whose entire share balances will be burned<textarea name="targets" rows="2" required spellcheck="false"></textarea></label><label class="check"><input type="checkbox" required><span>I understand this burns all shares of every listed address and cannot be undone.</span></label><button class="btn light" type="submit">Review equity restructuring</button></form>
+        </details>
+        <a href="../docs/#governance">Participant governance and proposal windows</a>
       </section>
     </section>
 
@@ -245,8 +364,8 @@
     <section id="drafts-view" hidden><p class="muted">Drafts stay in this browser on this app origin. They are not synchronized or on-chain.</p><div class="actions"><button class="btn light" id="export-drafts">Export draft backup</button><button class="btn light" id="import-drafts">Import draft backup</button><input type="file" id="draft-backup-file" accept=".json,application/json" hidden></div><div class="panel" id="draft-list"></div></section>
 
     <section id="lifecycle-view" hidden>
-      <div class="section-intro"><h2>A plan stops before authority begins.</h2><p class="muted">Human and agent workflows share inputs and evidence. Signing policy and transaction execution are outside this integration.</p></div>
-      <div class="panel"><ol class="workflow-list"><li><span class="step">1</span><div><b>Plan and identify</b><p>Choose new terms, accepted clone terms or an existing position. Identify the currency, chain and actual V2 contracts.</p></div></li><li><span class="step">2</span><div><b>Verify current reads</b><p>Read bytecode, contract links, token metadata, terms, funding, capacity and time at a source block. Failure is not zero.</p></div></li><li><span class="step">3</span><div><b>Review read-derived quotes</b><p>Separate gross debt, reserve, fees, spendable proceeds, repayment and collateral effects. Requote mutable state before any action.</p></div></li><li><span class="step">4</span><div><b>Separate simulation and treasury review</b><p>A later authorized integration must simulate the exact method and present spender, recipient and expected changes. This frontend does not do so.</p></div></li><li><span class="step">5</span><div><b>Separate DEX and execution decisions</b><p>Use a separate token allocation for DEX liquidity. Verify venue, pool, LP ownership and signing policy independently. Exported plans authorize none of these.</p></div></li></ol><a class="btn light" href="../docs/#agents">Read human and agent boundaries</a></div>
+      <div class="section-intro"><h2>Authority stays with the wallet holder.</h2><p class="muted">Human and agent workflows share planning inputs and evidence. Only an explicit wallet review can become a DogeOS testnet transaction.</p></div>
+      <div class="panel"><ol class="workflow-list"><li><span class="step">1</span><div><b>Choose the journey</b><p>Create or clone, mint, manage or close, challenge or bid, bridge, save, invest or participate in governance. Each currency remains an independent system.</p></div></li><li><span class="step">2</span><div><b>Connect and verify current reads</b><p>Connect MetaMask, switch to DogeOS, and verify the registry, chain, contract links, token metadata, balances and timers. Failure is not zero.</p></div></li><li><span class="step">3</span><div><b>Review terms and exact approvals</b><p>Separate gross debt, reserve, fees, proceeds, repayment and collateral effects. Any required approval uses an exact amount and a separate confirmation.</p></div></li><li><span class="step">4</span><div><b>Simulate and confirm once</b><p>The app checks the exact caller, target and calldata with a fresh static call and gas estimate. Review the full transaction in the app and then in MetaMask. No follow-up transaction is automatic.</p></div></li><li><span class="step">5</span><div><b>Reconcile the receipt</b><p>A pending hash is not a success or a reason to resubmit. Confirmation refreshes current state; a reverted transaction stays reverted. DEX liquidity, keeper automation and agent-originated execution remain separate decisions.</p></div></li></ol><a class="btn light" href="../docs/#agents">Read human and agent boundaries</a></div>
     </section>
 
     <section class="panel agent-code" id="agent-panel" hidden><h2>Structured read-only planning intent</h2><p class="muted">The same active form represented for an agent. No private data, execution authority or inferred live state.</p><pre id="agent-json"></pre><button class="btn light" type="button" id="export-agent-plan">Export active plan</button></section>
