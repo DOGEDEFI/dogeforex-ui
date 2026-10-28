@@ -1,7 +1,8 @@
 (() => {
   'use strict';
-  const views = ['create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'review', 'drafts', 'lifecycle'];
+  const views = ['dashboard', 'create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'review', 'drafts', 'lifecycle'];
   const titles = {
+    dashboard: 'Dashboard',
     create: 'Create & mint',
     manage: 'Manage & close',
     arena: 'Challenges & auctions',
@@ -16,6 +17,7 @@
   let agentMode = new URLSearchParams(location.search).get('mode') === 'agent';
   let store;
   let v2;
+  let dashboard;
 
   function notify(message) {
     const status = document.querySelector('#feedback');
@@ -67,6 +69,7 @@
       document.querySelector('#ecosystem-currency').value = document.querySelector('#v2-currency').value;
       currencies();
     }
+    if (next === 'dashboard') dashboard?.activate();
     updateAgent();
     if (focus) {
       document.querySelector('#view-title').setAttribute('tabindex', '-1');
@@ -212,10 +215,15 @@
       }
     });
     window.IMF_OFFLINE.init({ store, onView: showView, onPlan: updateAgent, notify });
-    v2 = window.IMF_V2_APP.init({ store, onView: showView, onPlan: updateAgent, onRegistry: () => { currencies(); window.IMF_ACTIONS?.refreshPolicy(); }, notify });
+    dashboard = window.IMF_DASHBOARD.init({ getV2: () => v2, notify });
+    v2 = window.IMF_V2_APP.init({ store, onView: showView, onPlan: updateAgent, onRegistry: () => { currencies(); window.IMF_ACTIONS?.refreshPolicy(); dashboard?.refresh(); }, notify });
     window.IMF_ACTIONS.init(v2, { onView: showView, notify });
     setMode(agentMode);
-    showView('create', false);
+    window.addEventListener('hashchange', () => {
+      const panel = dashboard?.panelFromHash?.();
+      if (panel) showView('dashboard', false);
+    });
+    showView(dashboard?.panelFromHash?.() ? 'dashboard' : 'create', false);
   }
 
   init();

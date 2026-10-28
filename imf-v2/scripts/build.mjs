@@ -148,7 +148,7 @@ for (const surface of surfaces) {
   );
   if (surface === 'app') html = html.replace(
     /<script src="\/?assets\/app\.js" defer><\/script>/,
-    '<script src="/assets/protocol.js" defer></script><script src="/assets/planning.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/wallet.js" defer></script><script src="/assets/discovery.js" defer></script><script src="/assets/v2.js" defer></script><script src="/assets/actions.js" defer></script><script src="/assets/app.js" defer></script>',
+    '<script src="/assets/protocol.js" defer></script><script src="/assets/planning.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/wallet.js" defer></script><script src="/assets/discovery.js" defer></script><script src="/assets/v2.js" defer></script><script src="/assets/dashboard.js" defer></script><script src="/assets/actions.js" defer></script><script src="/assets/app.js" defer></script>',
   );
   html = html.replace('</head>', '<noscript><style>.menu,.sidebar-toggle{display:none!important}#doc-search,label[for="doc-search"]{display:none}@media(max-width:700px){.navlinks{display:flex!important}}</style></noscript></head>');
   const docsTemplate = surface === 'docs' ? html : null;

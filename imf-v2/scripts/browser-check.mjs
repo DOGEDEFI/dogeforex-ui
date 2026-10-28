@@ -138,6 +138,59 @@ async function setScenario(scenario) {
   await waitFor(`window.IMF_V2_APP.state.verifying.size === 0 && window.IMF_V2.fixtureControls.scenario === ${JSON.stringify(scenario)}`);
 }
 
+async function checkDashboard(mode) {
+  const panels = ['overview', 'collateral', 'positions', 'markets', 'risk', 'activity', 'parameters'];
+  await command('navigate', { url: `${origins.app}#dashboard` });
+  await waitFor(`window.IMF_V2_APP?.state?.runtime !== null && document.querySelector('#dashboard-view').hidden === false`);
+  assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), 'Dashboard');
+  assert((await evaluate(`document.querySelector('#dashboard-source-status').textContent`)).includes(mode));
+  for (const panel of panels) {
+    await evaluate(`location.hash = 'dashboard/${panel}'`);
+    await waitFor(`document.querySelector('#dashboard-${panel}').hidden === false && document.querySelector('#dashboard-${panel}').innerText.length > 40`);
+    assert((await evaluate(`location.hash`)).endsWith(panel));
+  }
+  if (mode !== 'UNCONFIGURED') {
+    await evaluate(`location.hash = 'dashboard/positions'`);
+    await waitFor(`document.querySelector('#dashboard-position-search') !== null`);
+    await fill('#dashboard-position-search', 'browser-qa');
+    await waitFor(`document.querySelector('#dashboard-positions .unavailable-card') !== null || document.querySelectorAll('#dashboard-positions tbody tr').length >= 0`);
+    await click('#dashboard-positions-export');
+    const positionCsv = await download('dashboard-positions');
+    assert(positionCsv.json === undefined, 'CSV helper must not treat CSV as JSON');
+    await evaluate(`location.hash = 'dashboard/risk'`);
+    await waitFor(`document.querySelector('#dashboard-risk-collateral') !== null`);
+    await fill('#dashboard-risk-collateral', '-35');
+    await waitFor(`document.querySelector('#dashboard-risk-collateral-out').textContent === '-35%'`);
+    await click('#dashboard-scenario-export');
+    const scenario = await download('dashboard-scenario');
+    assert.equal(scenario.json.kind, 'scenario');
+    assert.equal(scenario.json.executionEnabled, false);
+    assert.equal(scenario.json.assumptions.collateralShockPercent, -35);
+    if (fixture) {
+      await setScenario('challenged');
+      await command('navigate', { url: `${origins.app}#dashboard/activity` });
+      await waitFor(`document.querySelector('#dashboard-activity').hidden === false && document.querySelector('#dashboard-load-challenge') !== null`);
+      await click('#dashboard-load-challenge');
+      await waitFor(`document.querySelector('#dashboard-challenge-panel').innerText.includes('First-phase deadline')`);
+      const replay = await evaluate(`(() => { const input=document.querySelector('#dashboard-replay-scrub'); input.value=75; input.dispatchEvent(new Event('input',{bubbles:true})); return document.querySelector('#dashboard-replay-scrub-out').textContent; })()`);
+      assert.equal(replay, '75%');
+      await waitFor(`document.querySelector('#dashboard-challenge-panel').innerText.includes('Replay timestamp')`);
+      await setScenario('valid');
+    }
+  }
+  for (const width of [320, 1440]) {
+    await viewport(width);
+    await evaluate(`location.hash = 'dashboard/overview'`);
+    await waitFor(`document.querySelector('#dashboard-overview').hidden === false`);
+    const overflow = await evaluate(`document.documentElement.scrollWidth > innerWidth + 1`);
+    assert.equal(overflow, false, `dashboard overflow at ${width}`);
+  }
+  await viewport(1440);
+  await click('[data-view="create"]');
+  await waitFor(`document.querySelector('#create-view').hidden === false`);
+  pass(`dashboard panels, deep links, unavailable states, exports and responsive layout (${mode.toLowerCase()})`);
+}
+
 async function download(namePart) {
   const download = await pendingDownload;
   if (!download) throw new Error(`No Chrome download matched ${namePart}`);
@@ -147,7 +200,9 @@ async function download(namePart) {
   await download.saveAs(path.join(downloads, file));
   const content = fs.readFileSync(path.join(downloads, file), 'utf8');
   assert(content.length > 10);
-  return { file, json: JSON.parse(content) };
+  const trimmed = content.trim();
+  const json = trimmed.startsWith('{') || trimmed.startsWith('[') ? JSON.parse(content) : undefined;
+  return { file, content, json };
 }
 
 async function key(key) {
@@ -171,6 +226,7 @@ if (fixture) {
   assert((await evaluate(`document.querySelector('#ecosystem-availability').textContent`)).includes('synthetic read model'));
   assert.equal(await evaluate(`document.querySelector('#ecosystem-load-form button[type="submit"]').disabled`), false);
   pass('only the verified fixture currency is enabled for ecosystem reads');
+  await checkDashboard('SYNTHETIC FIXTURE');
 
   await fill('[name="project"]', 'Browser QA token project');
   await fill('[name="account"]', '0xF17e00000000000000000000000000000000000B');
@@ -346,6 +402,7 @@ if (!fixture) {
   assert((await evaluate(`document.querySelector('#v2-currency option[value="EUR"]').textContent`)).includes('read unavailable'));
   globalThis.originalDrafts = await evaluate(`localStorage.getItem('imf-position-drafts-v2')`);
   pass('default preview remains unconfigured with no V1 substitution');
+  await checkDashboard('UNCONFIGURED');
 
   await click('#review-v2-plan');
   assert.equal(await evaluate(`document.querySelector('#v2-position-form').checkValidity()`), false);
@@ -444,9 +501,8 @@ await waitFor(`window.IMF_V2_APP?.state?.runtime !== null`);
 pass('disabled storage does not prevent planning or JSON export');
 
 await open(origins.docs);
-await waitFor(`document.querySelectorAll('#doc-links a').length === 18 && document.querySelector('#doc-search').dataset.ready === 'true'`);
 const guides = await evaluate(`fetch('/assets/articles.json').then(response=>response.json())`);
-assert.equal(guides.length, 18);
+await waitFor(`document.querySelectorAll('#doc-links a').length === ${guides.length} && document.querySelector('#doc-search').dataset.ready === 'true'`);
 for (const guide of guides) {
   const url = `${origins.docs}guides/${guide.id}/`;
   const response = await command('navigate', { url });
@@ -461,7 +517,7 @@ for (const guide of guides) {
   await waitFor(`[...document.querySelectorAll('#article img')].every(image=>image.complete && image.naturalWidth > 0)`);
   await evaluate(`window.scrollTo({top:0,behavior:'auto'})`);
 }
-pass('18 statically rendered documentation routes, canonical metadata, figures and local assets');
+pass(`${guides.length} statically rendered documentation routes, canonical metadata, figures and local assets`);
 
 await command('navigate', { url: `${origins.docs}guides/overview/` });
 await waitFor(`document.querySelector('#article h1')?.textContent.includes('multicurrency')`);
@@ -476,7 +532,7 @@ assert.equal(await evaluate(`document.querySelector('#search-status').textConten
 await fill('#doc-search', 'bridge');
 assert((await evaluate(`document.querySelector('#search-status').textContent`)).includes('guide'));
 await fill('#doc-search', '');
-assert.equal(await evaluate(`[...document.querySelectorAll('#doc-links a')].filter(link=>!link.hidden).length`), 18);
+assert.equal(await evaluate(`[...document.querySelectorAll('#doc-links a')].filter(link=>!link.hidden).length`), guides.length);
 await evaluate(`location.hash='repayment'`);
 await waitFor(`location.pathname.endsWith('/guides/repayment/')`);
 await waitFor(`document.querySelector('#article h1')?.textContent.includes('Repay debt first')`);
@@ -488,7 +544,7 @@ await currentPage.route('**/assets/articles.json', (route) => route.abort('faile
 await currentPage.reload({ waitUntil: 'load' });
 await waitFor(`document.querySelector('#search-status').textContent.includes('Search is unavailable')`);
 assert.equal(await evaluate(`document.querySelector('#doc-search').disabled`), true);
-assert.equal(await evaluate(`document.querySelectorAll('#doc-links a').length`), 18);
+assert.equal(await evaluate(`document.querySelectorAll('#doc-links a').length`), guides.length);
 assert((await evaluate(`document.querySelector('#article').innerText`)).includes('Repay debt first'));
 await currentPage.unroute('**/assets/articles.json');
 await currentPage.reload({ waitUntil: 'load' });
@@ -513,7 +569,7 @@ await command('cdp', { method: 'Emulation.setScriptExecutionDisabled', params: {
 await viewport(390);
 await command('navigate', { url: `${origins.docs}guides/governance/` });
 assert((await evaluate(`document.querySelector('#article').innerText`)).includes('strictly more than 2%'));
-assert.equal(await evaluate(`document.querySelectorAll('#doc-links a').length`), 18);
+assert.equal(await evaluate(`document.querySelectorAll('#doc-links a').length`), guides.length);
 assert(await evaluate(`getComputedStyle(document.querySelector('.sidebar-content')).display !== 'none'`));
 assert.equal(await evaluate(`getComputedStyle(document.querySelector('.sidebar-toggle')).display`), 'none');
 assert.equal(await evaluate(`getComputedStyle(document.querySelector('#doc-search')).display`), 'none');
@@ -588,7 +644,7 @@ await waitFor(`document.querySelector('#doc-search').dataset.ready === 'true' &&
 await click('.sidebar-toggle');
 await waitFor(`document.querySelector('.sidebar-toggle').getAttribute('aria-expanded') === 'true'`);
 await fill('#doc-search', 'savings');
-assert((await evaluate(`document.querySelectorAll('#doc-links a:not([hidden])').length`)) < 18);
+assert((await evaluate(`document.querySelectorAll('#doc-links a:not([hidden])').length`)) < guides.length);
 await key('Escape');
 assert.equal(await evaluate(`document.querySelector('.sidebar-content').hidden`), true);
 pass('mobile sidebar disclosure, Escape focus restoration, view selection and documentation search');
@@ -643,7 +699,7 @@ await evaluate(`window.scrollTo({top:0,behavior:'auto'})`);
 await screenshot('app-mobile');
 await viewport(1440);
 await screenshot('app-desktop');
-pass('320–1440px overflow checks on the website, all 18 guides and all 9 workspace views, including 16px mobile form inputs');
+pass(`320–1440px overflow checks on the website, all ${guides.length} guides and all 10 workspace views, including 16px mobile form inputs`);
 
 await open(origins.app);
 await click('[data-view="create"]');

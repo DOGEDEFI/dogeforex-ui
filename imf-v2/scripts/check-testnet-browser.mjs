@@ -147,8 +147,44 @@ try {
   assert.equal(desktopOverflow, false);
   await mkdir(path.join(root, 'artifacts'), { recursive: true });
 
+  async function checkDashboard(targetPage) {
+    const panels = ['overview', 'collateral', 'positions', 'markets', 'risk', 'activity', 'parameters'];
+    await targetPage.goto(endpoint(portBase + 2), { waitUntil: 'networkidle' });
+    for (const panel of panels) {
+      await targetPage.goto(endpoint(portBase + 2, `#dashboard/${panel}`), { waitUntil: 'networkidle' });
+      try {
+        await targetPage.waitForFunction((name) => document.querySelector('#dashboard-view').hidden === false && document.querySelector(`#dashboard-${name}`).hidden === false && document.querySelector(`#dashboard-${name}`).innerText.length > 40, panel, { timeout: 90000 });
+      } catch (error) {
+        const diagnostic = await targetPage.evaluate((name) => ({
+          title: document.querySelector('#view-title')?.textContent,
+          source: document.querySelector('#dashboard-source-status')?.textContent,
+          dashboardHidden: document.querySelector('#dashboard-view')?.hidden,
+          panelHidden: document.querySelector(`#dashboard-${name}`)?.hidden,
+          panelText: document.querySelector(`#dashboard-${name}`)?.innerText?.slice(0, 500),
+          body: document.body.innerText.slice(0, 500),
+          verified: [...(window.IMF_V2_APP?.state?.verified?.entries() ?? [])],
+        }), panel);
+        throw new Error(`dashboard/${panel} did not settle: ${error.message}; ${JSON.stringify(diagnostic)}`);
+      }
+      const source = await targetPage.locator('#dashboard-source-status').textContent();
+      assert(source.includes('LIVE USD'), `${panel}: ${source}`);
+      if (panel === 'markets') assert((await targetPage.locator('#dashboard-markets').innerText()).includes('Reference marks unavailable'));
+      if (panel === 'activity') assert((await targetPage.locator('#dashboard-activity').innerText()).includes('Protocol event ledger'));
+      if (panel === 'positions') {
+        await targetPage.locator('#dashboard-position-account').fill('0x8666f1d19e04c7831EA23066a4b14c0260fC2B50');
+        await targetPage.locator('#dashboard-position-scope').selectOption('account');
+        await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-positions tbody tr').length > 0, undefined, { timeout: 120000 });
+        await targetPage.locator('#dashboard-positions [data-position-detail]').first().click();
+        await targetPage.waitForFunction(() => document.querySelector('#dashboard-drawer').hidden === false && document.querySelector('#dashboard-drawer-body').innerText.includes('Gross minted debt'));
+        await targetPage.keyboard.press('Escape');
+        await targetPage.waitForFunction(() => document.querySelector('#dashboard-drawer').classList.contains('open') === false);
+      }
+      for (const width of [320, 1440]) await checkLayout(targetPage, `dashboard/${panel}`, width);
+    }
+  }
+
   async function checkWorkspace(targetPage) {
-    for (const view of ['create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
+    for (const view of ['dashboard', 'create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
       await targetPage.evaluate((name) => document.querySelector(`[data-view="${name}"]`).click(), view);
       await targetPage.waitForFunction((name) => document.querySelector(`#${name}-view`).hidden === false, view);
       for (const width of [320, 390, 768, 1440]) await checkLayout(targetPage, `app/${view}`, width);
@@ -165,6 +201,9 @@ try {
   await checkWorkspace(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: path.join(root, 'artifacts/testnet-app-desktop.png'), fullPage: true });
+  await checkDashboard(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: path.join(root, 'artifacts/testnet-dashboard-desktop.png'), fullPage: true });
 
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const mobilePage = await mobile.newPage();
@@ -262,7 +301,7 @@ try {
   const crawlerResponse = await crawlerPage.goto(endpoint(portBase + 1, '/guides/governance/'), { waitUntil: 'load' });
   assert.equal(crawlerResponse.status(), 200);
   assert((await crawlerPage.locator('#article').textContent()).includes('strictly more than 2%'));
-  assert.equal(await crawlerPage.locator('#doc-links a').count(), 18);
+  assert.equal(await crawlerPage.locator('#doc-links a').count(), articles.length);
   assert(await crawlerPage.locator('.sidebar-content').isVisible());
   assert.equal(await crawlerPage.locator('.sidebar-toggle').isVisible(), false);
   await crawlerPage.screenshot({ path: path.join(root, 'artifacts/testnet-docs-nojs-mobile.png'), fullPage: true });
@@ -283,6 +322,9 @@ try {
     chainId: 6281971,
     testAssetLabel: 'tUSDC',
     liveBridgeSavingsEquityReads: true,
+    dashboardPanels: 7,
+    dashboardLiveUsdOnly: true,
+    dashboardDiscoveryAndDrawer: true,
     staticGuideCount: articles.length,
     canonicalGuideMetadata: true,
     crawlerFiles: true,
@@ -302,6 +344,7 @@ try {
       'artifacts/testnet-docs-nojs-mobile.png',
       'artifacts/testnet-app-desktop.png',
       'artifacts/testnet-app-mobile.png',
+      'artifacts/testnet-dashboard-desktop.png',
     ],
     transactionSent: false,
   };

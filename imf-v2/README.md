@@ -18,7 +18,7 @@ Vercel is the static hosting target and Infomaniak remains the DNS provider. `ww
 
 - The website retains Chairpup/Scenario imagery, the three-step project journey, the hypothetical learning model, eleven-currency explorer and deeper mechanism links.
 - The documentation includes searchable illustrated V2 guides with stable article IDs and statically rendered pages at `https://docs.imf.li/guides/<id>/`. Legacy `/#<id>` shortcuts redirect to those pages when JavaScript is available.
-- The application separates new proposals, accepted-term clones and existing-position mints. Guided forms also cover repay/close/adjust, roll/ownership/rescue, challenges/bids/expired purchases/postponed returns, bridge/savings/equity and advanced governance. `src/actions.ts` defines 37 canonical operations; the arena is a separate workspace view.
+- The application adds a read-only Dashboard workspace with Overview, Collateral, Positions, Markets, Risk Lab, Activity and Parameters subviews. It also separates new proposals, accepted-term clones and existing-position mints. Guided forms cover repay/close/adjust, roll/ownership/rescue, challenges/bids/expired purchases/postponed returns, bridge/savings/equity and advanced governance. `src/actions.ts` defines 37 canonical operations; the arena is a separate workspace view.
 - All 11 currency codes remain available for planning. Only currencies verified against the active V2 registry are enabled for ecosystem reads; other options are explicitly marked read-unavailable. The configured public testnet verifies USD only, and guided writes are restricted to that verified `runtime-config` USD system. This does not assert deployment of the other currencies or DEX support.
 - Registry identity, chain ID, bytecode and contract-link checks precede current reads and writes. A registry's deployment postconditions are historical evidence, not current state. V1 addresses are never substituted.
 - `config/runtime.testnet.json` selects `testnet-metamask` with status `configured-testnet-metamask`, chain ID `6281971`, RPC `https://rpc.testnet.dogeos.com`, explorer `https://blockscout.testnet.dogeos.com` and native 18-decimal tDOGE. The default `config/runtime.json` remains unconfigured/read-only. Imported registries and custom RPC connections are read-only; the synthetic fixture accepts only its isolated test wallet.
@@ -29,7 +29,7 @@ Vercel is the static hosting target and Infomaniak remains the DNS provider. `ww
 
 ## Static discovery and responsive reading
 
-- The documentation index and all 18 guides are complete HTML before JavaScript runs. Clean guide URLs have unique titles/descriptions, canonical links and `TechArticle`/breadcrumb JSON-LD. Search enhancement and legacy hash redirects do not replace the static content.
+- The documentation index and all 19 guides are complete HTML before JavaScript runs. Clean guide URLs have unique titles/descriptions, canonical links and `TechArticle`/breadcrumb JSON-LD. Search enhancement and legacy hash redirects do not replace the static content.
 - Every surface publishes `robots.txt`, an absolute-URL `sitemap.xml` and an experimental `llms.txt` index. The wildcard robots rule allows search and AI crawlers; no crawler-specific training or ranking outcome is claimed. Open Graph/Twitter metadata and structured data mirror visible content.
 - At mobile widths, documentation and workspace navigation collapse into keyboard-accessible disclosure controls. Without JavaScript, navigation and guide content remain visible and the main navigation stays available. Form inputs use at least 16px on phones to avoid automatic browser zoom.
 - Static images carry intrinsic dimensions and responsive 480px/960px sources where useful. These are resized versions of the existing artwork, not new imagery or a change to asset permissions.
@@ -56,7 +56,7 @@ npm run verify
 npm run verify:browser
 ```
 
-`verify` checks source, exact planning, the V2 browser bundle and all three output roots, including ordered scripts, static guide content, canonical metadata, JSON-LD and discovery files. `verify:browser` additionally runs isolated-Chrome fixture and default workflows, actual downloads, drafts, keyboard/no-JavaScript checks, and 320–1440px overflow checks on the website, all 18 guides and all nine workspace views, including the arena. Healthy existing previews are reused without being stopped. If a preferred port range is occupied but unresponsive, the checker selects a free three-port range and rebuilds the local preview origins so navigation and metadata remain consistent. No existing browser profile is used.
+`verify` checks source, exact planning, the V2 browser bundle and all three output roots, including ordered scripts, static guide content, canonical metadata, JSON-LD and discovery files. `verify:browser` additionally runs isolated-Chrome fixture and default workflows, dashboard panels, actual downloads, drafts, keyboard/no-JavaScript checks, and 320–1440px overflow checks on the website, all 19 guides and all 10 workspace views, including the arena and dashboard. Healthy existing previews are reused without being stopped. If a preferred port range is occupied but unresponsive, the checker selects a free three-port range and rebuilds the local preview origins so navigation and metadata remain consistent. No existing browser profile is used.
 
 Guided-action verification passed on 2026-10-27: all 37 canonical actions, 26 event-decoding checks, 26 invalid-input checks, 27 wallet-engine checks, 36 guided-journey checks, and nine local-EVM tests executing all 37 operations. The complete static and browser suites passed; live testnet verification retained `transactionSent: false`. The guided testnet website, docs and app were deployed to `imf.li`, `docs.imf.li` and `app.imf.li`; public browser reads passed without signing or broadcasting. See `handoff/VERIFICATION.md` for the actual results, deployment IDs and remaining manual-review gates.
 
@@ -120,7 +120,8 @@ For labeled synthetic fixture testing, run `npm run dev:fixture` and open the sa
 
 - `index.html`, `assets/explore.js`: project-first website and learning interactions.
 - `docs/index.html`, `assets/docs.js`, `assets/articles.json`: illustrated documentation, stable guide URLs, search enhancement and legacy shortcut redirects.
-- `app/index.html`, `assets/app.js`: nine workspace views including the arena, verified read availability, human/agent planning and local draft handling.
+- `app/index.html`, `assets/app.js`: 10 workspace views including the read-only dashboard and arena, verified read availability, human/agent planning and local draft handling.
+- `assets/dashboard.js`, `assets/dashboard.css`: read-only dashboard data adapter, provenance/freshness states, seven subviews and dashboard-specific styling.
 - `assets/v2.js`: registry, V2 read models, exact position/bridge/equity/savings/governance views and runtime connection identity.
 - `assets/wallet.js`: runtime-bound EIP-1193 policy, account/chain session checks, immutable preparation, explicit submission and receipt journal.
 - `assets/discovery.js`: bounded position/challenge event discovery followed by current contract-state reads; events alone are not current state.
@@ -129,8 +130,9 @@ For labeled synthetic fixture testing, run `npm run dev:fixture` and open the sa
 - `assets/offline.js`, `assets/planning.js`: separate teaching planner, strict non-executable schemas and local backup/restore.
 - `src/browser.ts`, `src/browser-fixture.ts`: browser entries for V2 reads/actions and the explicitly synthetic fixture.
 - `scripts/check-actions.mjs`: canonical calldata, invalid-input, event and receipt-source checks.
+- `scripts/check-dashboard.mjs`: dashboard panel, provenance, unavailable-state and no-synthetic-data source checks.
 - `scripts/wallet-check.mjs`, `scripts/journey-check.mjs`: isolated wallet and guided-journey verification; record their results only after running them.
-- `scripts/browser-check.mjs`, `scripts/check-testnet-browser.mjs`: default/fixture browser checks and no-MetaMask live-read testnet checks, including all nine views and no-write boundaries.
+- `scripts/browser-check.mjs`, `scripts/check-testnet-browser.mjs`: default/fixture browser checks and no-MetaMask live-read testnet checks, including all 10 workspace views, dashboard deep links and no-write boundaries.
 - `scripts/build.mjs`, `scripts/discoverability.mjs`: SDK browser bundle, explicit runtime selection, static guide generation, canonical metadata, responsive images and discovery files.
 - `scripts/check-discoverability.py`: ordered-script, static-content, metadata, JSON-LD, image and crawler-file validation.
 - `scripts/prepare-vercel.mjs`: checked static Build Output packaging, exact-host canonical redirects and guide URL normalization.

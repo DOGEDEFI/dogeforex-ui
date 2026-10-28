@@ -8,6 +8,7 @@
   <title>Project workspace · IMF</title>
   <link rel="icon" href="../assets/imf.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css">
+  <link rel="stylesheet" href="../assets/dashboard.css">
   <script src="../assets/shared.js" defer></script>
   <script src="../assets/app.js" defer></script>
 </head>
@@ -32,6 +33,7 @@
     <div class="sidebar-content" id="sidebar-content">
       <p>Project workspace</p>
       <nav aria-label="Workspace">
+        <button data-view="dashboard">Dashboard</button>
         <button class="active" data-view="create">Create & mint</button>
         <button data-view="manage">Manage & close</button>
         <button data-view="arena">Challenges & auctions</button>
@@ -71,6 +73,41 @@
       <details><summary>Inspect exact calldata</summary><pre id="transaction-calldata"></pre></details>
       <p class="smalltext">Simulation checks the current state, not a future guarantee. MetaMask provides the final network-fee review. Rejecting or closing the wallet never authorizes another attempt.</p>
       <button class="btn mint" type="button" id="transaction-send" disabled>Confirm in MetaMask</button>
+    </section>
+
+    <section id="dashboard-view" hidden>
+      <span id="dashboard" aria-hidden="true"></span>
+      <div class="dashboard-intro">
+        <div><p class="smalltext">Verified V2 analytics · Read-only</p><h2>Dashboard</h2><p>Current protocol reads, discovered positions and explicit unavailable states for the selected currency system.</p></div>
+        <a class="btn light" href="../docs/#dashboard-metrics">Read dashboard metrics guide</a>
+      </div>
+      <div class="dashboard-source" id="dashboard-source-status"><div><strong>No registry selected</strong><br><span>Configure a verified V2 registry to read dashboard state.</span></div></div>
+      <div class="dashboard-layout">
+        <nav class="dashboard-nav" aria-label="Dashboard views">
+          <button type="button" data-dashboard="overview" class="active" aria-current="page">Overview</button>
+          <button type="button" data-dashboard="collateral">Collateral</button>
+          <button type="button" data-dashboard="positions">Positions</button>
+          <button type="button" data-dashboard="markets">Markets</button>
+          <button type="button" data-dashboard="risk">Risk Lab</button>
+          <button type="button" data-dashboard="activity">Activity</button>
+          <button type="button" data-dashboard="parameters">Parameters</button>
+        </nav>
+        <div class="dashboard-panels">
+          <section class="dashboard-panel" id="dashboard-overview" aria-label="Dashboard overview"></section>
+          <section class="dashboard-panel" id="dashboard-collateral" aria-label="Dashboard collateral" hidden></section>
+          <section class="dashboard-panel" id="dashboard-positions" aria-label="Dashboard positions" hidden></section>
+          <section class="dashboard-panel" id="dashboard-markets" aria-label="Dashboard markets" hidden></section>
+          <section class="dashboard-panel" id="dashboard-risk" aria-label="Dashboard risk lab" hidden></section>
+          <section class="dashboard-panel" id="dashboard-activity" aria-label="Dashboard activity" hidden></section>
+          <section class="dashboard-panel" id="dashboard-parameters" aria-label="Dashboard parameters" hidden></section>
+        </div>
+      </div>
+      <div class="dash-drawer-backdrop" id="dashboard-drawer-backdrop" hidden></div>
+      <aside class="dash-drawer" id="dashboard-drawer" aria-label="Dashboard detail" aria-hidden="true" hidden>
+        <div class="dash-drawer-head"><div><h3 id="dashboard-drawer-title">Detail</h3><p id="dashboard-drawer-subtitle"></p></div><button class="btn light small" type="button" id="dashboard-drawer-close">Close</button></div>
+        <div class="dash-drawer-body" id="dashboard-drawer-body"></div>
+      </aside>
+      <noscript><p class="smalltext">Dashboard views require JavaScript for verified reads. The documentation and static app guidance remain available without it.</p></noscript>
     </section>
 
     <section id="create-view">

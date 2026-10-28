@@ -113,7 +113,7 @@ for surface in ['website', 'docs', 'app']:
         elif surface == 'docs':
             expected_scripts.append('/assets/docs.js')
         else:
-            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/discovery.js', '/assets/v2.js', '/assets/actions.js', '/assets/app.js'])
+            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/discovery.js', '/assets/v2.js', '/assets/dashboard.js', '/assets/actions.js', '/assets/app.js'])
         assert page.scripts == expected_scripts, f'{file}: incorrect ordered scripts: {page.scripts}'
         assert len(page.titles) == 1 and page.titles[0].strip(), f'{file}: missing unique title'
         assert len(page.descriptions) == 1 and 60 <= len(page.descriptions[0]) <= 220, f'{file}: missing or inadequate description'

@@ -21,7 +21,7 @@
   }
 
   async function discover(state, client, account) {
-    if (state.fixture) return { positions: [], challenges: [], complete: true, synthetic: true, warnings: ['Synthetic fixture: no deployed event history is represented.'] };
+    if (state.fixture) return { positions: [], challenges: [], events: [], complete: true, synthetic: true, warnings: ['Synthetic fixture: no deployed event history is represented.'] };
     const registry = rawRegistry(state);
     const deployment = registry?.transactions?.deployments?.MintingHub;
     if (!deployment) throw new Error('The registry has no MintingHub deployment transaction; enter a position or challenge index manually');
@@ -62,9 +62,38 @@
         warnings.push(`Challenge log ${entry.transactionHash}: ${error.message}`);
       }
     }
+    const events = [
+      ...positionLogs.map((entry) => {
+        const decoded = contract.interface.parseLog(entry);
+        return {
+          type: 'position-opened',
+          label: 'Position opened',
+          summary: `Position ${decoded.args.position} opened by ${decoded.args.owner}`,
+          position: decoded.args.position,
+          owner: decoded.args.owner,
+          transactionHash: entry.transactionHash,
+          blockNumber: entry.blockNumber,
+          logIndex: entry.logIndex,
+        };
+      }),
+      ...challengeLogs.map((entry) => {
+        const decoded = contract.interface.parseLog(entry);
+        return {
+          type: 'challenge-started',
+          label: 'Challenge started',
+          summary: `Challenge ${decoded.args.number.toString()} opened for position ${decoded.args.position}`,
+          position: decoded.args.position,
+          index: decoded.args.number.toString(),
+          transactionHash: entry.transactionHash,
+          blockNumber: entry.blockNumber,
+          logIndex: entry.logIndex,
+        };
+      }),
+    ].sort((left, right) => right.blockNumber - left.blockNumber || right.logIndex - left.logIndex);
     return {
       positions,
       challenges,
+      events,
       account,
       fromBlock: receipt.blockNumber,
       toBlock: latest,
