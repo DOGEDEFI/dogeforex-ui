@@ -30,6 +30,15 @@ assert(dashboard.includes('minted * 10000n / limit'), 'bridge utilization must u
 assert(appHtml.indexOf('data-view="dashboard"') < appHtml.indexOf('data-view="create"'), 'Dashboard must be the first workspace menu item');
 assert(appHtml.includes('href="../assets/dashboard.css"'), 'app must load dashboard.css');
 assert(appHtml.includes('id="dashboard-drawer"') && appHtml.includes('id="dashboard-source-status"'), 'dashboard shell is missing provenance or drawer');
+for (const control of ['dashboard-currency', 'dashboard-copy-view', 'dashboard-export-view', 'dashboard-reset', 'dashboard-refresh', 'dashboard-method-dialog']) {
+  assert(appHtml.includes(`id="${control}"`), `missing prototype dashboard control ${control}`);
+}
+for (const component of ['collateralComposition', 'reserveHealth', 'currentPositionScatter', 'crDistribution', 'scenarioExposure', 'filteredEvents', 'exportCurrentView']) {
+  assert(dashboard.includes(`function ${component}(`), `missing prototype visual or interaction ${component}`);
+}
+assert(dashboard.includes('PANEL_COPY') && dashboard.includes('Protocol at a glance.') && dashboard.includes('Stress the book.'), 'prototype page copy is missing');
+assert(dashboard.includes('Share of discovered position count, not collateral market value'), 'collateral composition must not imply value without FX provenance');
+assert(dashboard.includes('not an estimated loss'), 'scenario debt exposure must not be presented as a loss waterfall');
 
 for (const method of ['getCapabilities', 'getSystemSnapshot', 'getDiscoveredPositions', 'getChallenge', 'getHistory', 'getReferenceMarks', 'getEvents']) {
   assert(dashboard.includes(method), `dashboard adapter is missing ${method}`);

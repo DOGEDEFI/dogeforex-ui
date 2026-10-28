@@ -81,15 +81,25 @@
     <section id="dashboard-view" hidden>
       <span id="dashboard" aria-hidden="true"></span>
       <div class="dashboard-intro">
-        <div><p class="smalltext">Verified V2 analytics · Read-only</p><p>Current protocol reads, discovered positions and explicit unavailable states for the selected currency system.</p></div>
-        <a class="btn light small" href="../docs/#dashboard-metrics">Metrics guide</a>
+        <div><p class="smalltext">The Fund 2.0 / System intelligence</p><p id="dashboard-page-subtitle">Independent currency systems. Verified current reads. No oracle prices used by the protocol.</p></div>
+        <div class="dashboard-snapshot" id="dashboard-snapshot"><b>CURRENT STATE</b><span>Source block pending</span></div>
+      </div>
+      <div class="dashboard-provenance" id="dashboard-provenance"><span aria-hidden="true">ⓘ</span><div><strong>VERIFIED READS</strong> Current contract state and event-derived discovery. Missing history, markets and coverage stay explicitly unavailable.</div><button type="button" id="dashboard-method-open">Read methodology</button></div>
+      <div class="dashboard-toolbar" aria-label="Dashboard controls">
+        <label class="dash-field">System<select id="dashboard-currency" aria-label="Dashboard currency system"></select></label>
+        <span class="dashboard-scope">CURRENT STATE · NATIVE UNITS</span>
+        <span class="toolbar-spacer"></span>
+        <button type="button" class="btn light small" id="dashboard-copy-view">Copy view link</button>
+        <button type="button" class="btn light small" id="dashboard-export-view">Export view</button>
+        <button type="button" class="btn light small" id="dashboard-reset">Reset</button>
+        <button type="button" class="btn mint small" id="dashboard-refresh">Refresh reads</button>
       </div>
       <div class="dashboard-source" id="dashboard-source-status"><div><strong>No registry selected</strong><br><span>Configure a verified V2 registry to read dashboard state.</span></div></div>
       <nav class="dashboard-nav" aria-label="Dashboard views" role="tablist">
         <button type="button" id="dashboard-tab-overview" data-dashboard="overview" class="active" role="tab" aria-selected="true" aria-controls="dashboard-overview" tabindex="0">Overview</button>
         <button type="button" id="dashboard-tab-collateral" data-dashboard="collateral" role="tab" aria-selected="false" aria-controls="dashboard-collateral" tabindex="-1">Collateral</button>
         <button type="button" id="dashboard-tab-positions" data-dashboard="positions" role="tab" aria-selected="false" aria-controls="dashboard-positions" tabindex="-1">Positions</button>
-        <button type="button" id="dashboard-tab-markets" data-dashboard="markets" role="tab" aria-selected="false" aria-controls="dashboard-markets" tabindex="-1">Markets</button>
+        <button type="button" id="dashboard-tab-markets" data-dashboard="markets" role="tab" aria-selected="false" aria-controls="dashboard-markets" tabindex="-1">Markets &amp; volume</button>
         <button type="button" id="dashboard-tab-risk" data-dashboard="risk" role="tab" aria-selected="false" aria-controls="dashboard-risk" tabindex="-1">Risk Lab</button>
         <button type="button" id="dashboard-tab-activity" data-dashboard="activity" role="tab" aria-selected="false" aria-controls="dashboard-activity" tabindex="-1">Activity</button>
         <button type="button" id="dashboard-tab-parameters" data-dashboard="parameters" role="tab" aria-selected="false" aria-controls="dashboard-parameters" tabindex="-1">Parameters</button>
@@ -108,6 +118,17 @@
         <div class="dash-drawer-head"><div><h3 id="dashboard-drawer-title">Detail</h3><p id="dashboard-drawer-subtitle"></p></div><button class="btn light small" type="button" id="dashboard-drawer-close">Close</button></div>
         <div class="dash-drawer-body" id="dashboard-drawer-body"></div>
       </aside>
+      <dialog class="dashboard-dialog" id="dashboard-method-dialog" aria-labelledby="dashboard-method-title">
+        <div class="dashboard-dialog-head"><h2 id="dashboard-method-title">Data &amp; methodology</h2><button class="btn light small" type="button" id="dashboard-method-close">Close</button></div>
+        <div class="dashboard-dialog-body">
+          <p><strong>Current state, not generated telemetry.</strong> Live dashboard values come from the verified runtime-config USD V2 registry. The isolated fixture is explicitly labelled synthetic and never represents deployed state.</p>
+          <h3>Collateral ratio and liquidation</h3><p>Dashboard CR uses collateral balance × the position’s stored liquidation price ÷ gross minted debt. It is a comparative contract-parameter ratio, not an external market valuation. Each position has its own liquidation boundary; the Risk Lab threshold is only a user watch setting.</p>
+          <h3>Equity, reserves and bridge capacity</h3><p>System equity, minter reserve, savings, token supply and bridge accounting are separate current reads. They are not interchangeable assets, guaranteed loss coverage, FX backing or a shared cross-currency reserve.</p>
+          <h3>Discovery and provenance</h3><p>Events identify positions and challenges; current contract calls verify their state. Every snapshot retains its registry, source block and coverage. Failed, missing or stale reads remain unknown rather than zero.</p>
+          <h3>Unavailable analytics</h3><p>Historical charts, volume, complete event history, reference marks and market depth require an indexer or verified market feed. Reference marks would be analytics inputs, never protocol oracle prices or proof of executable liquidity.</p>
+          <a href="../docs/#dashboard-metrics">Read the dashboard metrics guide</a>
+        </div>
+      </dialog>
       <noscript><p class="smalltext">Dashboard views require JavaScript for verified reads. The documentation and static app guidance remain available without it.</p></noscript>
     </section>
 

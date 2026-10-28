@@ -142,8 +142,16 @@ async function checkDashboard(mode) {
   const panels = ['overview', 'collateral', 'positions', 'markets', 'risk', 'activity', 'parameters'];
   await command('navigate', { url: `${origins.app}#dashboard` });
   await waitFor(`window.IMF_V2_APP?.state?.runtime !== null && document.querySelector('#dashboard-view').hidden === false`);
-  assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), 'Dashboard');
+  assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), 'Protocol at a glance.');
   assert((await evaluate(`document.querySelector('#dashboard-source-status').textContent`)).includes(mode));
+  assert.equal(await evaluate(`document.querySelector('#dashboard-currency').options.length`), 11);
+  await click('#dashboard-method-open');
+  await waitFor(`document.querySelector('#dashboard-method-dialog').open === true`);
+  assert((await evaluate(`document.querySelector('#dashboard-method-dialog').textContent`)).includes('Collateral ratio and liquidation'));
+  await click('#dashboard-method-close');
+  await waitFor(`document.querySelector('#dashboard-method-dialog').open === false`);
+  await click('#dashboard-copy-view');
+  await waitFor(`document.querySelector('#feedback').textContent.includes('view link copied')`);
   assert.equal(await evaluate(`document.querySelectorAll('.sidebar .dashboard-nav').length`), 0);
   assert.equal(await evaluate(`document.querySelectorAll('.dashboard-nav[role="tablist"] [role="tab"]').length`), panels.length);
   assert.equal(await evaluate(`document.querySelectorAll('.dashboard-panel[role="tabpanel"]').length`), panels.length);
@@ -156,16 +164,24 @@ async function checkDashboard(mode) {
   await key('Home');
   await waitFor(`document.querySelector('#dashboard-overview').hidden === false && document.activeElement.id === 'dashboard-tab-overview'`);
   assert.equal(await evaluate(`document.querySelectorAll('.dashboard-nav [aria-selected="true"]').length`), 1);
+  const pageTitles = { overview: 'Protocol at a glance.', collateral: 'Collateral, without the fog.', positions: 'Every position. One risk lens.', markets: 'Marks, volume and liquidity.', risk: 'Stress the book.', activity: 'The public ledger, in motion.', parameters: 'The system, parameter by parameter.' };
   for (const panel of panels) {
     await evaluate(`location.hash = 'dashboard/${panel}'`);
     await waitFor(`document.querySelector('#dashboard-${panel}').hidden === false && document.querySelector('#dashboard-${panel}').innerText.length > 40`);
     assert((await evaluate(`location.hash`)).endsWith(panel));
+    assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), pageTitles[panel]);
   }
   if (mode !== 'UNCONFIGURED') {
     await evaluate(`location.hash = 'dashboard/positions'`);
     await waitFor(`document.querySelector('#dashboard-position-search') !== null`);
     await fill('#dashboard-position-search', 'browser-qa');
     await waitFor(`document.querySelector('#dashboard-positions .unavailable-card') !== null || document.querySelectorAll('#dashboard-positions tbody tr').length >= 0`);
+    await click('[data-position-health="attention"]');
+    assert.equal(await evaluate(`document.querySelector('[data-position-health="attention"]').getAttribute('aria-pressed')`), 'true');
+    await evaluate(`(() => { const select=document.querySelector('#dashboard-position-cr'); select.value='150'; select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+    assert.equal(await evaluate(`document.querySelector('#dashboard-position-cr').value`), '150');
+    await click('#dashboard-reset');
+    await waitFor(`document.querySelector('#dashboard-position-search').value === '' && document.querySelector('#dashboard-position-cr').value === '10000'`);
     await click('#dashboard-positions-export');
     const positionCsv = await download('dashboard-positions');
     assert(positionCsv.json === undefined, 'CSV helper must not treat CSV as JSON');
@@ -189,6 +205,24 @@ async function checkDashboard(mode) {
       await waitFor(`document.querySelector('#dashboard-challenge-panel').innerText.includes('Replay timestamp')`);
       await setScenario('valid');
     }
+    await command('navigate', { url: `${origins.app}#dashboard/activity` });
+    await click('[data-view="dashboard"]');
+    await waitFor(`document.querySelector('#dashboard-activity').hidden === false && document.querySelector('[data-event-type="challenge-started"]')?.offsetParent !== null`);
+    await click('[data-event-type="challenge-started"]');
+    assert.equal(await evaluate(`document.querySelector('[data-event-type="challenge-started"]').getAttribute('aria-pressed')`), 'true');
+    await click('#dashboard-activity-sort');
+    assert((await evaluate(`document.querySelector('#dashboard-activity-sort').textContent`)).includes('Oldest first'));
+    await evaluate(`location.hash = 'dashboard/parameters'`);
+    await waitFor(`document.querySelector('[data-parameter-tab="sources"]') !== null`);
+    await click('[data-parameter-tab="sources"]');
+    await waitFor(`document.querySelector('#dashboard-parameters').innerText.includes('Analytics still required')`);
+    await evaluate(`location.hash = 'dashboard/overview'`);
+    await waitFor(`document.querySelector('.dash-donut-layout') !== null || document.querySelector('#dashboard-overview .dash-chart-unavailable') !== null`);
+    await click('#dashboard-export-view');
+    const overviewExport = await download('dashboard-overview');
+    assert.equal(overviewExport.json.schema, 'imf.dashboard-view.v1');
+    assert.equal(overviewExport.json.executionEnabled, false);
+    assert.equal(overviewExport.json.panel, 'overview');
   }
   for (const width of [320, 390, 700, 1024, 1440]) {
     await viewport(width);
@@ -206,7 +240,20 @@ async function checkDashboard(mode) {
       await waitFor(`document.querySelector('.dash-system-map') !== null`);
       assert.equal(await evaluate(`document.querySelectorAll('.dash-system-node').length`), 3);
     }
-    if (width === 390 || width === 1440) await screenshot(`dashboard-${width === 390 ? 'mobile' : 'desktop'}-${mode.toLowerCase().replaceAll(' ', '-')}`);
+    if (width === 390 || width === 1440) {
+      await evaluate(`scrollTo(0,0)`);
+      await screenshot(`dashboard-${width === 390 ? 'mobile' : 'desktop'}-${mode.toLowerCase().replaceAll(' ', '-')}`);
+    }
+  }
+  for (const panel of ['positions', 'risk', 'activity']) {
+    await evaluate(`location.hash = 'dashboard/${panel}'`);
+    await waitFor(`document.querySelector('#dashboard-${panel}').hidden === false`);
+    await viewport(1440);
+    await evaluate(`scrollTo(0,0)`);
+    await screenshot(`dashboard-${panel}-desktop-${mode.toLowerCase().replaceAll(' ', '-')}`);
+    await viewport(390);
+    await evaluate(`scrollTo(0,0)`);
+    await screenshot(`dashboard-${panel}-mobile-${mode.toLowerCase().replaceAll(' ', '-')}`);
   }
   await viewport(1440);
   await click('[data-view="create"]');

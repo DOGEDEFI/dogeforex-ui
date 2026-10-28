@@ -153,6 +153,14 @@ try {
     assert.equal(await targetPage.locator('.sidebar .dashboard-nav').count(), 0);
     assert.equal(await targetPage.locator('.dashboard-nav[role="tablist"] [role="tab"]').count(), panels.length);
     assert.equal(await targetPage.locator('.dashboard-panel[role="tabpanel"]').count(), panels.length);
+    await targetPage.locator('[data-view="dashboard"]').click();
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE USD'), undefined, { timeout: 90000 });
+    assert.equal(await targetPage.locator('#dashboard-currency option').count(), 11);
+    await targetPage.locator('#dashboard-method-open').click();
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-method-dialog').open === true);
+    assert((await targetPage.locator('#dashboard-method-dialog').textContent()).includes('Unavailable analytics'));
+    await targetPage.locator('#dashboard-method-close').click();
+    const pageTitles = { overview: 'Protocol at a glance.', collateral: 'Collateral, without the fog.', positions: 'Every position. One risk lens.', markets: 'Marks, volume and liquidity.', risk: 'Stress the book.', activity: 'The public ledger, in motion.', parameters: 'The system, parameter by parameter.' };
     for (const panel of panels) {
       await targetPage.goto(endpoint(portBase + 2, `#dashboard/${panel}`), { waitUntil: 'networkidle' });
       try {
@@ -171,8 +179,19 @@ try {
       }
       const source = await targetPage.locator('#dashboard-source-status').textContent();
       assert(source.includes('LIVE USD'), `${panel}: ${source}`);
+      assert.equal(await targetPage.locator('#view-title').textContent(), pageTitles[panel]);
       if (panel === 'markets') assert((await targetPage.locator('#dashboard-markets').innerText()).includes('Reference marks unavailable'));
-      if (panel === 'activity') assert((await targetPage.locator('#dashboard-activity').innerText()).includes('Protocol event ledger'));
+      if (panel === 'activity') {
+        assert((await targetPage.locator('#dashboard-activity').innerText()).includes('Protocol event ledger'));
+        await targetPage.locator('[data-event-type="challenge-started"]').click();
+        assert.equal(await targetPage.locator('[data-event-type="challenge-started"]').getAttribute('aria-pressed'), 'true');
+        await targetPage.locator('#dashboard-activity-sort').click();
+        assert((await targetPage.locator('#dashboard-activity-sort').textContent()).includes('Oldest first'));
+      }
+      if (panel === 'parameters') {
+        await targetPage.locator('[data-parameter-tab="sources"]').click();
+        assert((await targetPage.locator('#dashboard-parameters').innerText()).includes('Analytics still required'));
+      }
       if (panel === 'positions') {
         await targetPage.locator('#dashboard-position-account').fill('0x8666f1d19e04c7831EA23066a4b14c0260fC2B50');
         await targetPage.locator('#dashboard-position-scope').selectOption('account');

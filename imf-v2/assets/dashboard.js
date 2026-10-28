@@ -6,10 +6,19 @@
     overview: 'Overview',
     collateral: 'Collateral',
     positions: 'Positions',
-    markets: 'Markets',
+    markets: 'Markets & volume',
     risk: 'Risk Lab',
     activity: 'Activity',
     parameters: 'Parameters',
+  };
+  const PANEL_COPY = {
+    overview: ['Protocol at a glance.', 'Independent currency systems. Verified current reads. No oracle prices used by the protocol.'],
+    collateral: ['Collateral, without the fog.', 'Composition, concentration, liquidation parameters, bridge capacity and loss-absorption context.'],
+    positions: ['Every position. One risk lens.', 'Search, sort and inspect discovered positions using their own liquidation boundaries.'],
+    markets: ['Marks, volume and liquidity.', 'Reference analytics stay separate from contract liquidation prices. No oracle claims.'],
+    risk: ['Stress the book.', 'Interactive collateral, reference and liquidity scenarios with position-level impact.'],
+    activity: ['The public ledger, in motion.', 'Discovered position and challenge events, current-state verification and actual-timestamp replay.'],
+    parameters: ['The system, parameter by parameter.', 'Current V2 reads, verified USD registry, data coverage and readiness gates.'],
   };
   const STATUS_LABELS = {
     pass: 'Live read',
@@ -38,7 +47,8 @@
     discoveryPending: false,
     challenge: null,
     parametersTab: 'current',
-    position: { search: '', collateral: 'ALL', status: 'ALL', sort: 'collateralRatio', dir: 'asc', page: 1, perPage: 8 },
+    position: { search: '', collateral: 'ALL', status: 'ALL', health: 'ALL', maxCr: 10000, sort: 'collateralRatio', dir: 'asc', page: 1, perPage: 8 },
+    activity: { type: 'all', sort: 'desc' },
     scenario: { collateral: -20, fx: 0, liquidity: 15, threshold: 150, preset: 'moderate' },
     replay: { progress: 0, playing: false, timer: null },
   };
@@ -114,6 +124,21 @@
     return symbol ? `${text} ${symbol}` : text;
   }
 
+  function formatCompactAmount(value, decimals = 18, symbol = '') {
+    const raw = bigintOrNull(value);
+    if (raw === null) return 'Unavailable';
+    const formatted = sdk().formatDecimal(raw, decimals);
+    const negative = formatted.startsWith('-');
+    const [unsignedWhole, fraction = ''] = (negative ? formatted.slice(1) : formatted).split('.');
+    const whole = unsignedWhole.replace(/^0+(?=\d)/, '');
+    const shift = whole.length >= 10 ? 9 : whole.length >= 7 ? 6 : whole.length >= 4 ? 3 : 0;
+    if (!shift) return `${formatted}${symbol ? ` ${symbol}` : ''}`;
+    const digits = `${whole}${fraction}`.padEnd(whole.length + 1, '0');
+    const point = whole.length - shift;
+    const compact = `${negative ? '−' : ''}${digits.slice(0, point)}.${digits.slice(point, point + 1)}${shift === 9 ? 'B' : shift === 6 ? 'M' : 'K'}`;
+    return `${compact}${symbol ? ` ${symbol}` : ''}`;
+  }
+
   function formatPPM(value) {
     const raw = bigintOrNull(value);
     return raw === null ? 'Unavailable' : `${sdk().formatPPM(raw)}%`;
@@ -148,8 +173,17 @@
     return `<div class="unavailable-card"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div>`;
   }
 
+  function chartUnavailable(title, message, size = '') {
+    return `<div class="dash-chart-unavailable ${size}" role="group" aria-label="${escapeHtml(title)}"><div><span class="unavailable-symbol" aria-hidden="true">—</span><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div></div>`;
+  }
+
+  function cardTag(label, tone = '') {
+    return `<span class="dash-tag ${tone}">${escapeHtml(label)}</span>`;
+  }
+
   function metricCard(label, value, sub = '', status = 'pass') {
-    return `<div class="dash-kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${statusPill(status)} ${escapeHtml(sub)}</small></div>`;
+    const long = String(value).length > 14 || value === 'Unavailable' ? 'long' : '';
+    return `<div class="dash-kpi"><span>${escapeHtml(label)}</span><strong class="${long}">${escapeHtml(value)}</strong><small>${statusPill(status)} ${escapeHtml(sub)}</small></div>`;
   }
 
   function metricList(rows) {
@@ -323,6 +357,13 @@
       if (filter.collateral !== 'ALL' && position.collateral.symbol !== filter.collateral) return false;
       const status = positionStatus(position).key;
       if (filter.status !== 'ALL' && status !== filter.status) return false;
+      if (filter.health === 'healthy' && !['active', 'no-debt'].includes(status)) return false;
+      if (filter.health === 'attention' && !['watch', 'critical'].includes(status)) return false;
+      if (filter.health === 'challenged' && status !== 'challenged') return false;
+      if (filter.health === 'initializing' && status !== 'initializing') return false;
+      if (filter.health === 'expired' && status !== 'expired') return false;
+      const ratio = positionCollateralRatio(position);
+      if (filter.maxCr < 10000 && (ratio === null || ratio >= BigInt(filter.maxCr * 100))) return false;
       return true;
     });
   }
@@ -428,6 +469,65 @@
     window.IMF_PLANNING.download(value, filename);
   }
 
+  function jsonSafe(value) {
+    if (typeof value === 'bigint') return value.toString();
+    if (Array.isArray(value)) return value.map(jsonSafe);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, jsonSafe(entry)]));
+    return value ?? null;
+  }
+
+  function exportCurrentView() {
+    if (state.panel === 'positions') return exportPositionsCsv();
+    if (state.panel === 'risk') return exportScenario();
+    const common = {
+      schema: 'imf.dashboard-view.v1',
+      executionEnabled: false,
+      panel: state.panel,
+      code: currentCode(),
+      registry: getCapabilities().registry,
+      fixture: getCapabilities().fixture,
+      generatedAt: new Date().toISOString(),
+      provenance: {
+        source: $('#dashboard-source-status', root)?.textContent ?? 'Unavailable',
+        discovery: state.discovery ? { fromBlock: state.discovery.fromBlock ?? null, toBlock: state.discovery.toBlock ?? null, complete: state.discovery.complete ?? null, account: state.discovery.account ?? null, warnings: state.discovery.warnings ?? [] } : null,
+      },
+    };
+    if (state.panel === 'activity') {
+      exportJson(`imf-${currentCode().toLowerCase()}-dashboard-activity.json`, jsonSafe({ ...common, filter: state.activity, events: filteredEvents(), challenge: state.challenge }));
+      return;
+    }
+    exportJson(`imf-${currentCode().toLowerCase()}-dashboard-${state.panel}.json`, jsonSafe({ ...common, system: state.system, positions: allPositions(), capabilities: getCapabilities().capabilities }));
+  }
+
+  async function copyViewLink() {
+    const url = location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const input = document.createElement('textarea');
+      input.value = url;
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.append(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+    }
+    notify('Dashboard view link copied. The link preserves the selected subview.');
+  }
+
+  function resetDashboard() {
+    state.account = '';
+    state.positionScope = 'all';
+    state.position = { search: '', collateral: 'ALL', status: 'ALL', health: 'ALL', maxCr: 10000, sort: 'collateralRatio', dir: 'asc', page: 1, perPage: 8 };
+    state.activity = { type: 'all', sort: 'desc' };
+    state.scenario = { collateral: -20, fx: 0, liquidity: 15, threshold: 150, preset: 'moderate' };
+    state.replay.progress = 0;
+    stopReplay();
+    render();
+    notify('Dashboard filters and scenario controls reset. Verified reads were not changed.');
+  }
+
   function panelRoot(name = state.panel) {
     return $(`#dashboard-${name}`, root);
   }
@@ -437,11 +537,44 @@
     if (target) target.innerHTML = html;
   }
 
+  function renderPageCopy(sourceBlock = null) {
+    const copy = PANEL_COPY[state.panel] ?? PANEL_COPY.overview;
+    const title = $('#view-title');
+    const subtitle = $('#dashboard-page-subtitle', root);
+    const snapshot = $('#dashboard-snapshot', root);
+    if (title) title.textContent = copy[0];
+    if (subtitle) subtitle.textContent = copy[1];
+    if (snapshot) snapshot.innerHTML = `<b>${sourceBlock ? `BLOCK ${escapeHtml(sourceBlock.number)}` : 'CURRENT STATE'}</b><span>${sourceBlock ? escapeHtml(new Date(Number(sourceBlock.timestamp) * 1000).toISOString()) : 'Source block pending'}</span>`;
+    const selector = $('#dashboard-currency', root);
+    if (selector) selector.value = currentCode();
+  }
+
+  function syncCurrencyOptions() {
+    const selector = $('#dashboard-currency', root);
+    if (!selector) return;
+    const verified = registryState()?.verified ?? new Map();
+    selector.replaceChildren(...(window.IMF_CURRENCIES ?? []).map(({ code, name, symbol }) => {
+      const option = document.createElement('option');
+      option.value = code;
+      option.disabled = !verified.get(code);
+      option.textContent = `${symbol} — ${name}${verified.get(code) ? '' : ' · planning unavailable'}`;
+      return option;
+    }));
+    selector.value = currentCode();
+  }
+
   function renderSourceStatus() {
+    syncCurrencyOptions();
     const capabilities = getCapabilities();
     const sourceBlock = sectionSource(state.system, ['token', 'bridge', 'savings', 'equity']) ?? state.discovery?.positions?.[0]?.sourceBlock ?? state.challenge?.challenge?.sourceBlock;
     const fresh = freshness(sourceBlock);
     const mode = capabilities.live ? 'LIVE USD' : capabilities.fixture ? 'SYNTHETIC FIXTURE' : capabilities.imported ? 'IMPORTED READ-ONLY' : capabilities.verified ? 'READ-ONLY' : 'UNCONFIGURED';
+    renderPageCopy(sourceBlock);
+    const provenance = $('#dashboard-provenance', root);
+    if (provenance) {
+      const label = capabilities.fixture ? 'SYNTHETIC FIXTURE' : capabilities.live ? 'VERIFIED LIVE READS' : capabilities.verified ? 'READ-ONLY REGISTRY' : 'REGISTRY UNCONFIGURED';
+      provenance.querySelector('strong').textContent = label;
+    }
     const target = $('#dashboard-source-status', root);
     if (!target) return;
     target.innerHTML = `
@@ -511,29 +644,38 @@
     const savings = section(state.system, 'savings');
     const equity = section(state.system, 'equity');
     const history = getHistory();
-    const positions = state.discovery?.positions ?? [];
-    const challenges = state.discovery?.challenges ?? [];
-    const positionCount = state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(positions.length);
+    const positionCount = state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(allPositions().length);
+    const debt = discoveredDebt();
+    const weightedRatio = weightedCollateralRatio();
     const kpis = [
-      metricCard('Token supply', token?.error ? 'Unavailable' : formatAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol()), readContext(token), token?.error ? 'fail' : 'pass'),
-      metricCard('Minter reserve', token?.error ? 'Unavailable' : formatAmount(token?.minterReserve, 18, token?.symbol ?? currentSymbol()), readContext(token), token?.error ? 'fail' : 'pass'),
-      metricCard('System equity', equity?.error ? 'Unavailable' : formatAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol()), readContext(equity), equity?.error ? 'fail' : 'pass'),
-      metricCard('Bridge capacity', bridge?.error ? 'Unavailable' : formatAmount(bridge?.capacityLocal, 18, token?.symbol ?? currentSymbol()), readContext(bridge), bridge?.error ? 'fail' : 'pass'),
-      metricCard('Current leadrate', savings?.error ? 'Unavailable' : formatPPM(savings?.currentRatePPM), readContext(savings), savings?.error ? 'fail' : 'pass'),
+      metricCard('Token supply', token?.error ? 'Unavailable' : formatCompactAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol()), readContext(token), token?.error ? 'fail' : 'pass'),
+      metricCard('Gross position debt', debt === null ? 'Unavailable' : formatCompactAmount(debt, 18, currentSymbol()), state.discovery?.error ?? discoveryCoverageText(), debt === null ? 'fail' : 'pass'),
+      metricCard('System equity', equity?.error ? 'Unavailable' : formatCompactAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol()), readContext(equity), equity?.error ? 'fail' : 'pass'),
+      metricCard('Debt-weighted CR', weightedRatio === null ? 'Unavailable' : `${sdk().formatDecimal(weightedRatio, 1)}%`, 'Stored liquidation parameters · not a market valuation', weightedRatio === null ? 'neutral' : 'pass'),
       metricCard('Discovered positions', positionCount, state.discovery?.error ?? discoveryCoverageText(), state.discoveryPending ? 'info' : state.discovery?.error ? 'fail' : 'pass'),
-      metricCard('Challenges', state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(challenges.length), state.discovery?.error ?? 'Event-derived, then current-state verified', state.discoveryPending ? 'info' : state.discovery?.error ? 'fail' : 'pass'),
-      metricCard('Pool shares', equity?.error ? 'Unavailable' : formatAmount(equity?.totalShares, 18, 'shares'), readContext(equity), equity?.error ? 'fail' : 'pass'),
     ].join('');
     setPanelHtml('overview', `
       <div class="dash-stack">
         <div class="dash-kpis">${kpis}</div>
         <div class="dash-grid">
-          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Currency system at a glance</h3><p>One independent ${escapeHtml(currentSymbol())} system. These are current reads, not a shared reserve or FX conversion.</p></div></div>${systemMap(token, bridge, savings, equity, positionCount)}</article>
-          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Coverage & availability</h3><p>What this dashboard can and cannot show.</p></div></div>${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}<div class="dash-availability">${unavailableCard('History unavailable — indexer not configured', history.reason)}${unavailableCard('Cross-currency comparison unavailable', 'Explicit FX provenance and verified registries are required. Native K9 units are never summed.')}</div></article>
-          <article class="dash-card span-12"><div class="dash-card-head"><div><h3>System snapshot</h3><p>Current reads from the selected USD registry. Full source provenance remains above.</p></div></div>${metricList(systemOverviewRows())}</article>
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Capital structure over time</h3><p>Collateral value, minted debt and system equity require source-pinned historical snapshots.</p></div>${cardTag('INDEXER REQUIRED')}</div>${chartUnavailable('History unavailable — indexer not configured', history.reason, 'tall')}</article>
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Collateral composition</h3><p>Discovered position count by collateral asset.</p></div>${cardTag('CURRENT DISCOVERY', 'mint')}</div>${collateralComposition()}</article>
+        </div>
+        <div class="dash-grid">
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Currency system accounting</h3><p>One independent ${escapeHtml(currentSymbol())} system. No shared reserve or automatic FX conversion.</p></div>${cardTag('LIVE CONTRACT READS', 'mint')}</div>${systemMap(token, bridge, savings, equity, positionCount)}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Reserve health</h3><p>Debt-weighted contract-parameter CR and current bridge utilization.</p></div>${cardTag('NOT A CREDIT RATING', 'gold')}</div>${reserveHealth()}${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}</article>
+        </div>
+        <div class="dash-grid">
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Position risk constellation</h3><p>Gross debt versus each position’s liquidation-parameter CR.</p></div>${cardTag('CLICK A BUBBLE')}</div>${currentPositionScatter()}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>CR distribution</h3><p>Discovered position count by collateral-ratio bucket.</p></div>${cardTag(`WATCH < ${state.scenario.threshold}%`, 'gold')}</div>${crDistribution()}</article>
+        </div>
+        <div class="dash-grid">
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Issuance & repayment flow</h3><p>Mint, repay and bridge volume cannot be reconstructed from current balances.</p></div>${cardTag('NO GENERATED VOLUME', 'gold')}</div>${chartUnavailable('Flow history unavailable', 'A real event indexer and complete coverage are required before volumes or historical flows can be shown.', 'tall')}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Current accounting snapshot</h3><p>Separate current reads, not an inferred supply-allocation flow.</p></div>${cardTag('SOURCE-BLOCK PINNED')}</div>${metricList(systemOverviewRows())}</article>
         </div>
         ${sourceNote()}
       </div>`);
+    bindPositionPoints();
   }
 
   function sourceNote() {
@@ -566,6 +708,101 @@
     return [...groups.values()].sort((left, right) => right.collateral > left.collateral ? 1 : right.collateral < left.collateral ? -1 : left.symbol.localeCompare(right.symbol));
   }
 
+  function discoveredDebt() {
+    if (state.discoveryPending || state.discovery?.error) return null;
+    return allPositions().reduce((sum, position) => sum + (bigintOrNull(position.minted) ?? 0n), 0n);
+  }
+
+  function collateralComposition() {
+    if (state.discoveryPending) return chartUnavailable('Composition read in progress', 'Collateral groups appear after event discovery and current-state verification complete.');
+    if (state.discovery?.error) return chartUnavailable('Composition unavailable', state.discovery.error);
+    const groups = collateralGroups();
+    if (!groups.length) return chartUnavailable('No collateral composition discovered', 'No verified positions matched the current discovery coverage.', 'short');
+    const colors = ['#f7b500', '#bde0fe', '#cdb4db', '#ffd6a5', '#aee9d1', '#ffcfd2'];
+    const total = groups.reduce((sum, group) => sum + group.positions, 0);
+    let offset = 0;
+    const circles = groups.map((group, index) => {
+      const share = group.positions / total * 100;
+      const circle = `<circle cx="80" cy="80" r="54" fill="none" stroke="${colors[index % colors.length]}" stroke-width="25" pathLength="100" stroke-dasharray="${share} ${100 - share}" stroke-dashoffset="${-offset}" transform="rotate(-90 80 80)"><title>${escapeHtml(group.symbol)}: ${group.positions} of ${total} positions</title></circle>`;
+      offset += share;
+      return circle;
+    }).join('');
+    return `<div class="dash-donut-layout"><svg class="dash-svg" viewBox="0 0 160 160" role="img" aria-label="Collateral composition by discovered position count">${circles}<text class="dash-donut-center" x="80" y="79" text-anchor="middle">${total}</text><text class="dash-donut-sub" x="80" y="96" text-anchor="middle">POSITIONS</text></svg><div class="dash-donut-legend">${groups.map((group, index) => `<div><i class="dash-swatch" style="background:${colors[index % colors.length]}"></i><span>${escapeHtml(group.symbol)}<small>${group.positions} discovered</small></span><b>${(group.positions / total * 100).toFixed(1)}%</b></div>`).join('')}</div></div><p class="smalltext">Share of discovered position count, not collateral market value. No FX or reference-price assumption is used.</p>`;
+  }
+
+  function weightedCollateralRatio() {
+    if (state.discoveryPending || state.discovery?.error) return null;
+    let weightedValue = 0n;
+    let debt = 0n;
+    for (const position of allPositions()) {
+      const positionDebt = bigintOrNull(position.minted) ?? 0n;
+      const collateral = bigintOrNull(position.collateral?.balance);
+      const price = bigintOrNull(position.price);
+      if (positionDebt > 0n && collateral !== null && price !== null) {
+        weightedValue += collateral * price;
+        debt += positionDebt;
+      }
+    }
+    return debt > 0n ? weightedValue * 10000n / debt / 10n ** 18n : null;
+  }
+
+  function reserveHealth() {
+    if (state.discoveryPending) return chartUnavailable('Reserve health read in progress', 'Position-level contract parameters are still being verified.', 'short');
+    if (state.discovery?.error) return chartUnavailable('Reserve health unavailable', state.discovery.error, 'short');
+    const ratio = weightedCollateralRatio();
+    if (ratio === null) return chartUnavailable('Debt-weighted CR unavailable', 'No discovered position has the debt, collateral and liquidation-price inputs required for this ratio.', 'short');
+    const bounded = Number(ratio > 25000n ? 25000n : ratio) / 250;
+    return `<div class="dash-gauge-wrap"><svg class="dash-svg" viewBox="0 0 200 120" role="img" aria-label="Debt-weighted liquidation-parameter collateral ratio ${escapeHtml(sdk().formatDecimal(ratio, 2))} percent"><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#f3ecdf" stroke-width="20" stroke-linecap="round" pathLength="100"/><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#aee9d1" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="${bounded} 100"/></svg><div class="dash-gauge-value"><b>${escapeHtml(sdk().formatDecimal(ratio, 1))}%</b><span>DEBT-WEIGHTED CR</span></div></div>${metricList([['Method', 'Collateral × stored liquidation price ÷ gross debt'], ['Discovered positions', String(allPositions().length)], ['User watch threshold', `${state.scenario.threshold}%`], ['Discovery', discoveryCoverageText()]])}<p class="smalltext">A contract-parameter comparison, not a market valuation or guarantee against loss.</p>`;
+  }
+
+  function crDistribution() {
+    if (state.discoveryPending) return chartUnavailable('CR distribution read in progress', 'Position ratios are still being calculated from verified reads.', 'short');
+    const entries = allPositions().map((position) => ({ position, ratio: positionCollateralRatio(position) }));
+    if (!entries.length) return chartUnavailable('No CR distribution available', 'No discovered positions matched the current coverage.', 'short');
+    const buckets = [
+      { label: '<100%', test: (ratio) => ratio !== null && ratio < 10000n, color: '#ffcfd2' },
+      { label: `100–${state.scenario.threshold}%`, test: (ratio) => ratio !== null && ratio >= 10000n && ratio < BigInt(state.scenario.threshold * 100), color: '#e9c46a' },
+      { label: `${state.scenario.threshold}–200%`, test: (ratio) => ratio !== null && ratio >= BigInt(state.scenario.threshold * 100) && ratio < 20000n, color: '#aee9d1' },
+      { label: '200–300%', test: (ratio) => ratio !== null && ratio >= 20000n && ratio < 30000n, color: '#bde0fe' },
+      { label: '≥300% / n.a.', test: (ratio) => ratio === null || ratio >= 30000n, color: '#cdb4db' },
+    ].map((bucket) => ({ ...bucket, count: entries.filter((entry) => bucket.test(entry.ratio)).length }));
+    const maximum = Math.max(1, ...buckets.map((bucket) => bucket.count));
+    return `<div class="dash-bar-list">${buckets.map((bucket) => `<div class="dash-bar-row"><span>${escapeHtml(bucket.label)}</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:${bucket.count / maximum * 100}%;background:${bucket.color}"></div></div><span class="dash-bar-value">${bucket.count} positions</span></div>`).join('')}</div><div class="dash-legend"><span>Watch threshold is user-defined, not a protocol-wide floor.</span></div>`;
+  }
+
+  function currentPositionScatter() {
+    const entries = allPositions().map((position) => ({ position, cr: positionCollateralRatio(position) })).filter((entry) => entry.cr !== null);
+    if (state.discoveryPending) return chartUnavailable('Position map read in progress', 'Verified position points will appear after discovery.');
+    if (!entries.length) return chartUnavailable('No position risk points', 'No discovered positions have enough current data for a contract-parameter CR.');
+    const width = 700;
+    const height = 270;
+    const margin = { left: 60, right: 20, top: 18, bottom: 44 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+    const maxCr = entries.reduce((maximum, entry) => entry.cr > maximum ? entry.cr : maximum, 30000n);
+    const maxDebt = entries.reduce((maximum, entry) => (bigintOrNull(entry.position.minted) ?? 0n) > maximum ? bigintOrNull(entry.position.minted) : maximum, 1n);
+    const points = entries.map((entry) => {
+      const x = margin.left + scaleRatio(entry.cr, maxCr) * innerWidth;
+      const debt = bigintOrNull(entry.position.minted) ?? 0n;
+      const y = margin.top + innerHeight - scaleRatio(debt, maxDebt) * innerHeight;
+      const status = positionStatus(entry.position);
+      const color = status.status === 'fail' ? '#ffcfd2' : status.status === 'warn' ? '#e9c46a' : '#aee9d1';
+      return `<circle class="point" tabindex="0" data-position-detail="${escapeHtml(entry.position.address)}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="7" fill="${color}" fill-opacity=".8" stroke="#2b2118" stroke-opacity=".45"><title>${escapeHtml(entry.position.address)} · CR ${escapeHtml(formatCollateralRatio(entry.position))} · gross debt ${escapeHtml(formatAmount(debt, 18, currentSymbol()))}</title></circle>`;
+    }).join('');
+    return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Discovered position gross debt versus liquidation-parameter collateral ratio">${[0, 1, 2, 3].map((line) => { const y = margin.top + line / 3 * innerHeight; return `<line class="grid-line" x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}"/><text x="${margin.left - 8}" y="${y + 3}" text-anchor="end" font-size="9">${axisValue(maxDebt, line)}</text>`; }).join('')}${points}<text x="${width / 2}" y="${height - 8}" text-anchor="middle" font-size="9">CONTRACT-PARAMETER COLLATERAL RATIO</text></svg><div class="dash-legend"><span><i class="dash-swatch" style="background:#aee9d1"></i>Active</span><span><i class="dash-swatch" style="background:#e9c46a"></i>Watch</span><span><i class="dash-swatch" style="background:#ffcfd2"></i>Critical / challenged</span><span>Vertical axis = raw gross debt scale</span></div>`;
+  }
+
+  function bindPositionPoints() {
+    $$('#dashboard-view [data-position-detail]', root).forEach((button) => {
+      const open = () => {
+        const position = allPositions().find((candidate) => sameAddress(candidate.address, button.dataset.positionDetail));
+        if (position) openPositionDrawer(position);
+      };
+      button.addEventListener('click', open);
+      button.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+    });
+  }
+
   function renderCollateral() {
     if (state.discoveryPending) {
       setPanelHtml('collateral', `<div class="dash-stack">${unavailableCard('Collateral discovery is in progress', 'The dashboard is scanning verified events and rereading current position state. No zero or empty collateral state is asserted yet.')}${sourceNote()}</div>`);
@@ -579,28 +816,39 @@
     const equity = section(state.system, 'equity');
     const token = section(state.system, 'token');
     const groups = collateralGroups();
-    const totalChallenged = allPositions().reduce((sum, position) => sum + (bigintOrNull(position.challengedAmount) ?? 0n), 0n);
+    const challengedPositions = allPositions().filter((position) => (bigintOrNull(position.challengedAmount) ?? 0n) > 0n).length;
+    const colors = ['#f7b500', '#bde0fe', '#cdb4db', '#ffd6a5', '#aee9d1', '#ffcfd2'];
     const rows = groups.map((group) => {
       const decimals = allPositions().find((position) => position.collateral?.symbol === group.symbol)?.collateral?.decimals ?? 18;
       return `<tr><td>${escapeHtml(group.symbol)}</td><td class="num">${group.positions}</td><td class="num mono">${formatAmount(group.collateral, decimals, group.symbol)}</td><td class="num mono">${formatAmount(group.challenged, decimals, group.symbol)}</td><td class="num mono">${formatAmount(group.debt, 18, currentSymbol())}</td></tr>`;
     }).join('');
+    const totalPositions = Math.max(1, allPositions().length);
+    const treemap = groups.length ? `<div class="dash-treemap">${groups.map((group, index) => `<div style="flex:${Math.max(1, group.positions)} 1 ${Math.max(90, group.positions / totalPositions * 100)}%;background:${colors[index % colors.length]}"><b>${escapeHtml(group.symbol)}</b><span>${group.positions} positions</span><small>${(group.positions / totalPositions * 100).toFixed(1)}% of discovered count</small></div>`).join('')}</div><p class="smalltext">Area follows discovered position count, not collateral value. Native token units are never added across assets.</p>` : chartUnavailable('No concentration map', 'No verified collateral groups matched the current discovery coverage.', 'short');
     setPanelHtml('collateral', `
       <div class="dash-stack">
         <div class="dash-kpis">
           ${metricCard('Collateral types', String(groups.length), discoveryCoverageText(), groups.length ? 'pass' : 'neutral')}
           ${metricCard('Discovered positions', String(allPositions().length), state.discovery?.complete === false ? 'Partial discovery' : 'Current discovery', 'pass')}
-          ${metricCard('Challenged collateral', formatAmount(totalChallenged, allPositions()[0]?.collateral?.decimals ?? 18, allPositions()[0]?.collateral?.symbol ?? ''), 'Exact current position reads', totalChallenged > 0n ? 'warn' : 'pass')}
+          ${metricCard('Challenged positions', String(challengedPositions), 'Current challenged amount above zero', challengedPositions ? 'warn' : 'pass')}
           ${metricCard('Bridge capacity', bridge?.error ? 'Unavailable' : formatAmount(bridge?.capacityLocal, 18, token?.symbol ?? currentSymbol()), bridge?.error ?? formatBlock(bridge?.sourceBlock), bridge?.error ? 'fail' : 'pass')}
         </div>
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Collateral register</h3><p>Real discovered positions, grouped by collateral token.</p></div></div>${groups.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Collateral</th><th class="num">Positions</th><th class="num">Collateral balance</th><th class="num">Challenged</th><th class="num">Gross debt</th></tr></thead><tbody>${rows}</tbody></table></div>` : unavailableCard('No collateral discovered', 'No verified positions matched the current discovery coverage.')}</article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Loss-absorption context</h3><p>Current system reads, not a historical waterfall.</p></div></div>${metricList([
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Collateral asset register</h3><p>Current balances grouped per asset; each row retains its own token decimals.</p></div>${cardTag('EXACT NATIVE UNITS', 'mint')}</div>${groups.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Collateral</th><th class="num">Positions</th><th class="num">Collateral balance</th><th class="num">Challenged</th><th class="num">Gross debt</th></tr></thead><tbody>${rows}</tbody></table></div>` : unavailableCard('No collateral discovered', 'No verified positions matched the current discovery coverage.')}</article>
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Concentration map</h3><p>Share of discovered position count.</p></div></div>${treemap}</article>
+        </div>
+        <div class="dash-grid">
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Collateral value & reference marks</h3><p>Historical values and external marks require verified provenance.</p></div>${cardTag('NO SYNTHETIC MARKS', 'gold')}</div>${chartUnavailable('Reference history unavailable', 'No indexer or market-data feed is configured. Contract liquidation prices remain available in Markets & volume.', 'tall')}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Loss-absorption context</h3><p>Current accounting reads, not a predicted waterfall.</p></div></div>${metricList([
             ['System equity', equity?.error ? 'Unavailable' : formatAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol())],
             ['Minter reserve', token?.error ? 'Unavailable' : formatAmount(token?.minterReserve, 18, token?.symbol ?? currentSymbol())],
             ['Reserve contract balance', token?.error ? 'Unavailable' : formatAmount(token?.reserveBalance ?? token?.reserve, 18, token?.symbol ?? currentSymbol())],
             ['Bridge source locked', bridge?.error ? 'Unavailable' : formatAmount(bridge?.sourceLocked, bridge?.sourceDecimals ?? 6, bridge?.sourceSymbol ?? 'source')],
             ['Discovery coverage', discoveryCoverageText()],
           ])}<div class="dash-note">Equity and minter reserve are related accounting balances, not interchangeable assets or guaranteed loss coverage.</div></article>
+        </div>
+        <div class="dash-grid">
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Source-bridge capacity</h3><p>Current minted local units against the verified per-system limit.</p></div>${cardTag('CURRENT READ', 'mint')}</div>${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Bridge & source-asset notes</h3><p>Capacity is not FX backing; test source assets have no production value claim.</p></div></div>${metricList([['Source asset', bridge?.sourceSymbol ?? 'Unavailable'], ['Source locked', bridge?.error ? 'Unavailable' : formatAmount(bridge?.sourceLocked, bridge?.sourceDecimals ?? 6, bridge?.sourceSymbol ?? 'source')], ['Local minted', bridge?.error ? 'Unavailable' : formatAmount(bridge?.mintedLocal, 18, token?.symbol ?? currentSymbol())], ['Remaining capacity', bridge?.error ? 'Unavailable' : formatAmount(bridge?.capacityLocal, 18, token?.symbol ?? currentSymbol())]])}</article>
         </div>
         ${sourceNote()}
       </div>`);
@@ -617,10 +865,15 @@
     const start = (state.position.page - 1) * state.position.perPage;
     const pageRows = positions.slice(start, start + state.position.perPage);
     const collateralOptions = ['ALL', ...new Set(allPositions().map((position) => position.collateral?.symbol ?? 'Unknown'))];
+    const statuses = allPositions().map((position) => positionStatus(position).key);
+    const healthy = statuses.filter((status) => ['active', 'no-debt'].includes(status)).length;
+    const attention = statuses.filter((status) => ['watch', 'critical'].includes(status)).length;
+    const challenged = statuses.filter((status) => status === 'challenged').length;
+    const debt = discoveredDebt();
     const rows = pageRows.map((position) => {
       const status = positionStatus(position);
       return `<tr>
-        <td><button type="button" class="btn light small" data-position-detail="${escapeHtml(position.address)}">${escapeHtml(position.address.slice(0, 10))}…</button></td>
+        <td><button type="button" class="btn light small" data-position-detail="${escapeHtml(position.address)}">${escapeHtml(position.address.slice(0, 10))}…</button><small class="smalltext">${escapeHtml(position.owner?.slice(0, 10) ?? 'Unknown owner')}…</small></td>
         <td class="mono">${escapeHtml(position.collateral?.symbol ?? 'Unknown')}</td>
         <td class="num mono">${formatAmount(position.minted, 18, currentSymbol())}</td>
         <td class="num mono">${formatCollateralRatio(position)}</td>
@@ -629,21 +882,30 @@
         <td>${statusPill(status.status, status.label)}</td>
       </tr>`;
     }).join('');
-    const pagination = Array.from({ length: totalPages }, (_, index) => `<button type="button" data-page="${index + 1}" class="${index + 1 === state.position.page ? 'active' : ''}" aria-label="Page ${index + 1}">${index + 1}</button>`).join('');
+    const pagination = Array.from({ length: totalPages }, (_, index) => `<button type="button" data-page="${index + 1}" class="${index + 1 === state.position.page ? 'active' : ''}" aria-label="Page ${index + 1}" aria-current="${index + 1 === state.position.page ? 'page' : 'false'}">${index + 1}</button>`).join('');
+    const healthFilters = [['ALL', 'All', allPositions().length], ['healthy', 'Healthy', healthy], ['attention', 'Watch + critical', attention], ['challenged', 'Challenged', challenged], ['initializing', 'Initializing', statuses.filter((status) => status === 'initializing').length], ['expired', 'Expired', statuses.filter((status) => status === 'expired').length]];
     setPanelHtml('positions', `
       <div class="dash-stack">
-        <div class="dash-card">
+        <div class="dash-kpis">
+          ${metricCard('Gross position debt', debt === null ? 'Unavailable' : formatAmount(debt, 18, currentSymbol()), discoveryCoverageText(), debt === null ? 'fail' : 'pass')}
+          ${metricCard('Discovered positions', state.discoveryPending ? 'Read in progress' : String(allPositions().length), 'Event-derived and current-state verified', state.discoveryPending ? 'info' : 'pass')}
+          ${metricCard('Healthy / no debt', state.discoveryPending ? 'Read in progress' : String(healthy), `${attention} watch or critical`, attention ? 'warn' : 'pass')}
+          ${metricCard('Challenged', state.discoveryPending ? 'Read in progress' : String(challenged), 'Current challenged collateral above zero', challenged ? 'warn' : 'pass')}
+        </div>
+        <div class="dash-health-filters" aria-label="Position health filters">${healthFilters.map(([key, label, count]) => `<button type="button" class="dash-chip ${state.position.health === key ? 'active' : ''}" data-position-health="${key}" aria-pressed="${state.position.health === key}">${escapeHtml(label)} <span class="n">${count}</span></button>`).join('')}</div>
+        <div class="dash-card flush">
           <div class="dash-card-head"><div><h3>Position explorer</h3><p>${escapeHtml(discoveryCoverageText())}</p></div><div class="dash-actions"><button type="button" class="btn light small" id="dashboard-positions-export">Export filtered CSV</button></div></div>
-          <div class="dash-toolbar">
+          <div class="dash-toolbar" style="padding:0 18px">
             <label class="dash-field">Search<input id="dashboard-position-search" type="search" value="${escapeHtml(state.position.search)}" placeholder="Position, owner or collateral"></label>
             <label class="dash-field">Collateral<select id="dashboard-position-collateral">${collateralOptions.map((symbol) => `<option value="${escapeHtml(symbol)}" ${symbol === state.position.collateral ? 'selected' : ''}>${symbol === 'ALL' ? 'All collateral' : escapeHtml(symbol)}</option>`).join('')}</select></label>
             <label class="dash-field">Status<select id="dashboard-position-status">${['ALL', 'active', 'watch', 'critical', 'challenged', 'initializing', 'expired', 'no-debt'].map((status) => `<option value="${status}" ${status === state.position.status ? 'selected' : ''}>${status === 'ALL' ? 'All statuses' : escapeHtml(status)}</option>`).join('')}</select></label>
+            <label class="dash-field">Maximum CR<select id="dashboard-position-cr">${[[10000, 'Any CR'], [125, 'Below 125%'], [150, 'Below 150%'], [200, 'Below 200%'], [250, 'Below 250%']].map(([value, label]) => `<option value="${value}" ${state.position.maxCr === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
             <label class="dash-field">Account context<input id="dashboard-position-account" type="text" value="${escapeHtml(state.account)}" placeholder="Optional 0x…"></label>
             <label class="dash-field">Scope<select id="dashboard-position-scope"><option value="all" ${state.positionScope === 'all' ? 'selected' : ''}>All discovered</option><option value="account" ${state.positionScope === 'account' ? 'selected' : ''}>Account only</option></select></label>
             <button type="button" class="btn light" id="dashboard-use-wallet">Use connected wallet</button>
             <button type="button" class="btn light" id="dashboard-refresh-discovery">Refresh discovery</button>
           </div>
-          ${positions.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position</th><th>Collateral</th><th class="num">${sortButton('Gross debt', 'debt')}</th><th class="num">${sortButton('CR', 'collateralRatio')}</th><th class="num">Liquidation price</th><th class="num">${sortButton('Expiration', 'expiration')}</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="dash-pagination"><span>${positions.length} matching · page ${state.position.page} of ${totalPages}</span><span class="buttons">${pagination}</span></div>` : unavailableCard(state.discoveryPending ? 'Position discovery is in progress' : 'No positions match', state.discoveryPending ? 'The dashboard is scanning verified events and rereading current position state. No zero or empty position state is asserted yet.' : 'Adjust the filters or run discovery with an explicit account context.')}
+          <div style="padding:0 18px 18px">${positions.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position / owner</th><th>Collateral</th><th class="num">${sortButton('Gross debt', 'debt')}</th><th class="num">${sortButton('CR', 'collateralRatio')}</th><th class="num">Liquidation price</th><th class="num">${sortButton('Expiration', 'expiration')}</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="dash-pagination"><span>${positions.length} matching · page ${state.position.page} of ${totalPages}</span><span class="buttons">${pagination}</span></div>` : unavailableCard(state.discoveryPending ? 'Position discovery is in progress' : 'No positions match', state.discoveryPending ? 'The dashboard is scanning verified events and rereading current position state. No zero or empty position state is asserted yet.' : 'Adjust the filters or run discovery with an explicit account context.')}</div>
         </div>
         ${sourceNote()}
       </div>`);
@@ -654,6 +916,13 @@
     $('#dashboard-position-search', root)?.addEventListener('input', (event) => { state.position.search = event.target.value; state.position.page = 1; renderPositions(); });
     $('#dashboard-position-collateral', root)?.addEventListener('change', (event) => { state.position.collateral = event.target.value; state.position.page = 1; renderPositions(); });
     $('#dashboard-position-status', root)?.addEventListener('change', (event) => { state.position.status = event.target.value; state.position.page = 1; renderPositions(); });
+    $('#dashboard-position-cr', root)?.addEventListener('change', (event) => { state.position.maxCr = Number(event.target.value); state.position.page = 1; renderPositions(); });
+    $$('#dashboard-view [data-position-health]', root).forEach((button) => button.addEventListener('click', () => {
+      state.position.health = button.dataset.positionHealth;
+      state.position.status = 'ALL';
+      state.position.page = 1;
+      renderPositions();
+    }));
     $('#dashboard-position-account', root)?.addEventListener('change', (event) => { state.account = event.target.value.trim(); state.position.page = 1; renderPositions(); });
     $('#dashboard-position-scope', root)?.addEventListener('change', (event) => { state.positionScope = event.target.value; state.position.page = 1; renderPositions(); });
     $('#dashboard-use-wallet', root)?.addEventListener('click', () => {
@@ -760,7 +1029,7 @@
       return;
     }
     const reference = getReferenceMarks();
-    const rows = allPositions().map((position) => `<tr><td><button type="button" class="btn light small" data-position-detail="${escapeHtml(position.address)}">${escapeHtml(position.address.slice(0, 10))}…</button></td><td>${escapeHtml(position.collateral?.symbol ?? 'Unknown')}</td><td class="num mono">${formatAmount(position.price, position.priceDecimals ?? 18, `${currentSymbol()} / ${position.collateral?.symbol ?? 'collateral'}`)}</td><td>${statusPill('neutral', 'Reference unavailable')}</td><td>${unavailableCard('No verified mark', 'No market/indexer feed is configured.')}</td></tr>`).join('');
+    const rows = allPositions().map((position) => `<tr><td><button type="button" class="btn light small" data-position-detail="${escapeHtml(position.address)}">${escapeHtml(position.address.slice(0, 10))}…</button></td><td>${escapeHtml(position.collateral?.symbol ?? 'Unknown')}</td><td class="num mono">${formatAmount(position.price, position.priceDecimals ?? 18, `${currentSymbol()} / ${position.collateral?.symbol ?? 'collateral'}`)}</td><td>${statusPill('neutral', 'Reference unavailable')}</td><td>Not configured</td></tr>`).join('');
     setPanelHtml('markets', `
       <div class="dash-stack">
         <div class="dash-kpis">
@@ -770,15 +1039,17 @@
           ${metricCard('Volume / depth', 'Unavailable', 'No verified market feed is configured.', 'fail')}
         </div>
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Contract liquidation boundaries</h3><p>These are stored position parameters, not external oracle prices.</p></div></div>${allPositions().length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position</th><th>Collateral</th><th class="num">Liquidation price</th><th>Reference mark</th><th>Feed</th></tr></thead><tbody>${rows}</tbody></table></div>` : unavailableCard('No positions discovered', 'Contract liquidation boundaries require real discovered positions.')}</article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Reference markets</h3><p>Barkswap or reference-pool analytics would be inputs, not protocol prices.</p></div></div>${unavailableCard('Reference marks unavailable — market/indexer feed not configured', 'The dashboard does not interpolate prices, volume, depth or executable liquidity.')}<div class="dash-note">A future reference mark must identify source, pair, block/time and methodology before it can be shown.</div></article>
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Reference market explorer</h3><p>Price and normalized-performance charts require a real market feed.</p></div>${cardTag('NOT ORACLE DATA', 'gold')}</div>${chartUnavailable('Reference marks unavailable', 'No verified reference-price feed is configured. No prices are interpolated from contract liquidation parameters.', 'tall')}</article>
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Currency watchboard</h3><p>Only the selected verified currency system is shown.</p></div>${cardTag(currentSymbol(), 'mint')}</div>${metricList([['Currency system', currentCode()], ['Token', currentSymbol()], ['Reference par', 'Unavailable'], ['Premium / discount', 'Unavailable'], ['Executable liquidity', 'Unknown'], ['Feed provenance', 'Not configured']])}<div class="dash-note">A future mark must identify source, pair, block/time and methodology.</div></article>
         </div>
+        <div class="dash-grid">
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Protocol volume timeline</h3><p>Mint, repayment and source-bridge flows require complete event coverage.</p></div>${cardTag('INDEXER REQUIRED')}</div>${chartUnavailable('Volume unavailable', 'Current balances are not a volume history. No generated volume is shown.', 'tall')}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Reference-pool depth</h3><p>Barkswap or other pool analytics would not prove executable liquidity.</p></div>${cardTag('NO DEPTH FEED', 'gold')}</div>${chartUnavailable('Market depth unavailable', 'No verified pool-depth adapter is configured.', 'tall')}</article>
+        </div>
+        <article class="dash-card"><div class="dash-card-head"><div><h3>Contract liquidation boundaries</h3><p>Stored position parameters, not external oracle prices or reference marks.</p></div>${cardTag('CURRENT POSITION READS', 'mint')}</div>${allPositions().length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position</th><th>Collateral</th><th class="num">Liquidation price</th><th>Reference mark</th><th>Feed</th></tr></thead><tbody>${rows}</tbody></table></div>` : unavailableCard('No positions discovered', 'Contract liquidation boundaries require real discovered positions.')}</article>
         ${sourceNote()}
       </div>`);
-    $$('#dashboard-view [data-position-detail]', root).forEach((button) => button.addEventListener('click', () => {
-      const position = allPositions().find((candidate) => sameAddress(candidate.address, button.dataset.positionDetail));
-      if (position) openPositionDrawer(position);
-    }));
+    bindPositionPoints();
   }
 
   function scenarioCr(position) {
@@ -789,6 +1060,17 @@
 
   function scenarioPositions() {
     return allPositions().map((position) => ({ position, cr: scenarioCr(position), status: positionStatus(position) })).filter((entry) => entry.cr !== null);
+  }
+
+  function scenarioExposure(entries) {
+    if (!entries.length) return chartUnavailable('No scenario exposure', 'No discovered positions have enough inputs for this scenario.', 'short');
+    const groups = [
+      { label: 'Below 100%', color: '#ffcfd2', test: (entry) => entry.cr < 10000n },
+      { label: `100% to ${state.scenario.threshold}% watch`, color: '#e9c46a', test: (entry) => entry.cr >= 10000n && entry.cr < BigInt(state.scenario.threshold * 100) },
+      { label: 'Above watch', color: '#aee9d1', test: (entry) => entry.cr >= BigInt(state.scenario.threshold * 100) },
+    ].map((group) => ({ ...group, debt: entries.filter(group.test).reduce((sum, entry) => sum + (bigintOrNull(entry.position.minted) ?? 0n), 0n), count: entries.filter(group.test).length }));
+    const maximum = groups.reduce((max, group) => group.debt > max ? group.debt : max, 1n);
+    return `<div class="dash-bar-list">${groups.map((group) => `<div class="dash-bar-row"><span>${escapeHtml(group.label)}</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:${scaleRatio(group.debt, maximum) * 100}%;background:${group.color}"></div></div><span class="dash-bar-value">${escapeHtml(formatAmount(group.debt, 18, currentSymbol()))}</span><span class="dash-bar-sub">${group.count} positions · scenario gross-debt exposure, not an estimated loss</span></div>`).join('')}</div>`;
   }
 
   function renderRisk() {
@@ -820,6 +1102,10 @@
         <div class="dash-grid">
           <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Most affected positions</h3><p>Ranked by stressed collateral ratio below the user watch threshold.</p></div></div>${affected.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position</th><th>Collateral</th><th class="num">Scenario CR</th><th class="num">Gross debt</th><th>Current status</th></tr></thead><tbody>${rows}</tbody></table></div>` : unavailableCard('No affected positions', 'No scenario CR is below the current user watch threshold.')}</article>
           <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Assumptions</h3><p>What this scenario does and does not represent.</p></div></div><div class="dash-formula">scenario CR = collateral balance × liquidation price × collateral shock × (1 − liquidity haircut) ÷ (gross debt × reference shock)</div><div class="dash-note" style="margin-top:12px">No auction slippage, keeper latency, token-transfer restriction, transaction simulation or cross-currency contagion is inferred.</div></article>
+        </div>
+        <div class="dash-grid">
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Scenario exposure by CR band</h3><p>Gross debt grouped by stressed collateral ratio; this is not an equity-loss waterfall.</p></div>${cardTag('SCENARIO ONLY', 'pink')}</div>${scenarioExposure(entries)}</article>
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>System risk heatmap</h3><p>Composite risk scores require independent models and evidence.</p></div>${cardTag('NO RATING MODEL', 'gold')}</div>${chartUnavailable('Risk scores unavailable', 'No collateral, liquidity, governance or contagion score is inferred from current contract reads.', 'short')}</article>
         </div>
         ${sourceNote()}
       </div>`);
@@ -919,29 +1205,42 @@
     });
   }
 
+  function filteredEvents() {
+    const events = (state.discovery?.events ?? []).filter((event) => state.activity.type === 'all' || event.type === state.activity.type);
+    const direction = state.activity.sort === 'desc' ? 1 : -1;
+    return events.slice().sort((left, right) => {
+      const leftBlock = bigintOrNull(left.blockNumber) ?? 0n;
+      const rightBlock = bigintOrNull(right.blockNumber) ?? 0n;
+      return leftBlock === rightBlock ? 0 : leftBlock > rightBlock ? -direction : direction;
+    });
+  }
+
   function renderActivity() {
     if (state.discovery?.error) {
       setPanelHtml('activity', `<div class="dash-stack">${unavailableCard('Activity discovery is unavailable', state.discovery.error)}${sourceNote()}</div>`);
       return;
     }
     const events = state.discovery?.events ?? [];
-    const eventRows = events.slice(0, 30).map((event) => `<div class="dash-event"><div class="dash-event-icon">${escapeHtml(event.type === 'challenge-started' ? 'CH' : 'PO')}</div><div><strong>${escapeHtml(event.label)}</strong><small>${escapeHtml(event.summary)}<br>${escapeHtml(event.transactionHash ?? '')}</small></div><div class="event-amount">${txLink(event.transactionHash)}<small>block ${escapeHtml(String(event.blockNumber ?? 'unknown'))}</small></div></div>`).join('');
+    const visible = filteredEvents();
+    const eventRows = visible.slice(0, 50).map((event) => `<div class="dash-event"><div class="dash-event-icon">${escapeHtml(event.type === 'challenge-started' ? 'CH' : 'PO')}</div><div><strong>${escapeHtml(event.label)}</strong><small>${escapeHtml(event.summary)}<br>${escapeHtml(event.transactionHash ?? '')}</small></div><div class="event-amount">${txLink(event.transactionHash)}<small>block ${escapeHtml(String(event.blockNumber ?? 'unknown'))}</small></div></div>`).join('');
+    const types = [['all', 'All events'], ['position-opened', 'Positions'], ['challenge-started', 'Challenges']];
     setPanelHtml('activity', `
       <div class="dash-stack">
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Challenge replay</h3><p>Uses actual challenge timestamps and period data when available.</p></div><span class="status-pill warn">SCENARIO REPLAY</span></div>
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Challenge & Dutch-auction replay</h3><p>Uses actual challenge timestamps and period data when available.</p></div>${cardTag('SCENARIO REPLAY', 'gold')}</div>
             <div class="dash-toolbar"><label class="dash-field">Challenge index<input id="dashboard-challenge-index" inputmode="numeric" pattern="[0-9]+" value="0"></label><button type="button" class="btn mint" id="dashboard-load-challenge">Read challenge</button><button type="button" class="btn light" id="dashboard-replay-toggle">${state.replay.playing ? 'Pause' : 'Play'}</button><button type="button" class="btn light" id="dashboard-replay-reset">Reset</button></div>
             <div id="dashboard-challenge-panel">${challengeHtml()}</div>
           </article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Event coverage</h3><p>${escapeHtml(discoveryCoverageText())}</p></div></div>${metricList([
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Activity summary</h3><p>${escapeHtml(discoveryCoverageText())}</p></div></div>${metricList([
             ['Event types', state.discoveryPending ? 'Discovery in progress' : state.discovery?.synthetic ? 'Synthetic fixture' : 'PositionOpened · ChallengeStarted'],
             ['Events discovered', state.discoveryPending ? 'Read in progress' : String(events.length)],
+            ['Matching filter', state.discoveryPending ? 'Read in progress' : String(visible.length)],
             ['Account context', state.discovery?.account ?? 'Not supplied'],
             ['Complete / partial', state.discoveryPending ? 'Pending' : state.discovery ? String(state.discovery.complete ? 'Complete' : 'Partial') : 'Unknown'],
             ['History / volume', 'Unavailable — indexer not configured'],
           ])}<div class="dash-note">An inactive first challenge phase does not prove settlement completion. Reread contract state before drawing a conclusion.</div></article>
         </div>
-        <div class="dash-card"><div class="dash-card-head"><div><h3>Protocol event ledger</h3><p>Real discovered events with transaction hashes. No generated event rows are shown.</p></div></div>${events.length ? `<div class="dash-event-list">${eventRows}</div>` : unavailableCard(state.discoveryPending ? 'Event discovery is in progress' : 'No real events discovered', state.discoveryPending ? 'The dashboard is scanning verified events. No zero or empty event history is asserted yet.' : state.discovery?.synthetic ? 'The synthetic fixture has no deployed event history.' : 'The scanned range contains no matching events, or discovery coverage is incomplete.')}</div>
+        <div class="dash-card"><div class="dash-card-head"><div><h3>Protocol event ledger</h3><p>Real discovered events with transaction hashes. No generated event rows are shown.</p></div><button type="button" class="btn light small" id="dashboard-activity-sort">${state.activity.sort === 'desc' ? 'Newest first' : 'Oldest first'}</button></div><div class="dash-event-layout"><div class="dash-event-types" aria-label="Event type filters">${types.map(([key, label]) => { const count = key === 'all' ? events.length : events.filter((event) => event.type === key).length; return `<button type="button" data-event-type="${key}" class="${state.activity.type === key ? 'active' : ''}" aria-pressed="${state.activity.type === key}"><span>${label}</span><span class="n">${count}</span></button>`; }).join('')}</div><div>${visible.length ? `<div class="dash-event-list">${eventRows}</div>` : unavailableCard(state.discoveryPending ? 'Event discovery is in progress' : 'No matching real events', state.discoveryPending ? 'The dashboard is scanning verified events. No zero or empty event history is asserted yet.' : state.discovery?.synthetic ? 'The synthetic fixture has no deployed event history.' : 'The scanned range or selected event-type filter contains no matching events.')}</div></div></div>
         ${sourceNote()}
       </div>`);
     bindActivity();
@@ -990,6 +1289,14 @@
   }
 
   function bindActivity() {
+    $$('#dashboard-view [data-event-type]', root).forEach((button) => button.addEventListener('click', () => {
+      state.activity.type = button.dataset.eventType;
+      renderActivity();
+    }));
+    $('#dashboard-activity-sort', root)?.addEventListener('click', () => {
+      state.activity.sort = state.activity.sort === 'desc' ? 'asc' : 'desc';
+      renderActivity();
+    });
     $('#dashboard-load-challenge', root)?.addEventListener('click', async () => {
       const input = $('#dashboard-challenge-index', root);
       const index = bigintOrNull(input?.value ?? '0') ?? 0n;
@@ -1057,10 +1364,12 @@
         ].map(([label, value, note]) => `<div class="dash-param"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><p>${escapeHtml(note ?? '')}</p></div>`).join('')}</div>`
       : state.parametersTab === 'registry'
         ? `<div class="dash-address-list">${Object.entries(registry.addresses).map(([label, address]) => `<div class="dash-address-row"><span>${escapeHtml(label)}</span><code>${escapeHtml(address)}</code><a class="btn light small" href="${escapeHtml(`${currentExplorer().replace(/\/$/, '')}/address/${address}`)}" target="_blank" rel="noreferrer">Explorer</a></div>`).join('')}</div><div class="dash-note" style="margin-top:14px">The USD registry has eight Sourcify exact creation/runtime matches. Blockscout display verification remains an external blocker and is not represented as complete here.</div>`
-        : `<div class="dash-stack">${READINESS_GATES.map(([label, description], index) => `<div class="unavailable-card"><strong>${index + 1}. ${escapeHtml(label)}</strong><p>${escapeHtml(description)}</p></div>`).join('')}</div>`;
+        : state.parametersTab === 'sources'
+          ? `<div class="dash-grid"><article class="dash-card span-6"><div class="dash-card-head"><div><h3>SDK read coverage</h3><p>Capabilities detected for the selected verified registry.</p></div>${cardTag('CURRENT STATE', 'mint')}</div>${metricList(Object.entries(capabilities.capabilities).map(([label, enabled]) => [label, enabled ? 'Available' : 'Unavailable — adapter not configured']))}</article><article class="dash-card span-6"><div class="dash-card-head"><div><h3>Analytics still required</h3><p>Unavailable fields are never replaced with generated telemetry.</p></div>${cardTag('EXPLICIT UNKNOWN', 'gold')}</div>${metricList([['Historical snapshots', 'Indexer required'], ['Position enumeration', discoveryCoverageText()], ['Reference marks', 'Verified market feed required'], ['Volume and depth', 'Indexer and market feed required'], ['Cross-currency FX', 'Explicit provenance required'], ['Production readiness', 'Not claimed']])}</article></div>`
+          : `<div class="dash-stack">${READINESS_GATES.map(([label, description], index) => `<div class="unavailable-card"><strong>${index + 1}. ${escapeHtml(label)}</strong><p>${escapeHtml(description)}</p></div>`).join('')}</div>`;
     setPanelHtml('parameters', `
       <div class="dash-stack">
-        <div class="dash-card"><div class="dash-card-head"><div><h3>System parameters</h3><p>Current on-chain values, registry evidence and repository-owned readiness gates.</p></div></div><div class="dash-tabs" role="tablist" aria-label="Parameter views">${[['current', 'Current values'], ['registry', 'USD registry'], ['gates', 'Readiness gates']].map(([key, label]) => `<button type="button" role="tab" data-parameter-tab="${key}" class="${state.parametersTab === key ? 'active' : ''}" aria-selected="${state.parametersTab === key}">${label}</button>`).join('')}</div>${currentPanel}</div>
+        <div class="dash-card"><div class="dash-card-head"><div><h3>System parameters</h3><p>Current on-chain values, registry evidence, adapter coverage and repository-owned readiness gates.</p></div></div><div class="dash-tabs" role="tablist" aria-label="Parameter views">${[['current', 'Current values'], ['registry', 'USD registry'], ['sources', 'Data sources'], ['gates', 'Readiness gates']].map(([key, label]) => `<button type="button" role="tab" data-parameter-tab="${key}" class="${state.parametersTab === key ? 'active' : ''}" aria-selected="${state.parametersTab === key}">${label}</button>`).join('')}</div>${currentPanel}</div>
         ${sourceNote()}
       </div>`);
     $$('#dashboard-view [data-parameter-tab]', root).forEach((button) => button.addEventListener('click', () => { state.parametersTab = button.dataset.parameterTab; renderParameters(); }));
@@ -1173,6 +1482,21 @@
         setPanel(PANELS[next], { focusTab: true });
       });
     });
+    $('#dashboard-currency', root)?.addEventListener('change', (event) => {
+      if (event.target.selectedOptions[0]?.disabled) return;
+      state.code = event.target.value;
+      const sharedSelector = $('#v2-currency');
+      if (sharedSelector) sharedSelector.value = state.code;
+      render(true);
+    });
+    $('#dashboard-refresh', root)?.addEventListener('click', () => { render(true); notify('Refreshing verified current reads and discovery coverage.'); });
+    $('#dashboard-reset', root)?.addEventListener('click', resetDashboard);
+    $('#dashboard-copy-view', root)?.addEventListener('click', copyViewLink);
+    $('#dashboard-export-view', root)?.addEventListener('click', exportCurrentView);
+    const methodDialog = $('#dashboard-method-dialog', root);
+    $('#dashboard-method-open', root)?.addEventListener('click', () => methodDialog?.showModal());
+    $('#dashboard-method-close', root)?.addEventListener('click', () => methodDialog?.close());
+    methodDialog?.addEventListener('click', (event) => { if (event.target === methodDialog) methodDialog.close(); });
     backdrop?.addEventListener('click', closeDrawer);
     $('#dashboard-drawer-close', drawer)?.addEventListener('click', closeDrawer);
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDrawer(); });

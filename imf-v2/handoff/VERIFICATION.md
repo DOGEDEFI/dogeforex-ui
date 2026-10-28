@@ -223,3 +223,19 @@ Actual Node 22 results on the final source:
 - `node scripts/check-actions.mjs`, `node scripts/wallet-check.mjs` and `node scripts/journey-check.mjs` ran within the verification commands above: 37 canonical operations, 27 wallet checks and 36 fixture-only journey checks passed.
 
 Reviewed screenshots: `artifacts/testnet-dashboard-desktop.png`, `artifacts/dashboard-desktop-synthetic-fixture.png`, `artifacts/dashboard-mobile-synthetic-fixture.png`, and `artifacts/dashboard-mobile-unconfigured.png`. The public origins still serve the earlier dashboard deployment above; this optimization is not yet committed, pushed or deployed. Real MetaMask and assistive-technology review remains a separate manual gate, and Blockscout display verification remains unresolved.
+
+
+## Prototype-style dashboard integration — 2026-10-28
+
+**Status: IMPLEMENTED AND VERIFIED LOCALLY, NOT COMMITTED OR DEPLOYED.** The dashboard now follows the standalone prototype's information design inside the existing app shell: page-specific titles, compact KPI cards, analytical two-column grids, position-count composition, debt-weighted contract-parameter CR, current risk bubbles and CR buckets, health and event filters, a methodology dialog, working copy-link/export controls, and prototype-style Risk Lab, Activity and Parameters layouts. The single grouped workspace rail and horizontal keyboard-accessible dashboard tablist remain; no nested sidebar or routing framework was added.
+
+The data boundary remains strict. Only runtime-config verified USD is presented as live deployed state. Collateral composition uses discovered position counts rather than inferred market values; CR uses each position's stored liquidation price rather than an external mark; raw monetary calculations remain exact integer/BigInt and compact KPI formatting is string-based. History, volume, reference marks, market depth, composite risk scores and cross-currency comparisons remain explicit unavailable states. No synthetic telemetry, remote fonts, chart dependencies, contract changes or write-path changes were introduced.
+
+Actual Node 22 verification results:
+
+- `npm run check` and `npm run verify` — passed, including all 37 canonical action checks and static dashboard/data-boundary assertions.
+- `npm run verify:browser` — passed on the final source: 33 fixture checks, 21 default/unconfigured checks, 27 wallet-engine checks and 36 guided-journey checks. Dashboard coverage includes page copy, methodology, currency controls, health/CR/event filters, copy/export, deep links, keyboard tabs, replay, responsive screenshots and zero uncaught browser errors. The preview runner now keeps review and fixture port ranges distinct when the review server falls forward.
+- `npm run verify:testnet` — passed: `dashboardPanels: 7`, `dashboardLiveUsdOnly: true`, `dashboardDiscoveryAndDrawer: true`, `staticGuideCount: 19`, `responsiveCheckCount: 196`, `rpcRequestCount: 1244`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`.
+- `node scripts/check-actions.mjs`, `node scripts/wallet-check.mjs` and `node scripts/journey-check.mjs` ran within these suites: 37 canonical operations, 27 wallet checks and 36 fixture-only journeys passed.
+
+Reviewed final screenshots include `artifacts/testnet-dashboard-desktop.png`, `artifacts/dashboard-desktop-synthetic-fixture.png`, `artifacts/dashboard-mobile-synthetic-fixture.png`, and the desktop/mobile Positions, Risk Lab and Activity fixture captures. Live data coverage remains limited by the absent indexer and market feed. Real MetaMask/MyDoge and assistive-technology review remains a separate manual gate. Blockscout display verification remains unresolved.

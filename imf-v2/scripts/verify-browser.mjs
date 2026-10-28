@@ -81,7 +81,7 @@ try {
     }
   }
   ports = { review: await ensureServer('dist', 5180), fixture: 5190 };
-  ports.fixture = await ensureServer('.fixture-dist', 5190);
+  ports.fixture = await ensureServer('.fixture-dist', ports.review >= 5190 ? ports.review + 10 : 5190);
   await buildPreview('dist', ports.review, false);
   await buildPreview('.fixture-dist', ports.fixture, true);
   await run(['scripts/browser-check.mjs']);
