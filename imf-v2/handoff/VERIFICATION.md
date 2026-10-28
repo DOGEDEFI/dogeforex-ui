@@ -176,3 +176,50 @@ All three Vercel deployments reported **READY** and aliased their custom origins
 Public HTTP checks returned 200 for all three origins, confirmed the wallet/discovery/action assets and `testnet-metamask` runtime on chain `6281971`, returned 404 for missing/credential paths, and preserved the `www.imf.li` 308 redirect including path and query. No DNS changes were made.
 
 A fresh public-Chrome check verified the USD registry and bridge/savings/equity reads with no injected wallet. It observed **104 read-only RPC requests**, zero forbidden signing/broadcast methods and zero browser errors; mobile layout had no overflow and `transactionSent: false`. Evidence: `artifacts/live-app-desktop.png` and `artifacts/live-app-mobile.png`. Real MetaMask interaction and assistive-technology review were not performed. This is a deployed DogeOS testnet interface, not a production-readiness or Blockscout-verification claim.
+
+## Dashboard integration — 2026-10-27
+
+**Status: IMPLEMENTED AND FULLY VERIFIED LOCALLY, NOT DEPLOYED.** The dashboard was integrated into the existing V2 application on the `app.imf.li` origin as the first workspace menu item, with seven subviews (Overview, Collateral, Positions, Markets, Risk Lab, Activity, Parameters) and deep links `https://app.imf.li/#dashboard` plus `#dashboard/<overview|collateral|positions|markets|risk|activity|parameters>`. The public website nav gained a Dashboard link pointing to `app/#dashboard`, and a `dashboard-metrics` guide was added to `assets/articles.json` (19 guides total). No contract, DNS, routing-framework or naming changes were made; Factory/Foundry/Framework naming and the navigation contract are preserved. The work is uncommitted pending review.
+
+Implementation: `assets/dashboard.js` (read-only adapter — `getCapabilities`, `getSystemSnapshot`, `getDiscoveredPositions`, `getChallenge`, `getHistory`, `getReferenceMarks`, `getEvents` — plus the seven panel renderers), `assets/dashboard.css`, `scripts/check-dashboard.mjs`. Modified: `app/index.html`, `assets/app.js` (view registry, `#dashboard/<panel>` deep links, forced dashboard refresh on registry connect), `assets/discovery.js` (backwards-compatible event-log `events` array), build/discoverability scripts and package.json (script order `… discovery, v2, dashboard, actions, app`), website `index.html`, `README.md`, `AGENTS.md`, and the two browser checkers.
+
+Data rules as implemented: raw monetary amounts, prices, votes and bridge capacities stay exact integer strings/BigInt (`Number` only for display percentages/geometry via a single scaling helper); every live snapshot carries source block, timestamp, registry identity and read status; failed/missing/stale reads stay unknown and are never rendered as zero; only runtime-config verified USD appears as live deployed V2 state while the other ten codes show planning/unavailable; history, reference marks, volume and depth are designed "unavailable — indexer/feed not configured" states; the labelled synthetic fixture build never ships to production packaging.
+
+Actual results on the final source:
+
+- `npm run check` — passed.
+- `npm run verify` — passed, including the new `scripts/check-dashboard.mjs` static coverage.
+- `npm run verify:browser` — passed: 33 fixture checks and 21 default/unconfigured checks, plus the 27 wallet-engine checks and 36 guided-journey checks. All ten workspace views (including the dashboard) and all 19 guides were exercised at 320–1440px with no uncaught browser errors.
+- `npm run verify:testnet` — passed. Result JSON: `ok: true`, `dashboardPanels: 7`, `dashboardLiveUsdOnly: true`, `dashboardDiscoveryAndDrawer: true`, `staticGuideCount: 19`, `responsiveCheckCount: 175`, `rpcRequestCount: 1177`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`. Evidence: `artifacts/testnet-dashboard-desktop.png` and `artifacts/testnet-browser-results.json`.
+- `node scripts/check-actions.mjs` — 37/37 canonical operations.
+- `node scripts/wallet-check.mjs` — 27 checks, isolated test wallet only.
+- `node scripts/journey-check.mjs` — 36 checks, fixture-only.
+
+Limitations: no indexer exists, so historical charts and the Activity replay use only real discovered events with explicit coverage metadata; reference marks and market volume/depth remain unavailable until a real feed exists; live reads cover the verified USD system only; Barkswap prices are analytics inputs, not protocol oracle prices; the Blockscout display-verification blocker recorded above remains open and unresolved by this work.
+
+## Public dashboard deployment — 2026-10-28
+
+Published GitHub commit: `dogeforex-ui` `53393d5` (`feat: add read-only IMF dashboard workspace`), pushed to `main` (existing direct-main PR-preferred bypass notice emitted). `npm run verify:testnet` was rerun on the committed source before packaging and passed unchanged: `dashboardPanels: 7`, `dashboardLiveUsdOnly: true`, `dashboardDiscoveryAndDrawer: true`, `staticGuideCount: 19`, `responsiveCheckCount: 175`, `rpcRequestCount: 1177`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`.
+
+All three Vercel deployments reported **READY** and aliased their custom origins (scope `operalag-gmailcoms-projects`):
+
+- Website: `https://imf.li/` — deployment `4xpKnKSy5ZibCHUX7eqL2i6kR8R6`.
+- Documentation: `https://docs.imf.li/` — deployment `Aw3bxfSf82oSh6xu8tmTUgoJHBeK`.
+- Application: `https://app.imf.li/` — deployment `7wv2aDmNB449XMYQeY2JpiDxewfo`.
+
+Public HTTP checks returned 200 for all three origins and the new `/guides/dashboard-metrics/` route; `app.imf.li/assets/dashboard.js` and `dashboard.css` return 200; the app script order includes `dashboard.js` between `v2.js` and `actions.js`; the deployed bundle carries the `testnet-metamask` runtime and chain `6281971`; the website nav links to `https://app.imf.li/#dashboard`; missing paths return 404; and the `www.imf.li` 308 redirect preserves path and query. No DNS changes were made and no blockchain transaction was broadcast. Live dashboard deep links: `https://app.imf.li/#dashboard` and `#dashboard/<overview|collateral|positions|markets|risk|activity|parameters>`.
+
+## Dashboard navigation and visual UX optimization — 2026-10-28
+
+**Status: IMPLEMENTED AND VERIFIED LOCALLY, NOT COMMITTED OR DEPLOYED.** The nested dashboard sidebar and duplicate heading were removed. The single workspace rail is grouped into Monitor, Positions, Participate and Resources; all seven dashboard subviews remain available through one horizontal tablist with the existing deep links. Tabs implement tab/tabpanel relationships, roving tabindex, Arrow Left/Right, Home/End and active-tab reveal on selection and viewport resize. At 320–390px the tab row scrolls horizontally rather than becoming another menu grid.
+
+Overview now uses the institutional visual language with a three-node currency-system map and bridge utilization. Both use the same verified V2 reads as the existing dashboard; bridge percentages use exact BigInt arithmetic before display formatting. Full registry/block/timestamp provenance stays in the source header, while KPI cards retain concise per-read block context. History, reference markets, volume/depth and cross-currency comparisons remain explicitly unavailable. No dependency, contract, routing-framework, fixture-data or write-path change was made.
+
+Actual Node 22 results on the final source:
+
+- `npm run check` and `npm run verify` — passed, including static assertions for the single navigation hierarchy, tab relationships, keyboard handlers and exact-integer visual calculations.
+- `npm run verify:browser` — passed: **33 fixture checks and 21 default/unconfigured checks**, plus **27 wallet-engine checks and 36 guided-journey checks**. Dashboard coverage includes all seven panels, deep links, keyboard tabs, active-tab visibility after resize, live-data visual presence, 320/390/700/1024/1440px layouts, exports and zero uncaught browser errors. The complete run also exercised all 19 guides and all ten workspace views.
+- `npm run verify:testnet` — passed: `ok: true`, `dashboardPanels: 7`, `dashboardLiveUsdOnly: true`, `dashboardDiscoveryAndDrawer: true`, `staticGuideCount: 19`, `responsiveCheckCount: 196`, `rpcRequestCount: 1146`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`.
+- `node scripts/check-actions.mjs`, `node scripts/wallet-check.mjs` and `node scripts/journey-check.mjs` ran within the verification commands above: 37 canonical operations, 27 wallet checks and 36 fixture-only journey checks passed.
+
+Reviewed screenshots: `artifacts/testnet-dashboard-desktop.png`, `artifacts/dashboard-desktop-synthetic-fixture.png`, `artifacts/dashboard-mobile-synthetic-fixture.png`, and `artifacts/dashboard-mobile-unconfigured.png`. The public origins still serve the earlier dashboard deployment above; this optimization is not yet committed, pushed or deployed. Real MetaMask and assistive-technology review remains a separate manual gate, and Blockscout display verification remains unresolved.

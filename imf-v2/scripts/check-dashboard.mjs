@@ -16,8 +16,17 @@ const panels = ['overview', 'collateral', 'positions', 'markets', 'risk', 'activ
 for (const panel of panels) {
   assert(appHtml.includes(`id="dashboard-${panel}"`), `missing dashboard panel ${panel}`);
   assert(appHtml.includes(`data-dashboard="${panel}"`), `missing dashboard navigation ${panel}`);
+  assert(appHtml.includes(`id="dashboard-tab-${panel}"`), `missing dashboard tab ${panel}`);
+  assert(appHtml.includes(`aria-controls="dashboard-${panel}"`), `missing tab relationship ${panel}`);
+  assert(appHtml.includes(`aria-labelledby="dashboard-tab-${panel}"`), `missing tabpanel relationship ${panel}`);
   assert(dashboard.includes(`'${panel}'`), `dashboard module does not name ${panel}`);
 }
+assert(appHtml.includes('class="dashboard-nav" aria-label="Dashboard views" role="tablist"'), 'dashboard must use one horizontal tablist');
+assert(!appHtml.includes('class="dashboard-layout"'), 'dashboard must not restore a nested sidebar layout');
+assert(appHtml.includes('class="nav-group">Monitor') && appHtml.includes('class="nav-group">Positions') && appHtml.includes('class="nav-group">Participate') && appHtml.includes('class="nav-group">Resources'), 'workspace navigation must be grouped by user intent');
+assert(dashboard.includes('ArrowLeft') && dashboard.includes('ArrowRight') && dashboard.includes("'Home'") && dashboard.includes("'End'"), 'dashboard tabs must support keyboard navigation');
+assert(dashboard.includes('function systemMap(') && dashboard.includes('function bridgeUtilization('), 'live-data visual components are missing');
+assert(dashboard.includes('minted * 10000n / limit'), 'bridge utilization must use exact integer arithmetic');
 assert(appHtml.indexOf('data-view="dashboard"') < appHtml.indexOf('data-view="create"'), 'Dashboard must be the first workspace menu item');
 assert(appHtml.includes('href="../assets/dashboard.css"'), 'app must load dashboard.css');
 assert(appHtml.includes('id="dashboard-drawer"') && appHtml.includes('id="dashboard-source-status"'), 'dashboard shell is missing provenance or drawer');

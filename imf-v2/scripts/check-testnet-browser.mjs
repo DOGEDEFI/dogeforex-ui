@@ -150,6 +150,9 @@ try {
   async function checkDashboard(targetPage) {
     const panels = ['overview', 'collateral', 'positions', 'markets', 'risk', 'activity', 'parameters'];
     await targetPage.goto(endpoint(portBase + 2), { waitUntil: 'networkidle' });
+    assert.equal(await targetPage.locator('.sidebar .dashboard-nav').count(), 0);
+    assert.equal(await targetPage.locator('.dashboard-nav[role="tablist"] [role="tab"]').count(), panels.length);
+    assert.equal(await targetPage.locator('.dashboard-panel[role="tabpanel"]').count(), panels.length);
     for (const panel of panels) {
       await targetPage.goto(endpoint(portBase + 2, `#dashboard/${panel}`), { waitUntil: 'networkidle' });
       try {
@@ -179,8 +182,20 @@ try {
         await targetPage.keyboard.press('Escape');
         await targetPage.waitForFunction(() => document.querySelector('#dashboard-drawer').classList.contains('open') === false);
       }
-      for (const width of [320, 1440]) await checkLayout(targetPage, `dashboard/${panel}`, width);
+      if (panel === 'overview') {
+        assert.equal(await targetPage.locator('.dash-system-node').count(), 3);
+        assert.equal(await targetPage.locator('.dash-utilization').count(), 1);
+      }
+      for (const width of [320, 390, 700, 1024, 1440]) await checkLayout(targetPage, `dashboard/${panel}`, width);
     }
+    await targetPage.locator('#dashboard-tab-overview').click();
+    await targetPage.keyboard.press('ArrowRight');
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-collateral').hidden === false && document.activeElement.id === 'dashboard-tab-collateral');
+    await targetPage.keyboard.press('End');
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-parameters').hidden === false && document.activeElement.id === 'dashboard-tab-parameters');
+    await targetPage.keyboard.press('Home');
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-overview').hidden === false && document.activeElement.id === 'dashboard-tab-overview');
+    assert.equal(await targetPage.locator('.dashboard-nav [aria-selected="true"]').count(), 1);
   }
 
   async function checkWorkspace(targetPage) {

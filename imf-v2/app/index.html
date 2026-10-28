@@ -31,17 +31,20 @@
   <aside class="sidebar" aria-label="Workspace navigation">
     <button type="button" class="sidebar-toggle" aria-expanded="true" aria-controls="sidebar-content">Workspace views <span aria-hidden="true">⌄</span></button>
     <div class="sidebar-content" id="sidebar-content">
-      <p>Project workspace</p>
       <nav aria-label="Workspace">
+        <span class="nav-group">Monitor</span>
         <button data-view="dashboard">Dashboard</button>
+        <span class="nav-group">Positions</span>
         <button class="active" data-view="create">Create & mint</button>
         <button data-view="manage">Manage & close</button>
+        <span class="nav-group">Participate</span>
         <button data-view="arena">Challenges & auctions</button>
         <button data-view="ecosystem">Bridge, savings & equity</button>
+        <span class="nav-group">Resources</span>
         <button data-view="connection">Wallet, registry & network</button>
-        <button data-view="offline">Teaching & legacy plans</button>
         <button data-view="drafts">Saved drafts</button>
         <button data-view="lifecycle">Operating workflow</button>
+        <button data-view="offline">Teaching & legacy plans</button>
         <a href="../docs/#agents">Agent documentation</a>
       </nav>
       <p>Connection</p>
@@ -78,29 +81,27 @@
     <section id="dashboard-view" hidden>
       <span id="dashboard" aria-hidden="true"></span>
       <div class="dashboard-intro">
-        <div><p class="smalltext">Verified V2 analytics · Read-only</p><h2>Dashboard</h2><p>Current protocol reads, discovered positions and explicit unavailable states for the selected currency system.</p></div>
-        <a class="btn light" href="../docs/#dashboard-metrics">Read dashboard metrics guide</a>
+        <div><p class="smalltext">Verified V2 analytics · Read-only</p><p>Current protocol reads, discovered positions and explicit unavailable states for the selected currency system.</p></div>
+        <a class="btn light small" href="../docs/#dashboard-metrics">Metrics guide</a>
       </div>
       <div class="dashboard-source" id="dashboard-source-status"><div><strong>No registry selected</strong><br><span>Configure a verified V2 registry to read dashboard state.</span></div></div>
-      <div class="dashboard-layout">
-        <nav class="dashboard-nav" aria-label="Dashboard views">
-          <button type="button" data-dashboard="overview" class="active" aria-current="page">Overview</button>
-          <button type="button" data-dashboard="collateral">Collateral</button>
-          <button type="button" data-dashboard="positions">Positions</button>
-          <button type="button" data-dashboard="markets">Markets</button>
-          <button type="button" data-dashboard="risk">Risk Lab</button>
-          <button type="button" data-dashboard="activity">Activity</button>
-          <button type="button" data-dashboard="parameters">Parameters</button>
-        </nav>
-        <div class="dashboard-panels">
-          <section class="dashboard-panel" id="dashboard-overview" aria-label="Dashboard overview"></section>
-          <section class="dashboard-panel" id="dashboard-collateral" aria-label="Dashboard collateral" hidden></section>
-          <section class="dashboard-panel" id="dashboard-positions" aria-label="Dashboard positions" hidden></section>
-          <section class="dashboard-panel" id="dashboard-markets" aria-label="Dashboard markets" hidden></section>
-          <section class="dashboard-panel" id="dashboard-risk" aria-label="Dashboard risk lab" hidden></section>
-          <section class="dashboard-panel" id="dashboard-activity" aria-label="Dashboard activity" hidden></section>
-          <section class="dashboard-panel" id="dashboard-parameters" aria-label="Dashboard parameters" hidden></section>
-        </div>
+      <nav class="dashboard-nav" aria-label="Dashboard views" role="tablist">
+        <button type="button" id="dashboard-tab-overview" data-dashboard="overview" class="active" role="tab" aria-selected="true" aria-controls="dashboard-overview" tabindex="0">Overview</button>
+        <button type="button" id="dashboard-tab-collateral" data-dashboard="collateral" role="tab" aria-selected="false" aria-controls="dashboard-collateral" tabindex="-1">Collateral</button>
+        <button type="button" id="dashboard-tab-positions" data-dashboard="positions" role="tab" aria-selected="false" aria-controls="dashboard-positions" tabindex="-1">Positions</button>
+        <button type="button" id="dashboard-tab-markets" data-dashboard="markets" role="tab" aria-selected="false" aria-controls="dashboard-markets" tabindex="-1">Markets</button>
+        <button type="button" id="dashboard-tab-risk" data-dashboard="risk" role="tab" aria-selected="false" aria-controls="dashboard-risk" tabindex="-1">Risk Lab</button>
+        <button type="button" id="dashboard-tab-activity" data-dashboard="activity" role="tab" aria-selected="false" aria-controls="dashboard-activity" tabindex="-1">Activity</button>
+        <button type="button" id="dashboard-tab-parameters" data-dashboard="parameters" role="tab" aria-selected="false" aria-controls="dashboard-parameters" tabindex="-1">Parameters</button>
+      </nav>
+      <div class="dashboard-panels">
+        <section class="dashboard-panel" id="dashboard-overview" role="tabpanel" aria-labelledby="dashboard-tab-overview" tabindex="0"></section>
+        <section class="dashboard-panel" id="dashboard-collateral" role="tabpanel" aria-labelledby="dashboard-tab-collateral" tabindex="0" hidden></section>
+        <section class="dashboard-panel" id="dashboard-positions" role="tabpanel" aria-labelledby="dashboard-tab-positions" tabindex="0" hidden></section>
+        <section class="dashboard-panel" id="dashboard-markets" role="tabpanel" aria-labelledby="dashboard-tab-markets" tabindex="0" hidden></section>
+        <section class="dashboard-panel" id="dashboard-risk" role="tabpanel" aria-labelledby="dashboard-tab-risk" tabindex="0" hidden></section>
+        <section class="dashboard-panel" id="dashboard-activity" role="tabpanel" aria-labelledby="dashboard-tab-activity" tabindex="0" hidden></section>
+        <section class="dashboard-panel" id="dashboard-parameters" role="tabpanel" aria-labelledby="dashboard-tab-parameters" tabindex="0" hidden></section>
       </div>
       <div class="dash-drawer-backdrop" id="dashboard-drawer-backdrop" hidden></div>
       <aside class="dash-drawer" id="dashboard-drawer" aria-label="Dashboard detail" aria-hidden="true" hidden>

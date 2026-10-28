@@ -446,7 +446,7 @@
     if (!target) return;
     target.innerHTML = `
       <div><strong>${escapeHtml(currentCode())} · ${escapeHtml(capabilities.registry?.network ?? 'No registry')} · chain ${escapeHtml(capabilities.registry?.chainId ?? '—')}</strong><br><span>${escapeHtml(fresh.message)}</span></div>
-      <div class="dash-actions">${statusPill(fresh.status, mode)}</div>`;
+      <div class="dash-actions">${statusPill(capabilities.live ? 'pass' : capabilities.fixture ? 'warn' : 'info', mode)}${statusPill(fresh.status, fresh.label)}</div>`;
   }
 
   function systemOverviewRows() {
@@ -470,6 +470,37 @@
     ];
   }
 
+  function readContext(read, fallback = 'Current read') {
+    if (read?.error) return read.error;
+    return read?.sourceBlock ? `${fallback} · block ${read.sourceBlock.number}` : 'Source block unavailable';
+  }
+
+  function systemMap(token, bridge, savings, equity, positionCount) {
+    const symbol = token?.symbol ?? currentSymbol();
+    return `<div class="dash-system-map" role="group" aria-label="${escapeHtml(`${symbol} currency system at a glance`)}">
+      <div class="dash-system-flow">
+        <div class="dash-system-node collateral"><span class="dash-node-symbol">T</span><span>Collateral positions</span><strong>${escapeHtml(positionCount)}</strong><small>Discovered, with coverage shown below</small></div>
+        <span class="dash-system-arrow" aria-hidden="true">→</span>
+        <div class="dash-system-node hub"><span class="dash-node-symbol">K9</span><span>${escapeHtml(symbol)} minting hub</span><strong>${escapeHtml(token?.error ? 'Unavailable' : formatAmount(token?.totalSupply, 18, symbol))}</strong><small>Current token supply</small></div>
+        <span class="dash-system-arrow" aria-hidden="true">↔</span>
+        <div class="dash-system-node equity"><span class="dash-node-symbol">E</span><span>Equity reserve</span><strong>${escapeHtml(equity?.error ? 'Unavailable' : formatAmount(equity?.equityAmount, 18, symbol))}</strong><small>Current system equity</small></div>
+      </div>
+      <div class="dash-system-lower"><span>Savings <strong>${escapeHtml(savings?.error ? 'Unavailable' : formatPPM(savings?.currentRatePPM))}</strong></span><span>Bridge capacity <strong>${escapeHtml(bridge?.error ? 'Unavailable' : formatAmount(bridge?.capacityLocal, 18, symbol))}</strong></span><span>Pool shares <strong>${escapeHtml(equity?.error ? 'Unavailable' : formatAmount(equity?.totalShares, 18, 'shares'))}</strong></span></div>
+    </div>`;
+  }
+
+  function bridgeUtilization(bridge, symbol) {
+    const limit = bigintOrNull(bridge?.limitLocal);
+    const minted = bigintOrNull(bridge?.mintedLocal);
+    if (bridge?.error || limit === null || minted === null || limit <= 0n || minted < 0n) {
+      return unavailableCard('Bridge utilization unavailable', bridge?.error ?? 'A positive verified bridge limit and current minted amount are required.');
+    }
+    const basisPoints = minted * 10000n / limit;
+    const bounded = basisPoints < 0n ? 0n : basisPoints > 10000n ? 10000n : basisPoints;
+    const percentage = `${sdk().formatDecimal(basisPoints, 2)}%`;
+    return `<div class="dash-utilization"><div><span>Bridge utilization</span><strong>${escapeHtml(percentage)}</strong></div><div class="dash-progress" role="progressbar" aria-label="Bridge minted relative to limit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(bounded) / 100}" aria-valuetext="${escapeHtml(percentage)} utilized"><i style="width:${Number(bounded) / 100}%"></i></div><div class="dash-utilization-labels"><span>Minted ${escapeHtml(formatAmount(minted, 18, symbol))}</span><span>Limit ${escapeHtml(formatAmount(limit, 18, symbol))}</span></div></div>`;
+  }
+
   function renderOverview() {
     if (systemError(state.system)) {
       setPanelHtml('overview', `<div class="dash-stack">${unavailableCard('USD V2 state is not verified', state.system.error)}${sourceNote()}</div>`);
@@ -482,23 +513,24 @@
     const history = getHistory();
     const positions = state.discovery?.positions ?? [];
     const challenges = state.discovery?.challenges ?? [];
+    const positionCount = state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(positions.length);
     const kpis = [
-      metricCard('Token supply', token?.error ? 'Unavailable' : formatAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol()), token?.error ?? formatBlock(token?.sourceBlock), token?.error ? 'fail' : 'pass'),
-      metricCard('Minter reserve', token?.error ? 'Unavailable' : formatAmount(token?.minterReserve, 18, token?.symbol ?? currentSymbol()), token?.error ?? 'Current read', token?.error ? 'fail' : 'pass'),
-      metricCard('System equity', equity?.error ? 'Unavailable' : formatAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol()), equity?.error ?? formatBlock(equity?.sourceBlock), equity?.error ? 'fail' : 'pass'),
-      metricCard('Bridge capacity', bridge?.error ? 'Unavailable' : formatAmount(bridge?.capacityLocal, 18, token?.symbol ?? currentSymbol()), bridge?.error ?? formatBlock(bridge?.sourceBlock), bridge?.error ? 'fail' : 'pass'),
-      metricCard('Current leadrate', savings?.error ? 'Unavailable' : formatPPM(savings?.currentRatePPM), savings?.error ?? formatBlock(savings?.sourceBlock), savings?.error ? 'fail' : 'pass'),
-      metricCard('Discovered positions', state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(positions.length), state.discovery?.error ?? discoveryCoverageText(), state.discoveryPending ? 'info' : state.discovery?.error ? 'fail' : 'pass'),
+      metricCard('Token supply', token?.error ? 'Unavailable' : formatAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol()), readContext(token), token?.error ? 'fail' : 'pass'),
+      metricCard('Minter reserve', token?.error ? 'Unavailable' : formatAmount(token?.minterReserve, 18, token?.symbol ?? currentSymbol()), readContext(token), token?.error ? 'fail' : 'pass'),
+      metricCard('System equity', equity?.error ? 'Unavailable' : formatAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol()), readContext(equity), equity?.error ? 'fail' : 'pass'),
+      metricCard('Bridge capacity', bridge?.error ? 'Unavailable' : formatAmount(bridge?.capacityLocal, 18, token?.symbol ?? currentSymbol()), readContext(bridge), bridge?.error ? 'fail' : 'pass'),
+      metricCard('Current leadrate', savings?.error ? 'Unavailable' : formatPPM(savings?.currentRatePPM), readContext(savings), savings?.error ? 'fail' : 'pass'),
+      metricCard('Discovered positions', positionCount, state.discovery?.error ?? discoveryCoverageText(), state.discoveryPending ? 'info' : state.discovery?.error ? 'fail' : 'pass'),
       metricCard('Challenges', state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(challenges.length), state.discovery?.error ?? 'Event-derived, then current-state verified', state.discoveryPending ? 'info' : state.discovery?.error ? 'fail' : 'pass'),
-      metricCard('Pool shares', equity?.error ? 'Unavailable' : formatAmount(equity?.totalShares, 18, 'shares'), equity?.error ?? formatBlock(equity?.sourceBlock), equity?.error ? 'fail' : 'pass'),
+      metricCard('Pool shares', equity?.error ? 'Unavailable' : formatAmount(equity?.totalShares, 18, 'shares'), readContext(equity), equity?.error ? 'fail' : 'pass'),
     ].join('');
     setPanelHtml('overview', `
       <div class="dash-stack">
         <div class="dash-kpis">${kpis}</div>
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>System snapshot</h3><p>Current reads from the selected USD registry. Each value retains its own source block.</p></div></div>${metricList(systemOverviewRows())}</article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Historical charts</h3><p>No indexer is configured for this release.</p></div></div>${unavailableCard('History unavailable — indexer not configured', history.reason)}</article>
-          <article class="dash-card span-12"><div class="dash-card-head"><div><h3>Cross-currency comparison</h3><p>Native K9 units are not summed across independent systems.</p></div></div>${unavailableCard('Cross-currency comparison unavailable', 'Explicit FX provenance and verified registries for the other systems are required before any comparison can be shown.')}</article>
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Currency system at a glance</h3><p>One independent ${escapeHtml(currentSymbol())} system. These are current reads, not a shared reserve or FX conversion.</p></div></div>${systemMap(token, bridge, savings, equity, positionCount)}</article>
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Coverage & availability</h3><p>What this dashboard can and cannot show.</p></div></div>${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}<div class="dash-availability">${unavailableCard('History unavailable — indexer not configured', history.reason)}${unavailableCard('Cross-currency comparison unavailable', 'Explicit FX provenance and verified registries are required. Native K9 units are never summed.')}</div></article>
+          <article class="dash-card span-12"><div class="dash-card-head"><div><h3>System snapshot</h3><p>Current reads from the selected USD registry. Full source provenance remains above.</p></div></div>${metricList(systemOverviewRows())}</article>
         </div>
         ${sourceNote()}
       </div>`);
@@ -1092,21 +1124,30 @@
     return match && PANELS.includes(match[1]) ? match[1] : null;
   }
 
-  function setPanel(panel, { updateHash = true } = {}) {
+  function revealTab(button, behavior = 'auto') {
+    if (!button) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    button.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduced ? 'auto' : behavior });
+  }
+
+  function setPanel(panel, { updateHash = true, focusTab = false } = {}) {
     if (!PANELS.includes(panel)) return;
     state.panel = panel;
+    let activeButton = null;
     $$('.dashboard-nav [data-dashboard]', root).forEach((button) => {
       const active = button.dataset.dashboard === panel;
       button.classList.toggle('active', active);
-      button.setAttribute('aria-current', active ? 'page' : 'false');
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+      if (active) activeButton = button;
     });
     PANELS.forEach((name) => {
       const target = panelRoot(name);
       if (target) target.hidden = name !== panel;
     });
-    const target = panelRoot(panel);
-    target?.setAttribute('tabindex', '-1');
     if (updateHash) history.replaceState(null, '', `#dashboard/${panel}`);
+    if (focusTab) activeButton?.focus();
+    revealTab(activeButton, updateHash ? 'smooth' : 'auto');
     render();
   }
 
@@ -1121,10 +1162,29 @@
     drawer = $('#dashboard-drawer');
     backdrop = $('#dashboard-drawer-backdrop');
     if (!root) return { activate, refresh: () => render(true), panelFromHash };
-    $$('.dashboard-nav [data-dashboard]', root).forEach((button) => button.addEventListener('click', () => setPanel(button.dataset.dashboard)));
+    const tabs = $$('.dashboard-nav [data-dashboard]', root);
+    tabs.forEach((button) => {
+      button.addEventListener('click', () => setPanel(button.dataset.dashboard));
+      button.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const current = PANELS.indexOf(button.dataset.dashboard);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? PANELS.length - 1 : event.key === 'ArrowRight' ? (current + 1) % PANELS.length : (current - 1 + PANELS.length) % PANELS.length;
+        setPanel(PANELS[next], { focusTab: true });
+      });
+    });
     backdrop?.addEventListener('click', closeDrawer);
     $('#dashboard-drawer-close', drawer)?.addEventListener('click', closeDrawer);
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDrawer(); });
+    let resizeFrame = null;
+    window.addEventListener('resize', () => {
+      if (root.hidden) return;
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        revealTab($(`.dashboard-nav [data-dashboard="${state.panel}"]`, root));
+      });
+    });
     window.addEventListener('hashchange', () => {
       const panel = panelFromHash();
       if (panel && !root.hidden) setPanel(panel, { updateHash: false });

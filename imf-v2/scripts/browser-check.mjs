@@ -144,6 +144,18 @@ async function checkDashboard(mode) {
   await waitFor(`window.IMF_V2_APP?.state?.runtime !== null && document.querySelector('#dashboard-view').hidden === false`);
   assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), 'Dashboard');
   assert((await evaluate(`document.querySelector('#dashboard-source-status').textContent`)).includes(mode));
+  assert.equal(await evaluate(`document.querySelectorAll('.sidebar .dashboard-nav').length`), 0);
+  assert.equal(await evaluate(`document.querySelectorAll('.dashboard-nav[role="tablist"] [role="tab"]').length`), panels.length);
+  assert.equal(await evaluate(`document.querySelectorAll('.dashboard-panel[role="tabpanel"]').length`), panels.length);
+  await click('#dashboard-tab-overview');
+  await key('ArrowRight');
+  await waitFor(`document.querySelector('#dashboard-collateral').hidden === false && document.activeElement.id === 'dashboard-tab-collateral'`);
+  assert.equal(await evaluate(`document.querySelector('#dashboard-tab-collateral').getAttribute('aria-selected')`), 'true');
+  await key('End');
+  await waitFor(`document.querySelector('#dashboard-parameters').hidden === false && document.activeElement.id === 'dashboard-tab-parameters'`);
+  await key('Home');
+  await waitFor(`document.querySelector('#dashboard-overview').hidden === false && document.activeElement.id === 'dashboard-tab-overview'`);
+  assert.equal(await evaluate(`document.querySelectorAll('.dashboard-nav [aria-selected="true"]').length`), 1);
   for (const panel of panels) {
     await evaluate(`location.hash = 'dashboard/${panel}'`);
     await waitFor(`document.querySelector('#dashboard-${panel}').hidden === false && document.querySelector('#dashboard-${panel}').innerText.length > 40`);
@@ -178,12 +190,23 @@ async function checkDashboard(mode) {
       await setScenario('valid');
     }
   }
-  for (const width of [320, 1440]) {
+  for (const width of [320, 390, 700, 1024, 1440]) {
     await viewport(width);
+    await evaluate(`location.hash = 'dashboard/parameters'`);
+    await waitFor(`document.querySelector('#dashboard-parameters').hidden === false`);
+    await waitFor(`(() => { const nav=document.querySelector('.dashboard-nav'); const tab=document.querySelector('#dashboard-tab-parameters'); const navRect=nav.getBoundingClientRect(); const tabRect=tab.getBoundingClientRect(); return tab.getAttribute('aria-selected') === 'true' && tabRect.left >= navRect.left - 1 && tabRect.right <= navRect.right + 1; })()`);
+    const tabState = await evaluate(`(() => { const nav=document.querySelector('.dashboard-nav'); const tab=document.querySelector('#dashboard-tab-parameters'); const navRect=nav.getBoundingClientRect(); const tabRect=tab.getBoundingClientRect(); return { display:getComputedStyle(nav).display, selected:tab.getAttribute('aria-selected'), visible:tabRect.left >= navRect.left - 1 && tabRect.right <= navRect.right + 1, overflow:document.documentElement.scrollWidth > innerWidth + 1 }; })()`);
+    assert.equal(tabState.display, 'flex', `dashboard tabs must remain one row at ${width}`);
+    assert.equal(tabState.selected, 'true');
+    assert.equal(tabState.visible, true, `active dashboard tab must be visible at ${width}`);
+    assert.equal(tabState.overflow, false, `dashboard overflow at ${width}`);
     await evaluate(`location.hash = 'dashboard/overview'`);
     await waitFor(`document.querySelector('#dashboard-overview').hidden === false`);
-    const overflow = await evaluate(`document.documentElement.scrollWidth > innerWidth + 1`);
-    assert.equal(overflow, false, `dashboard overflow at ${width}`);
+    if (mode !== 'UNCONFIGURED') {
+      await waitFor(`document.querySelector('.dash-system-map') !== null`);
+      assert.equal(await evaluate(`document.querySelectorAll('.dash-system-node').length`), 3);
+    }
+    if (width === 390 || width === 1440) await screenshot(`dashboard-${width === 390 ? 'mobile' : 'desktop'}-${mode.toLowerCase().replaceAll(' ', '-')}`);
   }
   await viewport(1440);
   await click('[data-view="create"]');
