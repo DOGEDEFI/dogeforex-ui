@@ -95,4 +95,29 @@
     main.focus();
     main.scrollIntoView({ block: 'start' });
   }));
+
+  // Shared glossary: progressively upgrades native <details class="info"> disclosures with
+  // canonical guide links. Without JavaScript the static explanation and link still work.
+  const infoReady = fetch(window.IMF_LINKS.assets('glossary.json'))
+    .then((response) => {
+      if (!response.ok) throw new Error(`Glossary request failed (${response.status})`);
+      return response.json();
+    })
+    .then((glossary) => {
+      if (!Array.isArray(glossary) || glossary.some((entry) => !entry.term || !entry.guide || !entry.plain)) throw new Error('Invalid glossary');
+      const terms = new Map(glossary.map((entry) => [entry.term, entry]));
+      for (const box of document.querySelectorAll('details.info[data-term]')) {
+        const entry = terms.get(box.dataset.term);
+        if (!entry) continue;
+        const link = box.querySelector('a[data-guide-link]');
+        if (link) {
+          link.href = window.IMF_LINKS.guide(entry.guide);
+          link.textContent = entry.link;
+        }
+        box.dataset.glossary = 'ready';
+      }
+      return terms;
+    })
+    .catch(() => new Map());
+  window.IMF_INFO = { ready: infoReady };
 })();

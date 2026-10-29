@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { get as httpGet } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -21,7 +22,14 @@ const results = [];
 
 async function reachable() {
   try {
-    return (await fetch(appUrl, { signal: AbortSignal.timeout(2000) })).ok;
+    return await new Promise((resolve, reject) => {
+      const request = httpGet(appUrl, (response) => {
+        response.resume();
+        resolve(response.statusCode === 200);
+      });
+      request.on('error', reject);
+      request.setTimeout(5000, () => request.destroy(new Error(`Fixture health check timed out at ${appUrl}`)));
+    });
   } catch {
     return false;
   }

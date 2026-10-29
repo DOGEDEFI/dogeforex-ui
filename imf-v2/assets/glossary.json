@@ -1,0 +1,142 @@
+[
+  {
+    "term": "gross-debt",
+    "question": "What is gross debt?",
+    "plain": "Gross debt is the full currency amount recorded against a position when it mints. The retained reserve and the upfront fee are part of this gross figure, so the amount that arrives in a wallet is always lower than the gross amount.",
+    "guide": "borrowing-costs",
+    "link": "Read the borrowing costs guide"
+  },
+  {
+    "term": "retained-reserve",
+    "question": "What is the retained reserve?",
+    "plain": "A share of each mint that stays assigned to the position instead of arriving in the wallet. It backs the currency over time and later reduces the currency needed for full repayment.",
+    "guide": "equity",
+    "link": "Read the reserves and equity guide"
+  },
+  {
+    "term": "upfront-fee",
+    "question": "What is the upfront fee?",
+    "plain": "A one-time fee taken from the gross mint when currency is created. It is separate from the retained reserve and from ongoing interest.",
+    "guide": "borrowing-costs",
+    "link": "Read the borrowing costs guide"
+  },
+  {
+    "term": "collateral-ratio",
+    "question": "What is the collateral ratio?",
+    "plain": "Collateral value divided by gross debt, expressed as a percentage. On this page it is an illustrative teaching assumption, not a live valuation, an eligibility check or a liquidation guarantee.",
+    "guide": "overcollateralization",
+    "link": "Read the collateral and debt guide"
+  },
+  {
+    "term": "liquidation-price",
+    "question": "What is the liquidation price?",
+    "plain": "The price, in local currency per whole collateral token, below which the position is challengeable. Participants contest a stored price through challenges instead of relying on an external price oracle.",
+    "guide": "collateral",
+    "link": "Read the collateral proposals guide"
+  },
+  {
+    "term": "minting-maximum",
+    "question": "What is the minting maximum?",
+    "plain": "The gross debt ceiling a position may record over its lifetime. Minting stops once the position reaches this maximum, regardless of how much collateral remains.",
+    "guide": "collateral",
+    "link": "Read the collateral proposals guide"
+  },
+  {
+    "term": "risk-premium-ppm",
+    "question": "What is the risk premium (PPM)?",
+    "plain": "An extra annual interest charge on a position, expressed in parts per million. 10,000 PPM equals 1% per year, charged on top of the savings rate while debt is outstanding.",
+    "guide": "borrowing-costs",
+    "link": "Read the borrowing costs guide"
+  },
+  {
+    "term": "reserve-contribution-ppm",
+    "question": "What is the reserve contribution (PPM)?",
+    "plain": "The share of each mint assigned to the retained reserve, expressed in parts per million. 200,000 PPM means 20% of the gross mint stays reserved.",
+    "guide": "borrowing-costs",
+    "link": "Read the borrowing costs guide"
+  },
+  {
+    "term": "initialization-period",
+    "question": "What is the initialization period?",
+    "plain": "The waiting time after a position is proposed before minting can begin. Qualified participants can veto the position only during this window; once it ends, the position runs under its recorded terms.",
+    "guide": "governance",
+    "link": "Read the participants and vetoes guide"
+  },
+  {
+    "term": "challenge-period",
+    "question": "What is the challenge period?",
+    "plain": "The time other participants get to avert a challenge before the challenged collateral goes to auction.",
+    "guide": "oracle-free",
+    "link": "Read the oracle-free challenges guide"
+  },
+  {
+    "term": "challenge-aversion",
+    "question": "What is challenge aversion?",
+    "plain": "The first phase of a challenge in which anyone may buy the challenged collateral at the stored liquidation price, ending the challenge early and returning collateral to the owner.",
+    "guide": "oracle-free",
+    "link": "Read the oracle-free challenges guide"
+  },
+  {
+    "term": "dutch-auction",
+    "question": "What is the Dutch auction?",
+    "plain": "If a challenge is not averted, the offered collateral price declines with time until a bidder buys or the challenge period ends. Bidders decide the price they accept; there is no oracle clearing price.",
+    "guide": "oracle-free",
+    "link": "Read the oracle-free challenges guide"
+  },
+  {
+    "term": "source-bridge",
+    "question": "What is the source bridge?",
+    "plain": "The contract that locks a source token and issues the local currency equivalent, normalizing decimals between the two. Bridge conversion is nominal accounting, not an FX trade.",
+    "guide": "source-bridge",
+    "link": "Read the source bridges guide"
+  },
+  {
+    "term": "pool-shares",
+    "question": "What are pool shares?",
+    "plain": "Equity shares of one currency system. Holding them means participating in system gains and losses; they are not the currency itself and do not pay out at face value.",
+    "guide": "equity",
+    "link": "Read the reserves and equity guide"
+  },
+  {
+    "term": "savings-leadrate",
+    "question": "What is the savings leadrate?",
+    "plain": "The governed annual rate that savings accounts earn, limited by available system equity. Rate changes are proposed first and only apply after a separate delay clock.",
+    "guide": "savings",
+    "link": "Read the savings and rate clocks guide"
+  },
+  {
+    "term": "qualified-veto",
+    "question": "What is a qualified veto?",
+    "plain": "A veto exercised by a participant holding strictly more than 2% of time-weighted votes before a proposed position starts. A qualified veto irreversibly closes the proposal.",
+    "guide": "governance",
+    "link": "Read the participants and vetoes guide"
+  },
+  {
+    "term": "step-current-terms",
+    "question": "What happens in the current terms step?",
+    "plain": "The app rereads the position's live terms — collateral, price, capacity, cooldowns and caller — before preparing anything. Stale or failed reads stop the journey instead of guessing.",
+    "guide": "borrowing-costs",
+    "link": "Read the borrowing costs guide"
+  },
+  {
+    "term": "step-simulation",
+    "question": "What does simulation check?",
+    "plain": "A fresh static call runs the exact transaction against current state and a gas estimate is added. Simulation reflects the chain as it is now, not a future guarantee.",
+    "guide": "architecture",
+    "link": "Read the system architecture guide"
+  },
+  {
+    "term": "step-review",
+    "question": "What is the review step?",
+    "plain": "You see the exact call, required approvals and expected effects in the app first. Nothing is signed at this stage; planning documents and quotes carry no authority on their own.",
+    "guide": "agents",
+    "link": "Read the agent workflows guide"
+  },
+  {
+    "term": "step-confirmation",
+    "question": "What happens at confirmation and receipt?",
+    "plain": "The wallet shows the final transaction and network fee. One explicit confirmation submits it; the receipt is journaled and is never resubmitted or extended automatically.",
+    "guide": "agents",
+    "link": "Read the agent workflows guide"
+  }
+]

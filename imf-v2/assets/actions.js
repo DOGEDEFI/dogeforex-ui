@@ -59,7 +59,7 @@
 
   async function clientFor(form) {
     const code = form.dataset.currency === 'ecosystem' ? $('#ecosystem-currency').value : $('#v2-currency').value;
-    const client = await v2.clientFor(code);
+    const client = await v2.clientFor(code, { fresh: true });
     return { client, code, symbol: client.instance.symbol };
   }
 
@@ -636,6 +636,8 @@
         renderPending();
         if (receipt.status === 1) {
           try {
+            window.IMF_V2_APP.onReadReceipt?.(receipt);
+            await window.IMF_DASHBOARD.invalidate?.();
             await reconcileReceipt(entry, receipt);
             await v2.refresh?.();
             if (discovery) await discoverPositions();

@@ -239,3 +239,77 @@ Actual Node 22 verification results:
 - `node scripts/check-actions.mjs`, `node scripts/wallet-check.mjs` and `node scripts/journey-check.mjs` ran within these suites: 37 canonical operations, 27 wallet checks and 36 fixture-only journeys passed.
 
 Reviewed final screenshots include `artifacts/testnet-dashboard-desktop.png`, `artifacts/dashboard-desktop-synthetic-fixture.png`, `artifacts/dashboard-mobile-synthetic-fixture.png`, and the desktop/mobile Positions, Risk Lab and Activity fixture captures. Live data coverage remains limited by the absent indexer and market feed. Real MetaMask/MyDoge and assistive-technology review remains a separate manual gate. Blockscout display verification remains unresolved.
+
+## All-currency dashboard and Ponder integration — 2026-10-29
+
+**Status: IMPLEMENTED, VERIFIED AND DEPLOYED TO THE PUBLIC TESTNET ORIGINS.** All 11 actual Chikyū V2 registries now drive ecosystem/dashboard reads after independent bytecode and contract-link verification. Guided writes remain USD-only. The dashboard includes an on-demand 11-currency native-unit comparison, backward-compatible panel links plus `#dashboard/<panel>/<code>`, per-currency discovery, and synchronous panel titles. Comparison loading uses limited concurrency and does not fan out position discovery across every currency.
+
+`dogeforex-ponder` now has a real Ponder 0.18.3 implementation with a shared event/position/challenge schema, deployment-derived start blocks, dynamic per-currency Position indexing, GraphQL, read-only REST endpoints and a heartbeat. The optional dashboard adapter uses indexed `MintingUpdate` events for gross-debt history, zero-address token transfers for mint/burn flow, and a broader activity ledger. Current contract state remains SDK-verified direct RPC state. Partial, stale or failed indexer results remain explicit and fall back to RPC discovery; no reference prices, DEX volume/depth, FX conversion or cross-currency totals are inferred. The public runtime still has no indexer URL.
+
+Actual Node 22 verification results:
+
+- `npm run verify` — passed on the final UI source, including all 37 action checks and the expanded dashboard checks.
+- `npm run verify:browser` — passed: 33 fixture checks, 21 default checks, 27 wallet-engine checks and 36 guided-journey checks, with responsive/no-JavaScript coverage and no uncaught browser errors.
+- `npm run verify:testnet` without an indexer — passed: all 11 currencies and three demo positions per currency, 11 comparison rows, NGN currency deep link, `responsiveCheckCount: 196`, `rpcRequestCount: 4570`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`, `indexerEnabled: false`.
+- The production-form build and real-Chrome suite were also run with `IMF_INDEXER_URL=http://127.0.0.1:42069` (local-only verification, deliberately not Vercel-packaged) — passed with indexed debt history, token flow and complete activity: `responsiveCheckCount: 196`, `rpcRequestCount: 4621`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`, `indexerEnabled: true`. Evidence logs: `artifacts/verify-testnet.log` and `artifacts/verify-testnet-indexer.log`.
+- Ponder `npx ponder codegen` and `npm run typecheck` passed; `npm audit --omit=dev` reports zero vulnerabilities after patched dependency overrides. No test scaffolding was added to the previously test-less Ponder repository.
+- `npm run reconcile` compared direct RPC discovery with the indexed REST read models at direct block `9002225`: all 11 currencies matched exactly, three positions and zero challenges per currency. GraphQL was enabled explicitly and returned three positions for each of all 11 codes. The indexer heartbeat was 48 blocks behind at that observation and remains live.
+- Reviewed final dashboard screenshot: `artifacts/testnet-dashboard-desktop.png`. No contract deployment, signing or public blockchain transaction was performed.
+
+Public Vercel deployments all reported READY and aliased their existing custom origins:
+
+- Website `https://imf.li/`: `https://imf-website-csf502sae-operalag-gmailcoms-projects.vercel.app`.
+- Documentation `https://docs.imf.li/`: `https://imf-docs-gxotynjvs-operalag-gmailcoms-projects.vercel.app`.
+- Application `https://app.imf.li/`: `https://imf-di9n4ox9q-operalag-gmailcoms-projects.vercel.app`.
+
+Final public HTTP checks returned 200 for all three origins, the dashboard guide, runtime JSON and dashboard asset. A fresh public-Chrome journey selected every currency, verified each system's live token data and three positions, loaded all 11 comparison rows and opened the NGN currency deep link. It observed 6,422 read-only RPC requests, zero forbidden signing/broadcast methods, zero browser errors and `transactionSent: false`. The public runtime contains all 11 registries and no indexer URL. Reviewed stable public screenshot: `artifacts/live-dashboard-all-currencies.png`.
+
+Remaining boundary: the Ponder service was verified locally and its verification process can be restarted with `npm run dev`; it must receive a persistent hosted HTTPS deployment before public indexed history can be enabled. Real MetaMask and assistive-technology review, independent audit, market/reference feed and Blockscout display verification remain separate open gates.
+
+## Guided ecosystem UX, visual dashboard and hourly cache — 2026-10-29
+
+**Status: IMPLEMENTED, VERIFIED AND DEPLOYED TO THE PUBLIC TESTNET ORIGINS.** The former Overview Reserve health card is removed; bridge utilization and CR methodology remain separate. The dashboard now uses dependency-free SVG radar, native collateral segments, lifecycle/activity timelines, diverging token flows, and projected-SVG dataqubes/cloudpoints with axis dropdowns, pointer/keyboard rotation and a table fallback. Zero debt is shown as verified zero with capacity/lifecycle alternatives rather than fake values. All visuals retain native units and provenance without FX, market or risk-score inference.
+
+The ecosystem now has a unified Website/Documentation/Workspace header with a no-JavaScript mobile fallback, Start here as the no-route five-step guided landing view, bookmarkable app views, five grouped documentation categories, and 20 shared glossary terms exposed through native 44px (i) disclosures. Start actions use separate `data-start-target` selectors from the workspace rail. All previous dashboard panel/currency deep links remain valid.
+
+Public dashboard analytics use `imf.v2.readcache.v1`: identity-bound chain/RPC/source/registry-digest keys, per-currency entries, BigInt-safe serialization, one-hour TTL, five-minute transient-error cap, no fixture persistence, stale-while-revalidate, incremental discovery and receipt invalidation. The snapshot displays update age and Reload now shows a busy state while forcing fresh verification/reads. Every guided quote and transaction path still forces fresh state.
+
+Actual Node 22 results on final source:
+
+- `npm run verify` passed, including 37 action checks and the multi-currency cache regression test: all 11 verification/system/discovery entries coexist without overwriting each other; serialization, identity, TTL, caps, fixture isolation, resume and v2 hooks pass.
+- `npm run verify:browser` passed: 33 fixture checks, 22 default checks, 27 wallet checks and 36 guided journeys with no browser errors. This includes Start here, grouped docs, (i) disclosures, keyboard/no-JavaScript behavior, all app routes and responsive checks.
+- `npm run verify:testnet` passed with all 11 currencies, three positions each, comparison and currency deep links: `responsiveCheckCount: 196`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`. The hourly-cache acceptance test measured `warmReloadRpcDelta: 99` (<100) and `manualReloadRpcBurst: 305` (>50 and <=500, with an explicit upper-bound assertion).
+- The Ponder-backed suite also passed with indexed history and `transactionSent: false`; the release bundle was then rebuilt without an indexer URL.
+- Brand/art and quality agents reviewed the implementation and final screenshots. Quality signed off after evidence closure: Start here, grouped docs, radar, dataqube, activity timeline, indexed flows, keyboard/table fallback, expanded (i), and the ink Burned swatch (`#2b2118`). Evidence: `artifacts/review-start-here.png`, `review-docs-groups.png`, `review-dashboard-radar.png`, `review-dashboard-cube.png`, `review-activity-timeline.png`, `review-indexed-flows.png`, `review-cube-keyboard-table.png`, `review-info-expanded.png`, and `review-flow-legend-ink.png`.
+- Final logs: `artifacts/verify-final-ux.log`, `artifacts/verify-testnet-final-ux.log`, `artifacts/verify-browser-ux.log`, and `artifacts/verify-testnet-indexer-ux.log`. No contract deployment, signing or public blockchain transaction occurred. Source changes remain uncommitted.
+
+Public Vercel deployments all reported READY and aliased their existing origins:
+
+- Website `https://imf.li/`: `https://imf-website-5fig69i2x-operalag-gmailcoms-projects.vercel.app`.
+- Documentation `https://docs.imf.li/`: `https://imf-docs-qbnjo02en-operalag-gmailcoms-projects.vercel.app`.
+- Application `https://app.imf.li/`: `https://imf-chfdz5len-operalag-gmailcoms-projects.vercel.app`.
+
+Final public HTTP returned 200 for all three origins, the dashboard guide, `read-cache.js` and `glossary.json`. A fresh public-Chrome journey verified Start here, five documentation groups, every currency with three positions, all 11 comparison rows, keyboard/table fallback and an expanded (i). It then reloaded the EUR dashboard with **zero RPC requests** from the warm hourly cache. Forbidden methods and browser errors were empty and `transactionSent: false`. Reviewed public screenshot: `artifacts/live-dashboard-ux.png`. Public indexed history remains disabled until a persistent HTTPS Ponder service is configured.
+
+## CHF/K9CHF rollout — 2026-10-29
+
+**Status: DEPLOYED ONCHAIN, VERIFIED LOCALLY AND LIVE-TESTNET CHECKED; PUBLIC FRONTEND DEPLOYED.** CHF is the 12th independent system, named DogeForex Swiss Franc, with a 19,950 ppm initial leadrate based on the explicitly documented SNB ten-year testnet exception. K9CHF is `0x3547fF62C5097460E46E40EAc68B9Dae83a9BE30`. Its bridge holds 50,000 tUSDC and minted 50,000 K9CHF; DEMO03/06/09 positions are open with zero debt; a 6,000 K9CHF Equity investment issued exactly 430.891162022409652 additional pool shares. Guided frontend writes remain USD-only.
+
+After the original fee policy blocked deployment, the user explicitly authorized CHF-only ceilings of 600 tDOGE aggregate, 100 tDOGE per transaction and 0.0025 tDOGE/byte. Other pilots retain the original limits. The fee journal preserves previous spending across explicit current-budget changes. Total tracked rollout fees are 71.510969581636721961 tDOGE. The CHF-only due mint is scheduled after the real cooldown for 2026-11-01 18:45 UTC (one-shot cron `01M64FPRZFNAZ8V2S5ZBQBQM8E`), subject to a fresh fee estimate.
+
+Actual verification results:
+
+- All **256 protocol tests**, **59 SDK tests** and **43 MCP tests** pass; all three builds/typechecks and dependency audits pass. Direct SDK bytecode/contract-link verification passes for every currency, including CHF.
+- `npm run verify` passes with all 12 exact protocol registries. `npm run verify:browser` passes: 34 fixture checks, 22 default checks, 27 wallet-engine checks and 36 guided journeys, with no uncaught browser errors.
+- `npm run verify:testnet` passes all 12 currencies, three positions per currency, the 12-row comparison and CHF deep link: `responsiveCheckCount: 196`, `rpcRequestCount: 3019`, `warmReloadRpcDelta: 98`, `manualReloadRpcBurst: 305`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`, `indexerEnabled: false`.
+- Ponder manifest generation, codegen, typecheck and audit pass. Reconciliation at direct block `9014924` matched all 12 currencies exactly: 36 positions and zero challenges in total, including three CHF positions. Public indexed history remains disabled until a persistent HTTPS service is configured.
+
+Public Vercel deployments all reported READY and aliased their existing origins:
+
+- Website `https://imf.li/`: `https://imf-website-e32p3n94c-operalag-gmailcoms-projects.vercel.app`.
+- Documentation `https://docs.imf.li/`: `https://imf-docs-lua8s3gak-operalag-gmailcoms-projects.vercel.app`.
+- Application `https://app.imf.li/`: `https://imf-rhyrtvg39-operalag-gmailcoms-projects.vercel.app`.
+
+Final public HTTP checks returned 200 for all three origins and 404 for missing paths. Fresh public Chrome selected every currency, verified live token data and three positions per currency, loaded all 12 comparison rows and opened the CHF deep link. It observed 4,423 read-only RPC requests, zero forbidden signing/broadcast methods, zero browser errors and `transactionSent: false`; the warm hourly-cache reload used zero RPC requests. Evidence: `artifacts/live-chf-browser-results.json` and the reviewed `artifacts/live-dashboard-chf.png`.
+
+Published commits: protocol `39d0f05` and `c3f5fb6`, SDK `4b4ebab`, MCP `a0b1453`, and Ponder `5a647a6`. The frontend commit follows the final local-browser rerun.

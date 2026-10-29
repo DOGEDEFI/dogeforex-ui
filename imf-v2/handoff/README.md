@@ -13,7 +13,7 @@ This directory describes the imported frontend inside `dogeforex-ui/imf-v2`. The
 
 The current source is described in `../README.md` and `../AGENTS.md`. V2 registry, ABI, exact arithmetic and contract read models live in workspace-root `dogeforex-sdk-ts/src/v2/`. Read-only MCP adaptation lives in `dogeforex-mcp/`. Legacy V1 registry/client support is retained separately.
 
-The frontend uses the actual protocol V2 `linkedData` registry shape. Legacy guardian and allocation-bootstrap contracts do not exist in the V2 path. No verified deployment registry was available at original import time; the current explicit `config/runtime.testnet.json` now supplies the USD Chikyū V2 registry. The ordinary runtime remains unconfigured/read-only. Synthetic fixtures remain labelled and accept only the isolated test wallet; they do not prove live deployment state, audit status, token acceptance, current market liquidity, real transaction execution or production readiness.
+The frontend uses the actual protocol V2 `linkedData` registry shape. Legacy guardian and allocation-bootstrap contracts do not exist in the V2 path. No verified deployment registry was available at original import time; the current explicit `config/runtime.testnet.json` supplies all 12 deployed Chikyū V2 registries, including CHF, for independently verified reads. The ordinary runtime remains unconfigured/read-only. Synthetic fixtures remain labelled and accept only the isolated test wallet; they do not prove live deployment state, audit status, token acceptance, current market liquidity, real transaction execution or production readiness.
 
 ## Current MetaMask testnet boundary
 
@@ -21,7 +21,7 @@ The frontend uses the actual protocol V2 `linkedData` registry shape. Legacy gua
 - `src/actions.ts` defines 37 canonical operations. The UI covers create/clone/mint, manage/repay/close/adjust, roll/ownership/rescue, challenges/bids/expired purchases/postponed returns, bridge/savings/equity and advanced governance, with a dedicated arena view and bounded event discovery followed by current-state reads.
 - Each transaction uses exact approvals when needed, a fresh static call and gas estimate, explicit review and separate MetaMask confirmation. The receipt journal does not automatically resubmit or trigger a follow-up. Simulation is a current-state check, not a future guarantee.
 - Planning exports remain non-executable. No private-key handling, message signing, DEX execution, keeper automation or agent execution is included.
-- tUSDC is a deployer-minted test asset, not production USDC. Only USD is configured; the other ten codes remain planning identifiers and DEX support is not asserted. Production readiness is not claimed.
+- tUSDC is a deployer-minted test asset, not production USDC. All 12 independent V2 systems are configured for verified reads; guided writes remain USD-only and DEX support is not asserted. Production readiness is not claimed.
 - All eight configured USD contracts retain Sourcify exact creation/runtime matches. Blockscout display verification remains open and is not resolved by this frontend work.
 
 ## Scope carried forward

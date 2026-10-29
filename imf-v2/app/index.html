@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Plan project collateral positions and inspect verified V2 state with exact, read-only workflows.">
   <meta name="theme-color" content="#fff8ee">
+  <script>document.documentElement.classList.add('js')</script>
   <title>Project workspace · IMF</title>
   <link rel="icon" href="../assets/imf.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css">
@@ -19,10 +20,10 @@
     <a class="brand" href="../"><span class="monogram">imf</span><span class="brand-name">International<br>Multicurrency Framework</span></a>
     <button class="menu" aria-expanded="false" aria-controls="navigation">Menu</button>
     <nav class="navlinks" id="navigation" aria-label="Main navigation">
-      <a href="../index.html#framework">The framework</a>
-      <a href="../index.html#participants">For your organization</a>
+      <a href="../">Website</a>
       <a href="../docs/">Documentation</a>
-      <a class="btn small light" href="../app/">Project workspace</a>
+      <a href="../app/" aria-current="page">Workspace</a>
+      <a class="btn small mint" href="../docs/">Read the guides</a>
     </nav>
   </div>
 </header>
@@ -32,15 +33,16 @@
     <button type="button" class="sidebar-toggle" aria-expanded="true" aria-controls="sidebar-content">Workspace views <span aria-hidden="true">⌄</span></button>
     <div class="sidebar-content" id="sidebar-content">
       <nav aria-label="Workspace">
-        <span class="nav-group">Monitor</span>
+        <button data-view="start">Start here</button>
+        <h2 class="nav-group">Monitor</h2>
         <button data-view="dashboard">Dashboard</button>
-        <span class="nav-group">Positions</span>
+        <h2 class="nav-group">Positions</h2>
         <button class="active" data-view="create">Create & mint</button>
         <button data-view="manage">Manage & close</button>
-        <span class="nav-group">Participate</span>
+        <h2 class="nav-group">Participate</h2>
         <button data-view="arena">Challenges & auctions</button>
         <button data-view="ecosystem">Bridge, savings & equity</button>
-        <span class="nav-group">Resources</span>
+        <h2 class="nav-group">Resources</h2>
         <button data-view="connection">Wallet, registry & network</button>
         <button data-view="drafts">Saved drafts</button>
         <button data-view="lifecycle">Operating workflow</button>
@@ -71,11 +73,23 @@
     <section class="panel transaction-panel" id="transaction-panel" hidden aria-labelledby="transaction-title">
       <span class="tag">Guided transaction</span><h2 id="transaction-title">Review transaction</h2>
       <ol class="transaction-steps"><li class="complete">1. Current terms</li><li class="complete">2. Simulate</li><li aria-current="step">3. Review</li><li>4. Confirm & receipt</li></ol>
+      <div class="info-row" aria-label="What happens at each transaction step"><details class="info" data-term="step-current-terms"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Step 1, current terms: what happens?</span></summary><div class="info-body"><p>The app rereads the position's live terms — collateral, price, capacity, cooldowns and caller — before preparing anything. Stale or failed reads stop the journey instead of guessing.</p><a data-guide-link href="../docs/#borrowing-costs">Read the borrowing costs guide</a></div></details><details class="info" data-term="step-simulation"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Step 2, simulation: what is checked?</span></summary><div class="info-body"><p>A fresh static call runs the exact transaction against current state and a gas estimate is added. Simulation reflects the chain as it is now, not a future guarantee.</p><a data-guide-link href="../docs/#architecture">Read the system architecture guide</a></div></details><details class="info" data-term="step-review"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Step 3, review: what do I check?</span></summary><div class="info-body"><p>You see the exact call, required approvals and expected effects in the app first. Nothing is signed at this stage; planning documents and quotes carry no authority on their own.</p><a data-guide-link href="../docs/#agents">Read the agent workflows guide</a></div></details><details class="info" data-term="step-confirmation"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Step 4, confirmation and receipt: what happens?</span></summary><div class="info-body"><p>The wallet shows the final transaction and network fee. One explicit confirmation submits it; the receipt is journaled and is never resubmitted or extended automatically.</p><a data-guide-link href="../docs/#agents">Read the agent workflows guide</a></div></details></div>
       <p id="transaction-status" role="status" aria-live="polite"></p>
       <div id="transaction-review" class="state-grid"></div>
       <details><summary>Inspect exact calldata</summary><pre id="transaction-calldata"></pre></details>
       <p class="smalltext">Simulation checks the current state, not a future guarantee. MetaMask provides the final network-fee review. Rejecting or closing the wallet never authorizes another attempt.</p>
       <button class="btn mint" type="button" id="transaction-send" disabled>Confirm in MetaMask</button>
+    </section>
+
+    <section id="start-view" hidden>
+      <div class="section-intro"><h2>Start here: five steps behind every workflow.</h2><p class="muted">The same operating steps as the lifecycle guide, each pointing at the workspace view that carries it. No step signs, broadcasts or executes anything by itself.</p></div>
+      <div class="panel"><ol class="workflow-list start-list">
+        <li><span class="step">1</span><div><b>Choose the journey</b><p>Create or clone, mint, manage or close, challenge or bid, bridge, save, invest or participate in governance. Each currency remains an independent system.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Create &amp; mint</button><button class="btn light small" type="button" data-start-target="manage">Manage &amp; close</button><button class="btn light small" type="button" data-start-target="arena">Challenges &amp; auctions</button><button class="btn light small" type="button" data-start-target="ecosystem">Bridge, savings &amp; equity</button></div></div></li>
+        <li><span class="step">2</span><div><b>Connect and verify current reads</b><p>Connect MetaMask, switch to DogeOS, and verify the registry, chain, contract links, token metadata, balances and timers. Failure is not zero.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="connection">Wallet, registry &amp; network</button><button class="btn light small" type="button" data-start-target="dashboard">Dashboard</button></div></div></li>
+        <li><span class="step">3</span><div><b>Review terms and exact approvals</b><p>Separate gross debt, reserve, fees, proceeds, repayment and collateral effects. Any required approval uses an exact amount and a separate confirmation.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Read terms &amp; quote</button></div></div></li>
+        <li><span class="step">4</span><div><b>Simulate and confirm once</b><p>The app checks the exact caller, target and calldata with a fresh static call and gas estimate. Review the full transaction in the app and then in MetaMask. No follow-up transaction is automatic.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Prepare a guided transaction</button></div></div></li>
+        <li><span class="step">5</span><div><b>Reconcile the receipt</b><p>A pending hash is not a success or a reason to resubmit. Confirmation refreshes current state; a reverted transaction stays reverted. DEX liquidity, keeper automation and agent-originated execution remain separate decisions.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="manage">Reconcile positions</button><button class="btn light small" type="button" data-start-target="lifecycle">Operating workflow</button></div></div></li>
+      </ol><p class="smalltext start-note">Guided transactions are available only on the verified USD DogeOS Chikyū testnet runtime after current simulation, exact review and explicit MetaMask confirmation; every other registry and connection stays read-only. Planning exports and drafts never grant authority.</p><a class="btn light" href="../docs/#project-guide">Read the project workflow guide</a></div>
     </section>
 
     <section id="dashboard-view" hidden>
@@ -87,12 +101,12 @@
       <div class="dashboard-provenance" id="dashboard-provenance"><span aria-hidden="true">ⓘ</span><div><strong>VERIFIED READS</strong> Current contract state and event-derived discovery. Missing history, markets and coverage stay explicitly unavailable.</div><button type="button" id="dashboard-method-open">Read methodology</button></div>
       <div class="dashboard-toolbar" aria-label="Dashboard controls">
         <label class="dash-field">System<select id="dashboard-currency" aria-label="Dashboard currency system"></select></label>
-        <span class="dashboard-scope">CURRENT STATE · NATIVE UNITS</span>
+        <span class="dashboard-scope">HOURLY READS · NATIVE UNITS</span>
         <span class="toolbar-spacer"></span>
         <button type="button" class="btn light small" id="dashboard-copy-view">Copy view link</button>
         <button type="button" class="btn light small" id="dashboard-export-view">Export view</button>
         <button type="button" class="btn light small" id="dashboard-reset">Reset</button>
-        <button type="button" class="btn mint small" id="dashboard-refresh">Refresh reads</button>
+        <button type="button" class="btn mint small" id="dashboard-refresh">Reload now</button>
       </div>
       <div class="dashboard-source" id="dashboard-source-status"><div><strong>No registry selected</strong><br><span>Configure a verified V2 registry to read dashboard state.</span></div></div>
       <nav class="dashboard-nav" aria-label="Dashboard views" role="tablist">
@@ -121,7 +135,8 @@
       <dialog class="dashboard-dialog" id="dashboard-method-dialog" aria-labelledby="dashboard-method-title">
         <div class="dashboard-dialog-head"><h2 id="dashboard-method-title">Data &amp; methodology</h2><button class="btn light small" type="button" id="dashboard-method-close">Close</button></div>
         <div class="dashboard-dialog-body">
-          <p><strong>Current state, not generated telemetry.</strong> Live dashboard values come from the verified runtime-config USD V2 registry. The isolated fixture is explicitly labelled synthetic and never represents deployed state.</p>
+          <p><strong>Verified reads, not generated telemetry.</strong> Dashboard values come from all 12 independently verified runtime-config V2 registries. The isolated fixture is explicitly labelled synthetic and never represents deployed state.</p>
+          <h3>Hourly dashboard cache</h3><p>Public dashboard analytics are cached for up to one hour with the exact registry, chain, RPC and runtime identity. The snapshot shows its update age. Expired entries remain labelled while refreshing; <strong>Reload now</strong> forces fresh verification and reads. Confirmed receipts invalidate cached analytics. Quotes, eligibility, simulation, gas estimation and every guided transaction path always use fresh state.</p>
           <h3>Collateral ratio and liquidation</h3><p>Dashboard CR uses collateral balance × the position’s stored liquidation price ÷ gross minted debt. It is a comparative contract-parameter ratio, not an external market valuation. Each position has its own liquidation boundary; the Risk Lab threshold is only a user watch setting.</p>
           <h3>Equity, reserves and bridge capacity</h3><p>System equity, minter reserve, savings, token supply and bridge accounting are separate current reads. They are not interchangeable assets, guaranteed loss coverage, FX backing or a shared cross-currency reserve.</p>
           <h3>Discovery and provenance</h3><p>Events identify positions and challenges; current contract calls verify their state. Every snapshot retains its registry, source block and coverage. Failed, missing or stale reads remain unknown rather than zero.</p>
@@ -157,22 +172,27 @@
                 <label class="field">Collateral token address<input name="token" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false" data-required-action="new"><small>ERC20 metadata and bytecode must be verified before a read-backed quote.</small></label>
                 <div class="field-grid">
                   <label class="field">Collateral decimals<input name="collateralDecimals" inputmode="numeric" value="18" data-required-action="new"><small>Planning hint only. Verified token metadata takes precedence; V2 accepts at most 24.</small></label>
-                  <label class="field">Liquidation price<input name="liquidationPrice" inputmode="decimal" value="1" data-required-action="new"><small>Local currency per whole token. Raw price uses 36 − collateral decimals.</small></label>
+                  <div class="field-wrap"><label class="field">Liquidation price<input name="liquidationPrice" inputmode="decimal" value="1" data-required-action="new"><small>Local currency per whole token. Raw price uses 36 − collateral decimals.</small></label>
+                  <details class="info" data-term="liquidation-price"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What is the liquidation price?</span></summary><div class="info-body"><p>The price, in local currency per whole collateral token, below which the position is challengeable. Participants contest a stored price through challenges instead of relying on an external price oracle.</p><a data-guide-link href="../docs/#collateral">Read the collateral proposals guide</a></div></details></div>
                 </div>
                 <div class="field-grid">
                   <label class="field">Minimum collateral<input name="minimumCollateral" inputmode="decimal" value="4000" data-required-action="new"></label>
                   <label class="field">Initial collateral<input name="collateral" inputmode="decimal" value="100000" data-required-action="new"></label>
                 </div>
-                <label class="field">Minting maximum<input name="mintingMaximum" inputmode="decimal" value="50000" data-required-action="new"><small>Gross local-currency capacity, not wallet proceeds.</small></label>
+                <div class="field-wrap"><label class="field">Minting maximum<input name="mintingMaximum" inputmode="decimal" value="50000" data-required-action="new"><small>Gross local-currency capacity, not wallet proceeds.</small></label>
+                <details class="info" data-term="minting-maximum"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What is the minting maximum?</span></summary><div class="info-body"><p>The gross debt ceiling a position may record over its lifetime. Minting stops once the position reaches this maximum, regardless of how much collateral remains.</p><a data-guide-link href="../docs/#collateral">Read the collateral proposals guide</a></div></details></div>
                 <div class="field-grid">
-                  <label class="field">Initialization (seconds)<input name="initPeriodSeconds" inputmode="numeric" value="259200" data-required-action="new"><small>Minimum 259,200 seconds = 3 days.</small></label>
+                  <div class="field-wrap"><label class="field">Initialization (seconds)<input name="initPeriodSeconds" inputmode="numeric" value="259200" data-required-action="new"><small>Minimum 259,200 seconds = 3 days.</small></label>
+                  <details class="info" data-term="initialization-period"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What is the initialization period?</span></summary><div class="info-body"><p>The waiting time after a position is proposed before minting can begin. Qualified participants can veto the position only during this window; once it ends, the position runs under its recorded terms.</p><a data-guide-link href="../docs/#governance">Read the participants and vetoes guide</a></div></details></div>
                   <label class="field">Duration (seconds)<input name="durationSeconds" inputmode="numeric" value="31536000" data-required-action="new"></label>
                 </div>
                 <div class="field-grid">
                   <label class="field">Challenge period (seconds)<input name="challengePeriodSeconds" inputmode="numeric" value="86400" data-required-action="new"></label>
-                  <label class="field">Risk premium (PPM)<input name="riskPremiumPPM" inputmode="numeric" value="0" data-required-action="new"></label>
+                  <div class="field-wrap"><label class="field">Risk premium (PPM)<input name="riskPremiumPPM" inputmode="numeric" value="0" data-required-action="new"></label>
+                  <details class="info" data-term="risk-premium-ppm"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What is the risk premium (PPM)?</span></summary><div class="info-body"><p>An extra annual interest charge on a position, expressed in parts per million. 10,000 PPM equals 1% per year, charged on top of the savings rate while debt is outstanding.</p><a data-guide-link href="../docs/#borrowing-costs">Read the borrowing costs guide</a></div></details></div>
                 </div>
-                <label class="field">Reserve contribution (PPM)<input name="reservePPM" inputmode="numeric" value="200000" data-required-action="new"><small>20,000–1,000,000 PPM. A 100% reserve has repayment edge cases.</small></label>
+                <div class="field-wrap"><label class="field">Reserve contribution (PPM)<input name="reservePPM" inputmode="numeric" value="200000" data-required-action="new"><small>20,000–1,000,000 PPM. A 100% reserve has repayment edge cases.</small></label>
+                <details class="info" data-term="reserve-contribution-ppm"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What is the reserve contribution (PPM)?</span></summary><div class="info-body"><p>The share of each mint assigned to the retained reserve, expressed in parts per million. 200,000 PPM means 20% of the gross mint stays reserved.</p><a data-guide-link href="../docs/#borrowing-costs">Read the borrowing costs guide</a></div></details></div>
                 <label class="field">Planned gross mint after initialization<input name="gross" inputmode="decimal" value="50000" data-required-action="new"><small>Separate from openPosition. This amount is not minted by opening a proposal.</small></label>
               </div>
               <div id="clone-fields" hidden>

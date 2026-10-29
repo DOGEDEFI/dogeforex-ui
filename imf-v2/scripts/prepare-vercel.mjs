@@ -35,11 +35,20 @@ for (const surface of ['website', 'docs', 'app']) {
   assert.equal(runtime.mode, 'testnet-metamask', `${surface}: production requires explicit testnet-metamask mode`);
   assert.equal(runtime.status, 'configured-testnet-metamask', `${surface}: stale or unconfigured production status`);
   assert.equal(runtime.fixture, undefined, `${surface}: fixture runtime cannot be deployed`);
-  assert(runtime.registry, `${surface}: production registry is missing`);
-  assert.equal(String(runtime.registry.chainId), '6281971', `${surface}: registry chain ID mismatch`);
-  assert.equal(runtime.registry.network, 'chikyuV2', `${surface}: registry network mismatch`);
-  assert.equal(runtime.registry.code, 'USD', `${surface}: only the configured USD registry is approved`);
+  assert(Array.isArray(runtime.registry), `${surface}: production registry array is missing`);
+  const expectedCodes = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CNY', 'BRL', 'PKR', 'BDT', 'INR', 'NGN', 'CHF'];
+  assert.equal(runtime.registry.length, expectedCodes.length, `${surface}: expected all approved registries`);
+  runtime.registry.forEach((registry, index) => {
+    assert.equal(String(registry.chainId), '6281971', `${surface}: registry chain ID mismatch`);
+    assert.equal(registry.network, 'chikyuV2', `${surface}: registry network mismatch`);
+    assert.equal(registry.code, expectedCodes[index], `${surface}: unexpected registry or ordering`);
+  });
   assert.equal(runtime.rpcUrl, 'https://rpc.testnet.dogeos.com');
+  if (runtime.indexerUrl !== undefined) {
+    const indexer = new URL(runtime.indexerUrl);
+    assert.equal(indexer.protocol, 'https:', `${surface}: public indexer must use HTTPS`);
+    assert(!indexer.username && !indexer.password && !indexer.search && !indexer.hash, `${surface}: indexer URL must not contain credentials, query or hash`);
+  }
   assert.deepEqual(runtime.chain, {
     name: 'DogeOS Chikyū Testnet',
     rpcUrl: 'https://rpc.testnet.dogeos.com',

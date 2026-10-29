@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
+import { get as httpGet } from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,8 +12,14 @@ const environment = Object.fromEntries(['PATH', 'HOME', 'TMPDIR', 'CHROME_PATH']
 
 async function available(url) {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(1200) });
-    return response.ok;
+    return await new Promise((resolve, reject) => {
+      const request = httpGet(url, (response) => {
+        response.resume();
+        resolve(response.statusCode === 200);
+      });
+      request.on('error', reject);
+      request.setTimeout(5000, () => request.destroy(new Error(`Preview health check timed out at ${url}`)));
+    });
   } catch {
     return false;
   }

@@ -8,6 +8,15 @@ const IMAGE = {
   height: 768,
   alt: 'Chairpup in an illustrative treasury world; the imagery does not represent reserves.',
 };
+// Documentation information architecture: every guide appears in exactly one group,
+// in reading order within the group.
+const GUIDE_GROUPS = [
+  ['start', 'Start here', ['overview', 'project-guide', 'currencies']],
+  ['plan', 'Plan & borrow', ['collateral', 'overcollateralization', 'borrowing-costs', 'repayment', 'maturity']],
+  ['liquidity', 'Liquidity', ['liquidity', 'source-bridge', 'savings', 'equity']],
+  ['participate', 'Participate & operate', ['mechanism', 'oracle-free', 'governance', 'responsibilities', 'dashboard-metrics']],
+  ['integrate', 'Integrate & status', ['agents', 'architecture']],
+];
 
 function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -21,14 +30,14 @@ export function createDiscoverability({ articles, origins, runtime, fixture, rev
   const mode = fixture ? 'fixture' : runtime.registry ? 'testnet' : 'unconfigured';
   const testnetTransactions = mode === 'testnet' && runtime.mode === 'testnet-metamask';
   const releaseStatus = testnetTransactions
-    ? 'The public app verifies only the USD V2 registry, chain ID, bytecode and contract links before DogeOS Chikyū testnet reads. Guided transactions require current simulation, exact review and explicit MetaMask confirmation on chain 6281971. tUSDC and tDOGE are test assets; the other ten codes are planning identifiers, DEX support is not asserted, and production readiness is not claimed.'
+    ? 'The public app verifies 12 independent V2 registries, chain ID, bytecode and contract links before DogeOS Chikyū testnet reads. Guided USD transactions require current simulation, exact review and explicit MetaMask confirmation on chain 6281971. tUSDC and tDOGE are test assets, DEX support is not asserted, and production readiness is not claimed.'
     : mode === 'testnet'
-      ? 'The app verifies the USD V2 registry, chain ID, bytecode and contract links before read-only DogeOS Chikyū testnet requests. tUSDC is a deployer-minted test asset, not production USDC; production readiness is not claimed.'
+      ? 'The app verifies 12 independent V2 registries, chain ID, bytecode and contract links before read-only DogeOS Chikyū testnet requests. tUSDC is a deployer-minted test asset, not production USDC; production readiness is not claimed.'
       : mode === 'fixture'
         ? 'This is an explicitly synthetic, non-production fixture. Its contracts, balances and quotes are teaching inputs, not deployed state or operational authority. Only its isolated mock wallet may exercise the synthetic transaction flow; no real wallet or blockchain transaction is used.'
         : 'No verified V2 deployment registry is configured in this non-production review. Local planning remains available; no live state, wallet writes or production readiness are claimed.';
   const transactionBoundary = testnetTransactions
-    ? 'Guided DogeOS testnet transactions require current simulation, exact review and explicit MetaMask confirmation. Imported registries and custom RPC connections remain read-only. Planning JSON does not authorize a transaction.'
+    ? 'Guided DogeOS testnet transactions are USD-only and require current simulation, exact review and explicit MetaMask confirmation. Imported registries and custom RPC connections remain read-only. Planning JSON does not authorize a transaction.'
     : mode === 'fixture'
       ? 'Only the isolated mock wallet can exercise synthetic preparation and submission. No real wallet, RPC write or blockchain transaction is used. Planning JSON does not authorize a transaction.'
       : 'This read-only runtime does not simulate, sign or broadcast transactions. Planning JSON does not authorize a transaction.';
@@ -54,7 +63,7 @@ export function createDiscoverability({ articles, origins, runtime, fixture, rev
       ? 'JavaScript is required for planning and blockchain reads. MetaMask is optional and used only for explicitly confirmed DogeOS testnet transactions; documentation remains readable without JavaScript.'
       : 'JavaScript is required for interactive planning and blockchain reads; the documentation is readable without JavaScript.',
     description: testnetTransactions
-      ? 'Inspect verified USD V2 DogeOS Chikyū testnet state and prepare guided MetaMask transactions after current simulation and explicit review. Test assets only; production readiness is not claimed.'
+      ? 'Inspect 12 verified V2 systems on DogeOS Chikyū testnet and prepare guided USD MetaMask transactions after current simulation and explicit review. Test assets only; production readiness is not claimed.'
       : mode === 'fixture'
         ? 'Exercise synthetic V2 reads and non-executable planning, with transaction flows restricted to an isolated mock wallet. No deployed state or real blockchain transaction is represented.'
         : 'Prepare non-executable project-collateral position plans with exact decimal-aware inputs and optional read-only V2 registry inspection. No signing or execution in this review.',
@@ -75,27 +84,36 @@ export function createDiscoverability({ articles, origins, runtime, fixture, rev
     return new URL(`guides/${encodeURIComponent(id)}/`, origins.docs).href;
   }
 
+  const articleIdSet = new Set(articles.map((article) => article.id));
+  const groupedGuideIds = GUIDE_GROUPS.flatMap((group) => group[2]);
+  assert(
+    groupedGuideIds.length === articles.length
+      && groupedGuideIds.every((id) => articleIdSet.has(id))
+      && new Set(groupedGuideIds).size === groupedGuideIds.length,
+    'Guide groups must list each documentation guide exactly once',
+  );
+
   function guideContent(html) {
     let content = html.replaceAll('{{website}}', origins.website).replaceAll('{{docs}}', origins.docs).replaceAll('{{app}}', origins.app);
     if (mode !== 'unconfigured') {
       const testnetStatus = testnetTransactions ? {
-        overview: 'The app verifies only the USD V2 registry, chain ID, bytecode and contract links before DogeOS Chikyū testnet requests. Guided transactions require current simulation, exact review and explicit MetaMask confirmation; imported registries and custom RPC remain read-only. tUSDC is a test asset, not production USDC. Production availability and inherited audit coverage are not claimed.',
-        position: 'the public release includes the configured USD V2 testnet registry and source-block reads. Position-specific availability still depends on a valid address and current state; guided preparation rereads and simulates the selected exact call.',
-        configure: 'The public release supplies the static USD V2 testnet registry and public RPC for configured reads and guided MetaMask transactions. Imported registries and custom RPC connections support reads only.',
-        current: 'The public release provides DogeOS Chikyū testnet reads for the configured USD V2 currency and explicit MetaMask transactions after current simulation and review. tUSDC is a test asset. Imported registries and custom RPC remain read-only; planning exports are non-executable, DEX execution and keeper automation are not included, drafts are origin-local, and production readiness is not claimed.',
-        registry: 'The public release includes a USD V2 testnet registry and read reconciliation. Only its static approved runtime enables guided MetaMask transactions; imported registries remain read-only. Production availability and mainnet state are not claimed.',
-        source: 'No production source asset is selected. The configured test bridge uses deployer-minted tUSDC, not production USDC.',
-        rates: 'For the configured USD V2 testnet registry, use <code>currentRatePPM</code> and pending state from the selected block, not this list. Other currencies and production deployments need their own verified registries and reviewed rate inputs.',
+        overview: 'The app verifies 12 independent V2 registries, chain ID, bytecode and contract links before DogeOS Chikyū testnet requests. Guided USD transactions require current simulation, exact review and explicit MetaMask confirmation; imported registries and custom RPC remain read-only. tUSDC is a test asset, not production USDC. Production availability and inherited audit coverage are not claimed.',
+        position: 'the public release includes 12 configured V2 testnet registries and source-block reads. Position-specific availability still depends on a valid address and current state; guided USD preparation rereads and simulates the selected exact call.',
+        configure: 'The public release supplies 12 static V2 testnet registries and public RPC for configured reads, plus guided USD MetaMask transactions. Imported registries and custom RPC connections support reads only.',
+        current: 'The public release provides DogeOS Chikyū testnet reads for 12 independent V2 currencies and explicit USD MetaMask transactions after current simulation and review. tUSDC is a test asset. Imported registries and custom RPC remain read-only; planning exports are non-executable, DEX execution and keeper automation are not included, drafts are origin-local, and production readiness is not claimed.',
+        registry: 'The public release includes 12 V2 testnet registries and read reconciliation. Only its static approved USD runtime enables guided MetaMask transactions; imported registries remain read-only. Production availability and mainnet state are not claimed.',
+        source: 'No production source asset is selected. The configured test bridges use deployer-minted tUSDC, not production USDC.',
+        rates: 'For each configured V2 testnet registry, use <code>currentRatePPM</code> and pending state from the selected block, not this dated list. Production deployments need separately reviewed rate inputs.',
         genesis: 'On the configured USD V2 Chikyū test deployment, six-decimal tUSDC was locked in the USD bridge, which minted 100 nominal K9USD units. Investing those 100 K9USD units into the initially empty Equity contract issued exactly 1,000 pool shares.',
         genesisCaption: 'USD V2 Chikyū test deployment; not production backing.',
       } : {
-        overview: 'The app verifies the USD V2 registry, chain ID, bytecode and contract links before read-only DogeOS Chikyū testnet requests. tUSDC is a test asset, not production USDC. This release does not claim production availability or inherited audit coverage.',
-        position: 'the public release includes the configured USD V2 testnet registry and source-block reads. Position-specific availability still depends on a valid address and current state.',
-        configure: 'The public release supplies the USD V2 testnet registry and a public read endpoint; you can also inspect a local registry.',
-        current: 'The public release provides read-only DogeOS Chikyū testnet state for the configured USD V2 currency. tUSDC is a test asset. The integration includes no signing, transaction simulation or DEX execution. Local drafts are origin-local and have no cloud sync. Production launch and operational readiness are not claimed.',
-        registry: 'The public release includes a USD V2 testnet registry and read-only reconciliation. Production availability and mainnet state are not claimed.',
-        source: 'No production source asset is selected. The configured test bridge uses deployer-minted tUSDC, not production USDC.',
-        rates: 'For the configured USD V2 testnet registry, use <code>currentRatePPM</code> and pending state from the selected block, not this list. Other currencies and production deployments need their own verified registries and reviewed rate inputs.',
+        overview: 'The app verifies 12 independent V2 registries, chain ID, bytecode and contract links before read-only DogeOS Chikyū testnet requests. tUSDC is a test asset, not production USDC. This release does not claim production availability or inherited audit coverage.',
+        position: 'the public release includes 12 configured V2 testnet registries and source-block reads. Position-specific availability still depends on a valid address and current state.',
+        configure: 'The public release supplies 12 V2 testnet registries and a public read endpoint; you can also inspect a local registry.',
+        current: 'The public release provides read-only DogeOS Chikyū testnet state for 12 independent V2 currencies. tUSDC is a test asset. The integration includes no signing, transaction simulation or DEX execution. Local drafts are origin-local and have no cloud sync. Production launch and operational readiness are not claimed.',
+        registry: 'The public release includes 12 V2 testnet registries and read-only reconciliation. Production availability and mainnet state are not claimed.',
+        source: 'No production source asset is selected. The configured test bridges use deployer-minted tUSDC, not production USDC.',
+        rates: 'For each configured V2 testnet registry, use <code>currentRatePPM</code> and pending state from the selected block, not this dated list. Production deployments need separately reviewed rate inputs.',
         genesis: 'On the configured USD V2 Chikyū test deployment, six-decimal tUSDC was locked in the USD bridge, which minted 100 nominal K9USD units. Investing those 100 K9USD units into the initially empty Equity contract issued exactly 1,000 pool shares.',
         genesisCaption: 'USD V2 Chikyū test deployment; not production backing.',
       };
@@ -133,7 +151,10 @@ export function createDiscoverability({ articles, origins, runtime, fixture, rev
   }
 
   function guideNavigation(currentId) {
-    return articles.map((guide) => `<a href="${guideURL(guide.id)}" data-guide="${guide.id}"${guide.id === currentId ? ' aria-current="page" class="active"' : ''}>${escapeHTML(guide.label)}</a>`).join('');
+    return GUIDE_GROUPS.map(([key, label, ids]) => `<div class="doc-group" data-doc-group="${key}"><h3 class="nav-group">${escapeHTML(label)}</h3>${ids.map((id) => {
+      const guide = articles.find((article) => article.id === id);
+      return `<a href="${guideURL(id)}" data-guide="${id}"${id === currentId ? ' aria-current="page" class="active"' : ''}>${escapeHTML(guide.label)}</a>`;
+    }).join('')}</div>`).join('');
   }
 
   function learningNavigation() {
@@ -146,13 +167,14 @@ export function createDiscoverability({ articles, origins, runtime, fixture, rev
   }
 
   function documentationHome() {
-    const cards = articles.map((guide) => `<article><h3><a href="${guideURL(guide.id)}">${escapeHTML(guide.title)}</a></h3><p>${escapeHTML(guide.intro)}</p><a class="guide-link" href="${guideURL(guide.id)}" aria-label="Read ${escapeHTML(guide.label)}">Read ${escapeHTML(guide.label)}</a></article>`).join('');
+    const card = (guide) => `<article><h3><a href="${guideURL(guide.id)}">${escapeHTML(guide.title)}</a></h3><p>${escapeHTML(guide.intro)}</p><a class="guide-link" href="${guideURL(guide.id)}" aria-label="Read ${escapeHTML(guide.label)}">Read ${escapeHTML(guide.label)}</a></article>`;
+    const groups = GUIDE_GROUPS.map(([key, label, ids]) => `<section class="doc-group" data-doc-group="${key}" aria-labelledby="guide-group-${key}"><h3 class="nav-group" id="guide-group-${key}">${escapeHTML(label)}</h3><div class="guide-grid">${ids.map((id) => card(articles.find((article) => article.id === id))).join('')}</div></section>`).join('');
     const lead = testnetTransactions
       ? 'Understand project-token collateral, independent currency systems, exact V2 reads, non-executable planning and guided DogeOS testnet transactions.'
       : mode === 'fixture'
         ? 'Understand the synthetic V2 teaching model, non-executable planning and isolated mock-wallet boundary.'
         : 'Understand project-token collateral, independent currency systems and the exact read-only V2 workflow.';
-    return `<article class="doc" id="article" aria-labelledby="docs-title"><span class="tag">Independent extension of Frankencoin mechanics</span><h1 id="docs-title">IMF documentation</h1><p class="lead muted">${lead}</p><h2>What is the International Multicurrency Framework?</h2><p>The International Multicurrency Framework (IMF) helps project teams lock project tokens as collateral, mint a selected currency token and plan DEX liquidity with a separate project-token allocation. It extends Frankencoin mechanics on DogeOS without implying official affiliation or inherited audit coverage.</p><p>Each currency is an independent system with its own token, reserves, equity, savings, positions and source bridge. The framework defines 11 currency codes; each needs its own verified V2 deployment before live state can be shown. There is no shared reserve, automatic FX conversion or cross-currency exposure engine.</p><div class="callout"><strong>Current release:</strong> ${escapeHTML(releaseStatus)} ${escapeHTML(transactionBoundary)}</div><section class="guide-index" aria-labelledby="guide-index-title"><h2 id="guide-index-title">Choose a guide</h2><div class="guide-grid">${cards}</div></section><p class="smalltext">IMF means International Multicurrency Framework. It is independent of the International Monetary Fund and is not an official Frankencoin or DogeOS product. Collateral assessment, veto decisions and transaction authorization remain participant responsibilities.</p></article>`;
+    return `<article class="doc" id="article" aria-labelledby="docs-title"><span class="tag">Independent extension of Frankencoin mechanics</span><h1 id="docs-title">IMF documentation</h1><p class="lead muted">${lead}</p><h2>What is the International Multicurrency Framework?</h2><p>The International Multicurrency Framework (IMF) helps project teams lock project tokens as collateral, mint a selected currency token and plan DEX liquidity with a separate project-token allocation. It extends Frankencoin mechanics on DogeOS without implying official affiliation or inherited audit coverage.</p><p>Each currency is an independent system with its own token, reserves, equity, savings, positions and source bridge. The framework defines 12 currency codes; each needs its own verified V2 deployment before live state can be shown. There is no shared reserve, automatic FX conversion or cross-currency exposure engine.</p><div class="callout"><strong>Current release:</strong> ${escapeHTML(releaseStatus)} ${escapeHTML(transactionBoundary)}</div><section class="guide-index" aria-labelledby="guide-index-title"><h2 id="guide-index-title">Choose a guide</h2>${groups}</section><p class="smalltext">IMF means International Multicurrency Framework. It is independent of the International Monetary Fund and is not an official Frankencoin or DogeOS product. Collateral assessment, veto decisions and transaction authorization remain participant responsibilities.</p></article>`;
   }
 
   function documentationGuide(guide) {
@@ -311,11 +333,11 @@ export function createDiscoverability({ articles, origins, runtime, fixture, rev
     const title = surface === 'website' ? PROJECT_NAME : surface === 'docs' ? 'IMF documentation' : testnetTransactions ? 'IMF DogeOS testnet workspace' : mode === 'fixture' ? 'IMF synthetic fixture workspace' : 'IMF read-only project workspace';
     const workspaceLabel = testnetTransactions ? 'DogeOS testnet workspace' : mode === 'fixture' ? 'Synthetic fixture workspace' : 'Read-only workspace';
     const workspaceDescription = testnetTransactions
-      ? 'verified USD registry inspection, current reads, guided MetaMask transactions and non-executable human/agent planning'
+      ? '12 verified currency registries, current reads, guided USD MetaMask transactions and non-executable human/agent planning'
       : mode === 'fixture'
         ? 'synthetic reads, non-executable planning and isolated mock-wallet testing'
         : 'registry inspection, read-derived state and human/agent planning';
-    return `# ${title}\n\n> IMF means International Multicurrency Framework, not the International Monetary Fund. It is an independent extension of Frankencoin mechanics for project-token collateral and independent currency systems on DogeOS. No official affiliation, inherited audit coverage or production readiness is implied.\n\n## Project facts\n\n- Projects can lock tokens as collateral, mint a selected currency token and plan DEX liquidity with a separate token allocation.\n- Each currency has independent token supply, reserves, equity, savings, positions and source-bridge accounting.\n- The framework defines 11 currency codes. Deployment and currency availability must be established from a verified V2 registry, not inferred from a planning list.\n- There is no shared reserve, automatic FX conversion or cross-currency exposure engine.\n- Collateral assessment and veto decisions remain participant responsibilities.\n\n## Current release\n\n${releaseStatus}\n\n${transactionBoundary} Exported planning JSON is not transaction authorization. Local drafts are not cloud-synchronized.\n\n## Surfaces\n\n- [Project website](${origins.website}): project journey, independent currency architecture and illustrative learning model.\n- [Technical documentation](${origins.docs}): exact mechanisms, responsibilities and integration boundaries.\n- [${workspaceLabel}](${origins.app}): ${workspaceDescription}.\n\n## Guides\n\n${articles.map((guide) => `- [${guide.title}](${guideURL(guide.id)}): ${guide.intro}`).join('\n')}\n\n## Lineage and scope\n\n- [Frankencoin documentation](https://docs.frankencoin.com/): behavioral background only; not an affiliation or an extension of audit coverage to IMF.\n- tUSDC is a test asset, not production USDC. Production assets, economics, custody, legal review and independent audit remain separate launch gates.\n`;
+    return `# ${title}\n\n> IMF means International Multicurrency Framework, not the International Monetary Fund. It is an independent extension of Frankencoin mechanics for project-token collateral and independent currency systems on DogeOS. No official affiliation, inherited audit coverage or production readiness is implied.\n\n## Project facts\n\n- Projects can lock tokens as collateral, mint a selected currency token and plan DEX liquidity with a separate token allocation.\n- Each currency has independent token supply, reserves, equity, savings, positions and source-bridge accounting.\n- The framework defines 12 currency codes. Deployment and currency availability must be established from a verified V2 registry, not inferred from a planning list.\n- There is no shared reserve, automatic FX conversion or cross-currency exposure engine.\n- Collateral assessment and veto decisions remain participant responsibilities.\n\n## Current release\n\n${releaseStatus}\n\n${transactionBoundary} Exported planning JSON is not transaction authorization. Local drafts are not cloud-synchronized.\n\n## Surfaces\n\n- [Project website](${origins.website}): project journey, independent currency architecture and illustrative learning model.\n- [Technical documentation](${origins.docs}): exact mechanisms, responsibilities and integration boundaries.\n- [${workspaceLabel}](${origins.app}): ${workspaceDescription}.\n\n## Guides\n\n${articles.map((guide) => `- [${guide.title}](${guideURL(guide.id)}): ${guide.intro}`).join('\n')}\n\n## Lineage and scope\n\n- [Frankencoin documentation](https://docs.frankencoin.com/): behavioral background only; not an affiliation or an extension of audit coverage to IMF.\n- tUSDC is a test asset, not production USDC. Production assets, economics, custody, legal review and independent audit remain separate launch gates.\n`;
   }
 
   return { mode, releaseStatus, guideURL, guideContent, guideNavigation, documentationHome, documentationGuide, responsiveImages, metadata, robots, sitemap, llms };

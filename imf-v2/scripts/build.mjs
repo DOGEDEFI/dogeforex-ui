@@ -23,6 +23,15 @@ function origin(name, port) {
   return url.href.endsWith('/') ? url.href : `${url.href}/`;
 }
 
+function indexerUrl(value) {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname))) {
+    throw new Error('IMF_INDEXER_URL must use HTTPS outside localhost');
+  }
+  if (url.username || url.password || url.search || url.hash) throw new Error('IMF_INDEXER_URL must not contain credentials, query or hash');
+  return url.href.replace(/\/$/, '');
+}
+
 const origins = {
   website: origin('IMF_WEBSITE_ORIGIN', 5180),
   docs: origin('IMF_DOCS_ORIGIN', 5181),
@@ -40,12 +49,16 @@ function validateTestnetRuntime(configuration) {
   if (configuration.mode !== 'testnet-metamask' || configuration.status !== 'configured-testnet-metamask') {
     throw new Error('DogeOS testnet builds require explicit testnet-metamask mode and configured-testnet-metamask status');
   }
-  if (!configuration.registry || String(configuration.registry.chainId) !== TESTNET_CHAIN_ID) {
-    throw new Error(`Runtime registry chain ID must be ${TESTNET_CHAIN_ID}`);
+  const expectedCodes = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CNY', 'BRL', 'PKR', 'BDT', 'INR', 'NGN', 'CHF'];
+  if (!Array.isArray(configuration.registry) || configuration.registry.length !== expectedCodes.length) {
+    throw new Error(`The configured public runtime must contain exactly ${expectedCodes.length} V2 registries`);
   }
-  if (configuration.registry.network !== 'chikyuV2' || configuration.registry.code !== 'USD') {
-    throw new Error('The configured public runtime must identify the USD chikyuV2 registry');
-  }
+  configuration.registry.forEach((registry, index) => {
+    if (String(registry.chainId) !== TESTNET_CHAIN_ID) throw new Error(`Runtime registry chain ID must be ${TESTNET_CHAIN_ID}`);
+    if (registry.network !== 'chikyuV2' || registry.code !== expectedCodes[index]) {
+      throw new Error(`Runtime registry ${index + 1} must identify ${expectedCodes[index]} on chikyuV2`);
+    }
+  });
   if (configuration.rpcUrl !== TESTNET_CHAIN.rpcUrl) throw new Error(`Runtime RPC must be ${TESTNET_CHAIN.rpcUrl}`);
   const chain = configuration.chain;
   if (!chain || chain.name !== TESTNET_CHAIN.name || chain.rpcUrl !== TESTNET_CHAIN.rpcUrl || chain.explorerUrl !== TESTNET_CHAIN.explorerUrl) {
@@ -61,6 +74,11 @@ const runtimeFile = fixture ? 'config/runtime.fixture.json' : process.env.IMF_RU
 const runtimePath = path.resolve(root, runtimeFile);
 if (!runtimePath.startsWith(`${root}${path.sep}`)) throw new Error('Runtime configuration must be a child of the frontend root');
 const runtime = JSON.parse(await readFile(runtimePath, 'utf8'));
+if (process.env.IMF_INDEXER_URL) runtime.indexerUrl = process.env.IMF_INDEXER_URL;
+if (runtime.indexerUrl !== undefined) {
+  if (typeof runtime.indexerUrl !== 'string' || !runtime.indexerUrl) throw new Error('indexerUrl must be a nonempty URL when configured');
+  runtime.indexerUrl = indexerUrl(runtime.indexerUrl);
+}
 if (runtime.protocolVersion !== 2 || !['read-only', 'testnet-metamask'].includes(runtime.mode)) {
   throw new Error('Runtime must explicitly select V2 read-only or testnet-metamask mode');
 }
@@ -72,7 +90,7 @@ if (!review && !runtime.registry) throw new Error('Production builds require an 
 if (runtime.registry && !runtime.rpcUrl) throw new Error('A configured registry requires an explicit public RPC URL');
 if (runtime.rpcUrl && !(fixture && runtime.rpcUrl === 'fixture://v2') && !/^https?:\/\//.test(runtime.rpcUrl)) throw new Error('RPC URL must use HTTP(S)');
 const currencies = JSON.parse(await readFile(path.join(root, 'assets/currencies.json'), 'utf8'));
-if (currencies.length !== 11 || new Set(currencies.map(([code]) => code)).size !== 11) throw new Error('Expected eleven distinct currencies');
+if (currencies.length !== 12 || new Set(currencies.map(([code]) => code)).size !== 12) throw new Error('Expected twelve distinct currencies');
 const articles = JSON.parse(await readFile(path.join(root, 'assets/articles.json'), 'utf8'));
 if (articles.length < 18 || new Set(articles.map((article) => article.id)).size !== articles.length) throw new Error('Expected distinct documentation guides');
 const imageDimensions = {};
@@ -114,11 +132,11 @@ for (const surface of surfaces) {
     const replacements = surface === 'website' ? [
       [
         'The app includes read-only V2 tooling, but no verified V2 deployment registry is currently configured. You can model a position, save a draft on this device and export a plan. It does not simulate, sign or broadcast transactions.',
-        'The public app verifies the USD V2 registry and reads DogeOS Chikyū testnet state. Guided actions use current simulation and explicit MetaMask confirmation on chain 6281971; tUSDC and tDOGE are test assets. Planning JSON remains non-executable. Production readiness is not claimed.',
+        'The public app verifies 12 independent V2 registries and reads DogeOS Chikyū testnet state. Guided USD actions use current simulation and explicit MetaMask confirmation on chain 6281971; tUSDC and tDOGE are test assets. Planning JSON remains non-executable. Production readiness is not claimed.',
       ],
       [
         'The frontend supports local planning and read-only V2 tooling. Live contract state requires a verified deployment registry. Simulation, wallet signing and agent execution are not connected.',
-        'The frontend supports local planning, verified DogeOS Chikyū testnet reads and guided MetaMask transactions after current simulation and explicit confirmation. Only the USD V2 registry is configured; other codes remain planning identifiers. DEX and agent execution are not connected.',
+        'The frontend supports local planning, verified DogeOS Chikyū testnet reads for 12 independent currency systems and USD-guided MetaMask transactions after current simulation and explicit confirmation. DEX and agent execution are not connected.',
       ],
       [
         'Frontend preview; network execution is not connected.',
@@ -130,9 +148,9 @@ for (const surface of surfaces) {
         'DogeOS Chikyū testnet documentation; guided app transactions require explicit MetaMask confirmation. Test assets only; production readiness is not claimed.',
       ],
     ] : surface === 'app' ? [
-      ['Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution', 'DogeOS Chikyū testnet · Guided MetaMask transactions after simulation and explicit confirmation · Test assets only'],
-      ['<span class="tag" id="sidebar-connection">V2 registry not configured</span>', '<span class="tag" id="sidebar-connection">DogeOS testnet · 1 verified currency</span>'],
-      ['<span class="tag" id="connection-status">Unconfigured</span>', '<span class="tag" id="connection-status">DogeOS testnet · 1 verified currency</span>'],
+      ['Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution', 'DogeOS Chikyū testnet · Guided USD MetaMask transactions after simulation and explicit confirmation · Test assets only'],
+      ['<span class="tag" id="sidebar-connection">V2 registry not configured</span>', '<span class="tag" id="sidebar-connection">DogeOS testnet · 12 verified currencies</span>'],
+      ['<span class="tag" id="connection-status">Unconfigured</span>', '<span class="tag" id="connection-status">DogeOS testnet · 12 verified currencies</span>'],
       ['No verified V2 deployment registry is configured. You can inspect a V2 registry locally without sending it to a server.', runtime.message],
       ['Read-only preview; no production V2 registry, signing or execution is connected.', 'DogeOS Chikyū testnet preview; explicit MetaMask transactions require current simulation, review and confirmation. tUSDC is a test asset; production readiness is not claimed.'],
       ['<h2>Structured read-only planning intent</h2>', '<h2>Structured non-executable planning intent</h2>'],
@@ -148,7 +166,7 @@ for (const surface of surfaces) {
   );
   if (surface === 'app') html = html.replace(
     /<script src="\/?assets\/app\.js" defer><\/script>/,
-    '<script src="/assets/protocol.js" defer></script><script src="/assets/planning.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/wallet.js" defer></script><script src="/assets/discovery.js" defer></script><script src="/assets/v2.js" defer></script><script src="/assets/dashboard.js" defer></script><script src="/assets/actions.js" defer></script><script src="/assets/app.js" defer></script>',
+    '<script src="/assets/protocol.js" defer></script><script src="/assets/planning.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/wallet.js" defer></script><script src="/assets/discovery.js" defer></script><script src="/assets/read-cache.js" defer></script><script src="/assets/v2.js" defer></script><script src="/assets/dashboard.js" defer></script><script src="/assets/actions.js" defer></script><script src="/assets/app.js" defer></script>',
   );
   html = html.replace('</head>', '<noscript><style>.menu,.sidebar-toggle{display:none!important}#doc-search,label[for="doc-search"]{display:none}@media(max-width:700px){.navlinks{display:flex!important}}</style></noscript></head>');
   const docsTemplate = surface === 'docs' ? html : null;
@@ -165,7 +183,7 @@ for (const surface of surfaces) {
     website: 'Use project tokens as collateral to mint currencies on DogeOS. IMF extends Frankencoin mechanics with one independent system per currency.',
     docs: 'Technical guides to project-token collateral, independent currency systems, V2 positions, non-executable planning and explicit DogeOS testnet workflows.',
     app: discoverability.mode === 'testnet'
-      ? 'Inspect verified USD V2 DogeOS Chikyū testnet state and prepare guided MetaMask transactions after current simulation and explicit review. Test assets only; production readiness is not claimed.'
+      ? 'Inspect 12 verified V2 systems on DogeOS Chikyū testnet and prepare guided USD MetaMask transactions after current simulation and explicit review. Test assets only; production readiness is not claimed.'
       : 'Prepare non-executable project-collateral position plans with exact decimal-aware inputs and optional read-only V2 registry inspection. No signing or execution in this review.',
   };
   html = discoverability.metadata(html, { surface, canonical: origins[surface], title: titles[surface], description: descriptions[surface], type: surface === 'docs' ? 'CollectionPage' : 'WebPage' });

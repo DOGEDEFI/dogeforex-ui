@@ -20,6 +20,10 @@
     lastPlan: null,
     manage: null,
     ecosystem: {},
+    readCache: null,
+    readCacheIdentity: null,
+    verificationProgress: null,
+    verificationComplete: null,
     nonce: 0,
     manageNonce: 0,
     ecosystemNonce: 0,
@@ -37,6 +41,74 @@
   function errorMessage(cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     return (state.rpcUrl ? message.split(state.rpcUrl).join('<rpc>') : message).slice(0, 700);
+  }
+
+  function readCacheApi() {
+    return window.IMF_READ_CACHE ?? null;
+  }
+
+  function configureReadCache(registry, rpc, source) {
+    const api = readCacheApi();
+    state.readCache = null;
+    state.readCacheIdentity = null;
+    if (!api) return null;
+    try {
+      const identity = api.identityFor({ chainId: registry.chainId, rpcUrl: rpc, source, registry: state.rawRegistry });
+      state.readCache = api.configureShared(identity);
+      state.readCacheIdentity = identity;
+      return state.readCache;
+    } catch {
+      return null;
+    }
+  }
+
+  // Read-cache reuse is exposed for public read-only dashboard analytics only.
+  // Guided action, quote and prepare paths (readAction, readManage,
+  // readEcosystem and every quote* helper) always read fresh state and never
+  // call this hook; a cached read is never a substitute for current state in
+  // a guided write journey.
+  async function readDashboardAnalytics(kind, key, currency, producer, meta = {}) {
+    const cache = state.fixture ? null : state.readCache;
+    if (!cache) return { value: await producer(), cache: 'disabled' };
+    const hit = cache.get(kind, key, currency);
+    if (hit.status === 'hit') {
+      return { value: hit.value, cache: 'hit', fetchedAt: hit.fetchedAt, sourceBlock: hit.sourceBlock ?? null, coverage: hit.coverage ?? null };
+    }
+    if (hit.status === 'expired' && hit.value !== undefined) {
+      const refresh = (async () => {
+        try {
+          const value = await producer();
+          cache.set(kind, key, currency, value, meta);
+          return value;
+        } catch (cause) {
+          cache.setError(kind, key, currency, errorMessage(cause));
+          return null;
+        }
+      })();
+      return { value: hit.value, cache: 'expired', fetchedAt: hit.fetchedAt, sourceBlock: hit.sourceBlock ?? null, coverage: hit.coverage ?? null, refresh };
+    }
+    try {
+      const value = await producer();
+      const stored = cache.set(kind, key, currency, value, meta);
+      return { value, cache: 'miss', stored: stored.stored, fetchedAt: Date.now(), sourceBlock: meta.sourceBlock ?? null, coverage: meta.coverage ?? null };
+    } catch (cause) {
+      cache.setError(kind, key, currency, errorMessage(cause));
+      throw cause;
+    }
+  }
+
+  function invalidateReadCache(currency = null) {
+    const cache = state.readCache;
+    if (!cache) return false;
+    if (currency) cache.invalidateCurrency(currency);
+    else cache.invalidateIdentity();
+    return true;
+  }
+
+  // Post-receipt-compatible hook: the parent calls this after any confirmed
+  // transaction receipt so pre-receipt cached analytics are no longer served.
+  function onReadReceipt(receipt = {}) {
+    state.readCache?.onReceipt(receipt);
   }
 
   function formError(message = '') {
@@ -327,21 +399,33 @@
     if (!sdk?.createV2Client) throw new Error('The V2 browser SDK did not load. Offline documentation and teaching remain available; live reads are unavailable.');
   }
 
-  async function clientFor(code) {
+  async function clientFor(code, { fresh = false } = {}) {
     requireSdk();
     if (!state.registry || !state.provider) throw new Error('Configure and verify a V2 registry before reading');
-    if (state.verified.get(code)) return state.clients.get(code);
+    if (!fresh && state.verified.get(code)) return state.clients.get(code);
     if (state.verifying.has(code)) return state.verifying.get(code);
     const registry = state.registry;
     const provider = state.provider;
     const instance = registry.instances[code];
     if (!instance) throw new Error(`The supplied V2 registry has no ${code} instance; available: ${registry.codes.join(', ')}`);
     const client = sdk.createV2Client(instance, provider);
+    if (!fresh && !state.fixture && state.readCache) {
+      const cached = state.readCache.get('verification', 'contract-links', code);
+      if (cached.status === 'hit') {
+        state.clients.set(code, client);
+        state.verified.set(code, true);
+        state.verificationErrors.delete(code);
+        return client;
+      }
+    }
     const promise = client.verify().then(() => {
       if (state.registry !== registry || state.provider !== provider) throw new Error('Verification was superseded by a newer connection');
       state.clients.set(code, client);
       state.verified.set(code, true);
       state.verificationErrors.delete(code);
+      if (!fresh && !state.fixture && state.readCache) {
+        state.readCache.set('verification', 'contract-links', code, { verified: true, addresses: instance.addresses });
+      }
       renderRegistry();
       return client;
     }).catch((cause) => {
@@ -376,6 +460,10 @@
     state.fixture = false;
     state.manage = null;
     state.ecosystem = {};
+    state.readCache = null;
+    state.readCacheIdentity = null;
+    state.verificationProgress = null;
+    state.verificationComplete = null;
     state.verifying.clear();
     state.verified.clear();
     state.verificationErrors.clear();
@@ -400,24 +488,66 @@
       const scenario = state.fixture ? sdk.fixtureControls?.scenario : null;
       state.provider = state.fixture ? sdk.createFixtureProvider() : new sdk.JsonRpcProvider(state.rpcUrl, registry.chainId, { staticNetwork: true });
       if (state.fixture && scenario && scenario !== 'valid') sdk.fixtureControls.setScenario(scenario);
+      configureReadCache(registry, state.rpcUrl, source);
       renderRegistry();
-      for (const code of registry.codes) {
+      // Verify the selected currency first so the primary read model is ready
+      // before connect settles; the remaining currencies verify in the
+      // background with limited concurrency and progressive status.
+      const selected = field('currency').value;
+      const ordered = registry.codes.includes(selected)
+        ? [selected, ...registry.codes.filter((code) => code !== selected)]
+        : [...registry.codes];
+      const verifyOne = async (code) => {
         try {
           await clientFor(code);
         } catch (cause) {
-          state.verificationErrors.set(code, errorMessage(cause));
+          if (!state.verificationErrors.has(code)) state.verificationErrors.set(code, errorMessage(cause));
         }
-        if (nonce !== state.nonce) return;
+      };
+      await verifyOne(ordered[0]);
+      if (nonce !== state.nonce) return;
+      if (![...state.verified.values()].some(Boolean)) {
+        // Preserve the original guarantee that connect resolves only after at
+        // least one currency verified; keep verifying sequentially on failure.
+        for (const code of ordered.slice(1)) {
+          await verifyOne(code);
+          if (nonce !== state.nonce) return;
+          if (state.verified.get(code)) break;
+        }
       }
       if (![...state.verified.values()].some(Boolean)) throw new Error('No V2 currency could be verified against the selected chain and contract links');
-      const selected = field('currency').value;
-      if (!state.verified.get(selected)) {
+      if (!state.verified.get(field('currency').value)) {
         const available = registry.codes.find((code) => state.verified.get(code));
         if (available) field('currency').value = available;
       }
+      const remaining = registry.codes.filter((code) => !state.verified.get(code));
+      const progress = { total: remaining.length, done: 0, verified: 0, failed: 0, complete: false };
+      state.verificationProgress = progress;
+      hooks.onVerificationProgress?.({ ...progress });
+      const queue = [...remaining];
+      const workerCount = Math.min(3, queue.length);
+      state.verificationComplete = Promise.all(Array.from({ length: workerCount }, async () => {
+        while (queue.length) {
+          const code = queue.shift();
+          try {
+            await clientFor(code);
+            if (nonce === state.nonce) progress.verified += 1;
+          } catch (cause) {
+            if (!state.verificationErrors.has(code)) state.verificationErrors.set(code, errorMessage(cause));
+            if (nonce === state.nonce) progress.failed += 1;
+          }
+          if (nonce === state.nonce) {
+            progress.done += 1;
+            hooks.onVerificationProgress?.({ ...progress, code });
+          }
+        }
+      })).then(() => {
+        progress.complete = true;
+        if (nonce === state.nonce) hooks.onVerificationProgress?.({ ...progress });
+      });
       renderRegistry();
       invalidate();
-      hooks.notify(state.fixture ? 'Synthetic V2 fixture connected. These are not live contracts or operational quotes.' : state.runtime?.mode === 'testnet-metamask' && state.source === 'runtime-config' ? 'DogeOS testnet registry verified. Connect MetaMask to prepare explicit transactions; no wallet prompt has been requested.' : 'V2 registry verified for read-only inspection. Local registries and custom RPC cannot authorize transactions.');
+      hooks.notify(state.fixture ? 'Synthetic V2 fixture connected. These are not live contracts or operational quotes.' : state.runtime?.mode === 'testnet-metamask' && state.source === 'runtime-config' ? 'DogeOS testnet registry connected; the primary currency is verified and remaining currencies keep verifying in the background. Connect MetaMask to prepare explicit transactions; no wallet prompt has been requested.' : 'V2 registry connected for read-only inspection; the primary currency is verified and remaining currencies keep verifying in the background. Local registries and custom RPC cannot authorize transactions.');
     } catch (cause) {
       state.provider = null;
       connectionError(errorMessage(cause));
@@ -443,6 +573,10 @@
     state.lastPlan = null;
     state.manage = null;
     state.ecosystem = {};
+    state.readCache = null;
+    state.readCacheIdentity = null;
+    state.verificationProgress = null;
+    state.verificationComplete = null;
     renderRegistry();
     invalidate();
     $('#manage-state').replaceChildren();
@@ -560,7 +694,7 @@
     button.disabled = true;
     form.setAttribute('aria-busy', 'true');
     try {
-      const client = await clientFor(field('currency').value);
+      const client = await clientFor(field('currency').value, { fresh: true });
       const caller = requireAccount();
       if (kind === 'new') {
         const collateral = address(field('token').value, 'Collateral token');
@@ -723,7 +857,7 @@
     const nonce = ++state.manageNonce;
     const { position, account } = manageFormValues();
     try {
-      const client = await clientFor(field('currency').value);
+      const client = await clientFor(field('currency').value, { fresh: true });
       const snapshot = await client.positionSnapshot(address(position, 'Position'), withCaller({}, account));
       if (nonce !== state.manageNonce) return null;
       state.manage = { client, address: snapshot.address, account: account ? address(account, 'Account') : null, snapshot };
@@ -846,7 +980,7 @@
     const nonce = ++state.ecosystemNonce;
     const code = $('#ecosystem-currency').value;
     const account = ecoAccount();
-    const client = await clientFor(code);
+    const client = await clientFor(code, { fresh: true });
     const options = withAccount({}, account);
     const [bridge, savings, equity, minters, token] = await Promise.allSettled([
       client.bridgeSnapshot(options),
@@ -1122,8 +1256,32 @@
     }).catch((cause) => {
       connectionError(`Runtime configuration could not be loaded: ${errorMessage(cause)}`);
     });
-    return { getPlan, loadPlan, readAction, clientFor, refresh, state };
+    return {
+      getPlan,
+      loadPlan,
+      readAction,
+      clientFor,
+      refresh,
+      state,
+      readCacheIdentity: () => state.readCacheIdentity,
+      readCache: () => state.readCache,
+      readDashboardAnalytics,
+      invalidateReadCache,
+      onReadReceipt,
+      verificationProgress: () => state.verificationProgress,
+      verificationComplete: () => state.verificationComplete,
+    };
   }
 
-  window.IMF_V2_APP = { init, get state() { return state; } };
+  window.IMF_V2_APP = {
+    init,
+    get state() { return state; },
+    readCacheIdentity: () => state.readCacheIdentity,
+    readCache: () => state.readCache,
+    readDashboardAnalytics,
+    invalidateReadCache,
+    onReadReceipt,
+    verificationProgress: () => state.verificationProgress,
+    verificationComplete: () => state.verificationComplete,
+  };
 })();

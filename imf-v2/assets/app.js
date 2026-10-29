@@ -1,7 +1,8 @@
 (() => {
   'use strict';
-  const views = ['dashboard', 'create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'review', 'drafts', 'lifecycle'];
+  const views = ['start', 'dashboard', 'create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'review', 'drafts', 'lifecycle'];
   const titles = {
+    start: 'Start here',
     dashboard: 'Dashboard',
     create: 'Create & mint',
     manage: 'Manage & close',
@@ -13,7 +14,8 @@
     drafts: 'Saved drafts',
     lifecycle: 'Operating workflow',
   };
-  let view = 'create';
+  const baseTitle = document.title;
+  let view = 'start';
   let agentMode = new URLSearchParams(location.search).get('mode') === 'agent';
   let store;
   let v2;
@@ -59,10 +61,18 @@
     document.querySelectorAll('[data-view]').forEach((button) => {
       const active = button.dataset.view === next || (next === 'review' && button.dataset.view === 'offline');
       button.classList.toggle('active', active);
+      if (!button.closest('.sidebar')) return;
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    document.querySelector('#view-title').textContent = titles[next];
+    if (next === 'dashboard') {
+      // Dashboard panels own the page heading and document title.
+      document.title = baseTitle;
+    } else {
+      document.querySelector('#view-title').textContent = titles[next];
+      document.title = `${titles[next]} · IMF project workspace`;
+      if (next !== 'review') history.replaceState(null, '', `#${next}`);
+    }
     document.querySelector('.mode-switch').hidden = !['create', 'offline', 'review'].includes(next);
     if (next === 'drafts') renderDrafts();
     if (next === 'ecosystem') {
@@ -159,7 +169,7 @@
       ? `${readCount} synthetic read model${readCount === 1 ? '' : 's'} available. No deployment is implied.`
       : readCount
         ? `${readCount} of ${window.IMF_CURRENCIES.length} currency systems are verified for read-only access. Planning codes do not imply deployment.`
-        : 'No currency system is verified for reads. The 11 codes remain planning identifiers; configure a V2 registry under Registry & network.';
+        : 'No currency system is verified for reads. The 12 codes remain planning identifiers; configure a V2 registry under Registry & network.';
     document.querySelector('#ecosystem-load-form button[type="submit"]').disabled = readCount === 0;
     const query = new URLSearchParams(location.search);
     if (window.IMF_PLANNING.codes.includes(query.get('currency'))) {
@@ -171,6 +181,16 @@
     }
   }
 
+  function routeFromLocation() {
+    if (dashboard?.panelFromHash?.()) return 'dashboard';
+    const clean = location.hash.replace(/^#\/?/, '');
+    if (!clean) return 'start';
+    if (clean.startsWith('dashboard')) return null;
+    const name = clean.split('/')[0];
+    if (name === 'review') return 'offline';
+    return views.includes(name) ? name : null;
+  }
+
   function init() {
     currencies();
     let storage;
@@ -180,7 +200,7 @@
       storage = { getItem() { throw new Error('Browser storage is disabled'); }, setItem() { throw new Error('Browser storage is disabled'); } };
     }
     store = new window.IMF_PLANNING.DraftStore(storage);
-    document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
+    document.querySelectorAll('[data-view], [data-start-target]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view ?? button.dataset.startTarget)));
     document.querySelector('#human-mode').addEventListener('click', () => setMode(false));
     document.querySelector('#agent-mode').addEventListener('click', () => setMode(true));
     document.querySelector('#export-agent-plan').addEventListener('click', () => {
@@ -220,10 +240,10 @@
     window.IMF_ACTIONS.init(v2, { onView: showView, notify });
     setMode(agentMode);
     window.addEventListener('hashchange', () => {
-      const panel = dashboard?.panelFromHash?.();
-      if (panel) showView('dashboard', false);
+      const routed = routeFromLocation();
+      if (routed) showView(routed, false);
     });
-    showView(dashboard?.panelFromHash?.() ? 'dashboard' : 'create', false);
+    showView(routeFromLocation() ?? 'start', false);
   }
 
   init();

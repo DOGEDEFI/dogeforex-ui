@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { get as httpGet } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -8,6 +9,7 @@ import { chromium } from 'playwright-core';
 const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const portBase = Number(process.env.IMF_TESTNET_PREVIEW_PORT || 5260);
 const rpcOrigin = 'https://rpc.testnet.dogeos.com';
+const indexerEnabled = Boolean(process.env.IMF_INDEXER_URL);
 const endpoint = (port, pathname = '/') => `http://127.0.0.1:${port}${pathname}`;
 const responsiveChecks = [];
 
@@ -31,8 +33,14 @@ async function checkLayout(page, label, width) {
 
 async function reachable(url) {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(1500) });
-    return response.ok;
+    return await new Promise((resolve, reject) => {
+      const request = httpGet(url, (response) => {
+        response.resume();
+        resolve(response.statusCode === 200);
+      });
+      request.on('error', reject);
+      request.setTimeout(5000, () => request.destroy(new Error(`Preview health check timed out at ${url}`)));
+    });
   } catch {
     return false;
   }
@@ -100,7 +108,7 @@ try {
   monitor(page);
   const response = await page.goto(endpoint(portBase + 2), { waitUntil: 'networkidle' });
   assert.equal(response.status(), 200);
-  await page.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'DogeOS testnet · 1 verified currency', undefined, { timeout: 60000 });
+  await page.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'DogeOS testnet · 12 verified currencies', undefined, { timeout: 90000 });
   const noInjectedWallet = await page.evaluate(async () => {
     let connectError = null;
     try { await window.IMF_WALLET.connect(); } catch (error) { connectError = error.code; }
@@ -124,13 +132,14 @@ try {
   assert.equal(noInjectedWallet.transactionPanelHidden, true);
   assert.equal(noInjectedWallet.transactionSendDisabled, true);
   assert.deepEqual(forbiddenMethods, [], 'No injected wallet means no signing or broadcast path may run');
-  assert.deepEqual(await page.locator('#ecosystem-currency option:not([disabled])').evaluateAll((options) => options.map((option) => option.value)), ['USD']);
-  assert.equal(await page.locator('#ecosystem-currency option').count(), 11);
-  assert((await page.locator('#ecosystem-availability').textContent()).includes('1 of 11'));
+  const expectedCodes = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CNY', 'BRL', 'PKR', 'BDT', 'INR', 'NGN', 'CHF'];
+  assert.deepEqual(await page.locator('#ecosystem-currency option:not([disabled])').evaluateAll((options) => options.map((option) => option.value)), expectedCodes);
+  assert.equal(await page.locator('#ecosystem-currency option').count(), 12);
+  assert((await page.locator('#ecosystem-availability').textContent()).includes('12 of 12'));
   await page.locator('[data-view="connection"]').click();
   const registryText = await page.locator('#registry-summary').textContent();
   assert(registryText.includes('6281971'));
-  assert(registryText.includes('USD'));
+  for (const code of expectedCodes) assert(registryText.includes(code));
   assert((await page.locator('#runtime-message').textContent()).includes('tUSDC'));
   assert((await page.locator('#runtime-message').textContent()).includes('testnet'));
   await page.locator('[data-view="ecosystem"]').click();
@@ -155,7 +164,7 @@ try {
     assert.equal(await targetPage.locator('.dashboard-panel[role="tabpanel"]').count(), panels.length);
     await targetPage.locator('[data-view="dashboard"]').click();
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE USD'), undefined, { timeout: 90000 });
-    assert.equal(await targetPage.locator('#dashboard-currency option').count(), 11);
+    assert.equal(await targetPage.locator('#dashboard-currency option').count(), 12);
     await targetPage.locator('#dashboard-method-open').click();
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-method-dialog').open === true);
     assert((await targetPage.locator('#dashboard-method-dialog').textContent()).includes('Unavailable analytics'));
@@ -182,7 +191,13 @@ try {
       assert.equal(await targetPage.locator('#view-title').textContent(), pageTitles[panel]);
       if (panel === 'markets') assert((await targetPage.locator('#dashboard-markets').innerText()).includes('Reference marks unavailable'));
       if (panel === 'activity') {
-        assert((await targetPage.locator('#dashboard-activity').innerText()).includes('Protocol event ledger'));
+        const activity = await targetPage.locator('#dashboard-activity').innerText();
+        assert(activity.includes('Protocol event ledger'));
+        if (indexerEnabled) {
+          assert(activity.includes('Complete event result'));
+          assert(activity.includes('indexed filters'));
+          assert(source.includes('INDEXED HISTORY'));
+        }
         await targetPage.locator('[data-event-type="challenge-started"]').click();
         assert.equal(await targetPage.locator('[data-event-type="challenge-started"]').getAttribute('aria-pressed'), 'true');
         await targetPage.locator('#dashboard-activity-sort').click();
@@ -217,6 +232,48 @@ try {
     assert.equal(await targetPage.locator('.dashboard-nav [aria-selected="true"]').count(), 1);
   }
 
+  async function checkAllCurrencyDashboards(targetPage) {
+    const observed = [];
+    await targetPage.goto(endpoint(portBase + 2, '#dashboard/overview'), { waitUntil: 'networkidle' });
+    for (const code of expectedCodes) {
+      await targetPage.locator('#dashboard-currency').selectOption(code);
+      await targetPage.waitForFunction((selected) => document.querySelector('#dashboard-source-status')?.textContent.includes(`LIVE ${selected}`) && document.querySelector('.dash-system-node.hub strong')?.textContent.includes(`K9${selected}`), code, { timeout: 120000 });
+      if (indexerEnabled) {
+        await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('INDEXED HISTORY'), undefined, { timeout: 120000 });
+      } else {
+        await targetPage.waitForFunction(() => document.querySelector('#dashboard-overview')?.innerText.includes('History unavailable — indexer not configured'), undefined, { timeout: 120000 });
+      }
+      const overview = await targetPage.locator('#dashboard-overview').innerText();
+      const tokenSupply = await targetPage.locator('.dash-kpi').first().innerText();
+      assert(tokenSupply.includes(`K9${code}`) && !tokenSupply.includes('Unavailable'), `${code}: current token supply read is missing`);
+      if (indexerEnabled) {
+        assert(overview.includes('INDEXED HISTORY'), `${code}: indexed debt history is missing`);
+        assert(overview.includes('Zero-address token transfers'), `${code}: indexed token flow provenance is missing`);
+      } else {
+        assert(overview.includes('History unavailable — indexer not configured'), `${code}: unavailable history boundary changed`);
+      }
+      await targetPage.locator('#dashboard-tab-positions').click();
+      await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-positions tbody tr').length === 3, undefined, { timeout: 120000 });
+      const positions = await targetPage.locator('#dashboard-positions').innerText();
+      for (const collateral of ['DEMO03', 'DEMO06', 'DEMO09']) assert(positions.includes(collateral), `${code}: missing ${collateral} position`);
+      assert(positions.includes('Scanned blocks'), `${code}: discovery coverage is missing`);
+      observed.push({ code, positions: 3, collateral: ['DEMO03', 'DEMO06', 'DEMO09'] });
+      await targetPage.locator('#dashboard-tab-overview').click();
+    }
+    await targetPage.goto(endpoint(portBase + 2, '#dashboard/parameters/CHF'), { waitUntil: 'networkidle' });
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE CHF') && document.querySelector('#dashboard-parameters')?.innerText.includes('CHF registry'), undefined, { timeout: 120000 });
+    assert.equal(new URL(targetPage.url()).hash, '#dashboard/parameters/CHF');
+    await targetPage.goto(endpoint(portBase + 2, '#dashboard/overview/USD'), { waitUntil: 'networkidle' });
+    await targetPage.locator('#dashboard-compare-toggle').click();
+    await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-overview [data-compare-code]').length === 12, undefined, { timeout: 120000 });
+    const comparison = await targetPage.locator('#dashboard-overview').innerText();
+    for (const code of expectedCodes) assert(comparison.includes(`K9${code}`), `comparison: missing K9${code}`);
+    await targetPage.locator('[data-compare-code="EUR"]').click();
+    await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE EUR'), undefined, { timeout: 120000 });
+    assert.equal(new URL(targetPage.url()).hash, '#dashboard/overview/EUR');
+    return { positions: observed, comparisonCurrencies: 12, currencyDeepLink: 'CHF' };
+  }
+
   async function checkWorkspace(targetPage) {
     for (const view of ['dashboard', 'create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
       await targetPage.evaluate((name) => document.querySelector(`[data-view="${name}"]`).click(), view);
@@ -236,6 +293,22 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: path.join(root, 'artifacts/testnet-app-desktop.png'), fullPage: true });
   await checkDashboard(page);
+  const currencyDashboards = await checkAllCurrencyDashboards(page);
+  const warmRpcBefore = rpcMethods.length;
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE EUR') && !document.querySelector('#dashboard-overview')?.innerText.includes('Read in progress'), undefined, { timeout: 120000 });
+  const warmReloadRpcDelta = rpcMethods.length - warmRpcBefore;
+  const warmMethodCounts = rpcMethods.slice(warmRpcBefore).reduce((counts, method) => ({ ...counts, [method]: (counts[method] ?? 0) + 1 }), {});
+  assert(warmReloadRpcDelta < 100, `warm dashboard reload made ${warmReloadRpcDelta} RPC requests instead of using the hourly cache: ${JSON.stringify(warmMethodCounts)}`);
+  assert((await page.locator('#dashboard-snapshot').textContent()).toLowerCase().includes('hourly'));
+  const freshVerificationRequest = page.waitForRequest((request) => (request.postData() || '').includes('"eth_getCode"'), { timeout: 120000 });
+  await page.locator('#dashboard-refresh').click();
+  await freshVerificationRequest;
+  await page.waitForFunction(() => document.querySelector('#dashboard-refresh')?.disabled === false, undefined, { timeout: 120000 });
+  await page.waitForFunction(() => !document.querySelector('#dashboard-overview')?.innerText.includes('Read in progress'), undefined, { timeout: 120000 });
+  const manualReloadRpcBurst = rpcMethods.length - warmRpcBefore - warmReloadRpcDelta;
+  assert(manualReloadRpcBurst > 50, `manual Reload now must bypass the dashboard read cache; observed ${manualReloadRpcBurst} fresh RPC requests`);
+  assert(manualReloadRpcBurst <= 500, `manual Reload now exceeded the 500-request freshness budget: ${manualReloadRpcBurst}`);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: path.join(root, 'artifacts/testnet-dashboard-desktop.png'), fullPage: true });
 
@@ -243,7 +316,7 @@ try {
   const mobilePage = await mobile.newPage();
   monitor(mobilePage);
   await mobilePage.goto(endpoint(portBase + 2), { waitUntil: 'networkidle' });
-  await mobilePage.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'DogeOS testnet · 1 verified currency', undefined, { timeout: 60000 });
+  await mobilePage.waitForFunction(() => document.querySelector('#sidebar-connection')?.textContent === 'DogeOS testnet · 12 verified currencies', undefined, { timeout: 90000 });
   const mobileOverflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   assert.equal(mobileOverflow, false);
   await checkWorkspace(mobilePage);
@@ -357,8 +430,12 @@ try {
     testAssetLabel: 'tUSDC',
     liveBridgeSavingsEquityReads: true,
     dashboardPanels: 7,
-    dashboardLiveUsdOnly: true,
+    dashboardLiveCurrencies: expectedCodes,
+    currencyDashboards,
     dashboardDiscoveryAndDrawer: true,
+    warmReloadRpcDelta,
+    manualReloadRpcBurst,
+    indexerEnabled,
     staticGuideCount: articles.length,
     canonicalGuideMetadata: true,
     crawlerFiles: true,

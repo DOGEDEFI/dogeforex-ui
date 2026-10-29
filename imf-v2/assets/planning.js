@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const codes = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CNY', 'BRL', 'PKR', 'BDT', 'INR', 'NGN'];
+  const codes = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CNY', 'BRL', 'PKR', 'BDT', 'INR', 'NGN', 'CHF'];
   const decimal = /^\d+(\.\d+)?$/;
   const address = /^0x[a-fA-F0-9]{40}$/;
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);

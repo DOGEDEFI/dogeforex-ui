@@ -13,7 +13,7 @@
     "signatureStatus": { "const": "not-requested" },
     "action": { "enum": ["new", "clone", "mint"] },
     "project": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S" },
-    "currency": { "enum": ["USD", "EUR", "JPY", "GBP", "AUD", "CNY", "BRL", "PKR", "BDT", "INR", "NGN"] },
+    "currency": { "enum": ["USD", "EUR", "JPY", "GBP", "AUD", "CNY", "BRL", "PKR", "BDT", "INR", "NGN", "CHF"] },
     "chainId": { "type": ["string", "null"], "pattern": "^[1-9][0-9]*$" },
     "inputs": { "type": "object" },
     "evidence": { "type": "object" },

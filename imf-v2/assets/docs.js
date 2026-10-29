@@ -34,6 +34,10 @@
       link.hidden = !visible;
       if (visible) count += 1;
     }
+    for (const group of links.querySelectorAll('.doc-group')) {
+      const anyVisible = [...group.querySelectorAll('a[data-guide]')].some((link) => !link.hidden);
+      group.hidden = Boolean(term) && !anyVisible;
+    }
     status.textContent = term ? `${count} guide${count === 1 ? '' : 's'} found` : '';
   }
 

@@ -113,7 +113,7 @@ for surface in ['website', 'docs', 'app']:
         elif surface == 'docs':
             expected_scripts.append('/assets/docs.js')
         else:
-            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/discovery.js', '/assets/v2.js', '/assets/dashboard.js', '/assets/actions.js', '/assets/app.js'])
+            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/discovery.js', '/assets/read-cache.js', '/assets/v2.js', '/assets/dashboard.js', '/assets/actions.js', '/assets/app.js'])
         assert page.scripts == expected_scripts, f'{file}: incorrect ordered scripts: {page.scripts}'
         assert len(page.titles) == 1 and page.titles[0].strip(), f'{file}: missing unique title'
         assert len(page.descriptions) == 1 and 60 <= len(page.descriptions[0]) <= 220, f'{file}: missing or inadequate description'
@@ -125,6 +125,19 @@ for surface in ['website', 'docs', 'app']:
         assert page.properties.get('og:image') == f'{site_config["origins"]["website"]}assets/imf-social.jpg'
         assert page.properties.get('og:image:alt')
         assert page.h1_count == 1, f'{file}: expected exactly one H1, got {page.h1_count}'
+        if relative == Path('index.html'):
+            assert source.count('aria-current="page"') == 1, f'{file}: header must mark the current surface exactly once'
+            for label in ('>Website</a>', '>Documentation</a>', '>Workspace</a>'):
+                assert label in source, f'{file}: unified surface navigation is missing {label}'
+        if surface == 'docs':
+            expected_groups = 10 if relative == Path('index.html') else 5
+            assert source.count('data-doc-group=') == expected_groups, f'{file}: documentation groups missing or duplicated'
+            assert source.count('data-guide="') == len(articles), f'{file}: documentation guide links missing or duplicated'
+            for group_label in ('Start here', 'Plan &amp; borrow', 'Liquidity', 'Participate &amp; operate', 'Integrate &amp; status'):
+                assert group_label in source, f'{file}: missing guide group {group_label}'
+        if surface == 'app':
+            assert 'data-view="start"' in source and 'id="start-view"' in source, f'{file}: Start here view missing'
+            assert source.count('details class="info"') >= 9, f'{file}: glossary disclosures missing'
         assert len(page.structured) == 1, f'{file}: expected one JSON-LD graph'
         structured = page.structured[0]
         assert structured['@context'] == 'https://schema.org'
@@ -153,7 +166,7 @@ for surface in ['website', 'docs', 'app']:
             application = next(node for node in graph if node.get('@type') == 'WebApplication')
             if testnet_transactions:
                 assert page.titles[0] == 'IMF Workspace | DogeOS Testnet V2 & MetaMask'
-                assert 'guided MetaMask transactions after current simulation and explicit review' in page.descriptions[0]
+                assert 'guided USD MetaMask transactions after current simulation and explicit review' in page.descriptions[0]
                 assert 'production readiness is not claimed' in page.descriptions[0]
                 assert 'Read-only' not in page.titles[0] and 'Read-only' not in page.descriptions[0]
                 assert 'MetaMask' in application['description']
@@ -164,9 +177,9 @@ for surface in ['website', 'docs', 'app']:
                 assert 'non-executable' in page.descriptions[0]
                 assert 'No signing or execution in this review' in page.descriptions[0]
         if surface == 'docs' and testnet_transactions and relative == Path('index.html'):
-            assert 'Guided DogeOS testnet transactions require current simulation' in source
+            assert 'Guided DogeOS testnet transactions are USD-only and require current simulation' in source
             assert 'Imported registries and custom RPC connections remain read-only' in source
-            assert 'other ten codes are planning identifiers' in source
+            assert '12 independent V2 registries' in source
             assert 'DEX support is not asserted' in source
         if surface == 'docs' and relative != Path('index.html'):
             guide_id = relative.parent.name

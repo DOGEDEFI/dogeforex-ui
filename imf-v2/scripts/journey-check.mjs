@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
+import { get as httpGet } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -12,7 +13,15 @@ const collateral = '0xf17e00000000000000000000000000000000000c';
 const other = '0x1000000000000000000000000000000000000002';
 const executablePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const mockSource = await readFile(path.join(root, 'scripts/mock-eip1193.mjs'), 'utf8');
-assert((await fetch(appUrl, { signal: AbortSignal.timeout(2000) })).ok, `Start the fixture app at ${appUrl} first`);
+const healthStatus = await new Promise((resolve, reject) => {
+  const request = httpGet(appUrl, (response) => {
+    response.resume();
+    resolve(response.statusCode);
+  });
+  request.on('error', reject);
+  request.setTimeout(5000, () => request.destroy(new Error(`Fixture health check timed out at ${appUrl}`)));
+});
+assert.equal(healthStatus, 200, `Start the fixture app at ${appUrl} first`);
 const browser = await chromium.launch({ executablePath, headless: true });
 const errors = [];
 const results = [];
@@ -75,6 +84,8 @@ try {
   assert.equal(await page.locator('#v2-position-form [name=account]').inputValue(), account.toLowerCase());
   pass('visible MetaMask connection uses the isolated fixture account');
 
+  await page.locator('[data-view="create"]').click();
+  await page.locator('#create-view').waitFor({ state: 'visible' });
   await page.locator('#v2-position-form [name=project]').fill('Isolated test project');
   await page.locator('#v2-position-form [name=token]').fill(collateral);
   await page.locator('#v2-position-form [name=collateral]').fill('600000');
@@ -99,7 +110,9 @@ try {
   await page.locator('#transaction-send').click();
   await page.waitForFunction(() => window.IMF_WALLET.getJournal().filter((entry) => entry.status === 'confirmed').length === 2);
   await page.waitForFunction((expected) => document.querySelector('#manage-load-form [name=managePosition]').value.toLowerCase() === expected.toLowerCase(), position);
-  assert((await page.locator('#feedback').textContent()).includes(position));
+  const openingReceipt = await page.evaluate(() => window.IMF_WALLET.getJournal().filter((entry) => entry.status === 'confirmed').at(-1));
+  assert.equal(openingReceipt.operation, 'hub.openPosition');
+  assert(openingReceipt.hash);
   pass('open position confirms once and reconciles PositionOpened from the hub receipt');
 
   await page.locator('#v2-position-form input[name=action][value=mint]').check();

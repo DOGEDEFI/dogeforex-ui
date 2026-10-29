@@ -18,7 +18,7 @@
     markets: ['Marks, volume and liquidity.', 'Reference analytics stay separate from contract liquidation prices. No oracle claims.'],
     risk: ['Stress the book.', 'Interactive collateral, reference and liquidity scenarios with position-level impact.'],
     activity: ['The public ledger, in motion.', 'Discovered position and challenge events, current-state verification and actual-timestamp replay.'],
-    parameters: ['The system, parameter by parameter.', 'Current V2 reads, verified USD registry, data coverage and readiness gates.'],
+    parameters: ['The system, parameter by parameter.', 'Current V2 reads, verified currency registry, data coverage and readiness gates.'],
   };
   const STATUS_LABELS = {
     pass: 'Live read',
@@ -36,6 +36,24 @@
     ['Legal and custody review', 'MiCA/legal, custody, issuer controls and production parameters remain separate gates.'],
   ];
 
+  const RADAR_COLORS = ['#f7b500', '#bde0fe', '#cdb4db', '#ffd6a5', '#aee9d1', '#ffcfd2', '#8ecae6', '#c8b6ff', '#90be6d', '#f8961e', '#577590'];
+  const FINGERPRINT_AXES = [
+    { key: 'supply', label: 'Token supply', read: (snapshot) => section(snapshot, 'token')?.totalSupply },
+    { key: 'equity', label: 'System equity', read: (snapshot) => section(snapshot, 'equity')?.equityAmount },
+    { key: 'rate', label: 'Leadrate PPM', read: (snapshot) => section(snapshot, 'savings')?.currentRatePPM },
+    { key: 'bridgeMinted', label: 'Bridge minted', read: (snapshot) => section(snapshot, 'bridge')?.mintedLocal },
+    { key: 'bridgeCapacity', label: 'Bridge capacity', read: (snapshot) => section(snapshot, 'bridge')?.capacityLocal },
+  ];
+  const NATIVE_BAR_COLORS = ['#f7b500', '#bde0fe', '#cdb4db', '#ffd6a5', '#aee9d1', '#ffcfd2', '#8ecae6', '#c8b6ff'];
+  const CUBE_DIMENSIONS = {
+    debt: { label: 'Gross debt', short: 'DEBT', get: (position) => bigintOrNull(position.minted) ?? 0n, format: (value) => formatAmount(value, 18, currentSymbol()) },
+    availableForMinting: { label: 'Minting capacity', short: 'CAPACITY', get: (position) => bigintOrNull(position.availableForMinting) ?? 0n, format: (value) => formatAmount(value, 18, currentSymbol()) },
+    collateral: { label: 'Collateral balance (native)', short: 'COLLATERAL', get: (position) => bigintOrNull(position.collateral?.balance) ?? 0n, format: (value, position) => formatAmount(value, position.collateral?.decimals ?? 18, position.collateral?.symbol ?? '') },
+    liquidationPrice: { label: 'Liquidation price', short: 'LIQ. PRICE', get: (position) => bigintOrNull(position.price) ?? 0n, format: (value, position) => formatAmount(value, position.priceDecimals ?? 18, `${currentSymbol()} / ${position.collateral?.symbol ?? 'collateral'}`) },
+    reservePPM: { label: 'Reserve contribution PPM', short: 'RESERVE PPM', get: (position) => bigintOrNull(position.reserveContributionPPM) ?? 0n, format: (value) => formatPPM(value) },
+  };
+  const CUBE_POINT_COLORS = { pass: '#aee9d1', warn: '#e9c46a', fail: '#ffcfd2', info: '#bde0fe', neutral: '#cdb4db' };
+
   const state = {
     panel: 'overview',
     code: 'USD',
@@ -48,10 +66,14 @@
     challenge: null,
     parametersTab: 'current',
     position: { search: '', collateral: 'ALL', status: 'ALL', health: 'ALL', maxCr: 10000, sort: 'collateralRatio', dir: 'asc', page: 1, perPage: 8 },
-    activity: { type: 'all', sort: 'desc' },
+    activity: { type: 'all', sort: 'desc', day: null },
     scenario: { collateral: -20, fx: 0, liquidity: 15, threshold: 150, preset: 'moderate' },
     replay: { progress: 0, playing: false, timer: null },
+    comparison: { open: false, pending: false, rows: [], nonce: 0 },
+    indexer: { status: 'unconfigured', health: null, events: [], positions: [], complete: false, error: null },
+    cube: { axes: { x: '', y: '', z: '' }, code: '', yaw: 0.65, pitch: 0.42, focus: null, mode: '3d' },
   };
+  const systemCache = new Map();
   let hooks = {};
   let root = null;
   let drawer = null;
@@ -160,7 +182,7 @@
     if (runtime?.fixture) return { status: 'warn', label: 'SYNTHETIC', message: 'Synthetic fixture reads only; no deployed V2 state is represented.' };
     if (!sourceBlock) return { status: 'neutral', label: 'UNKNOWN', message: 'No source block is available.' };
     const age = Date.now() - Number(sourceBlock.timestamp) * 1000;
-    if (age > 300000) return { status: 'warn', label: 'STALE', message: `Source block ${sourceBlock.number} is more than five minutes old at observation.` };
+    if (age > 3600000) return { status: 'warn', label: 'REFRESH DUE', message: `Source block ${sourceBlock.number} is more than one hour old at observation.` };
     if (age < -300000) return { status: 'fail', label: 'CLOCK MISMATCH', message: 'Source block timestamp is materially ahead of this browser clock.' };
     return { status: 'pass', label: 'CURRENT', message: `Read at ${formatBlock(sourceBlock)}.` };
   }
@@ -211,7 +233,7 @@
     const verified = Boolean(runtime?.verified?.get(code));
     const fixture = Boolean(runtime?.fixture);
     const imported = verified && runtime?.source === 'local-file';
-    const live = verified && !fixture && runtime?.source === 'runtime-config' && code === 'USD';
+    const live = verified && !fixture && runtime?.source === 'runtime-config';
     return {
       code,
       verified,
@@ -227,38 +249,70 @@
         discoveredPositions: verified && !fixture,
         challenge: verified,
         events: verified && !fixture,
-        history: false,
+        history: state.indexer.status === 'ready' && state.indexer.complete,
         referenceMarks: false,
         markets: false,
       },
     };
   }
 
-  async function getSystemSnapshot(code = currentCode()) {
+  async function getSystemSnapshot(code = currentCode(), force = false) {
     const capabilities = getCapabilities(code);
     if (!capabilities.verified) {
       return { code, capabilities, error: capabilities.unconfigured ? 'Configure and verify a V2 registry before reading dashboard state.' : `${code} is not verified against the selected registry and chain.` };
     }
     try {
-      const client = await app().clientFor(code);
-      const requested = {
-        token: () => client.tokenSnapshot(),
-        bridge: () => client.bridgeSnapshot({}),
-        savings: () => client.savingsSnapshot({}),
-        equity: () => client.equitySnapshot({}),
-        minters: () => client.minterSnapshot(),
-      };
-      const entries = await Promise.all(Object.entries(requested).map(async ([name, read]) => {
-        try {
-          return [name, { status: 'fulfilled', value: await read() }];
-        } catch (cause) {
-          return [name, { status: 'rejected', error: cause instanceof Error ? cause.message : String(cause) }];
-        }
-      }));
-      return { code, capabilities, sections: Object.fromEntries(entries) };
+      const result = await app().readDashboardAnalytics('system', 'snapshot', code, async () => {
+        const client = await app().clientFor(code, { fresh: force });
+        const requested = {
+          token: () => client.tokenSnapshot(),
+          bridge: () => client.bridgeSnapshot({}),
+          savings: () => client.savingsSnapshot({}),
+          equity: () => client.equitySnapshot({}),
+          minters: () => client.minterSnapshot(),
+        };
+        const entries = await Promise.all(Object.entries(requested).map(async ([name, read]) => {
+          try {
+            return [name, { status: 'fulfilled', value: await read() }];
+          } catch (cause) {
+            return [name, { status: 'rejected', error: cause instanceof Error ? cause.message : String(cause) }];
+          }
+        }));
+        return { code, capabilities, sections: Object.fromEntries(entries) };
+      });
+      const snapshot = { ...result.value, readCache: { status: result.cache, fetchedAt: result.fetchedAt ?? null } };
+      systemCache.set(code, snapshot);
+      if (result.refresh) {
+        result.refresh.then((fresh) => {
+          if (!fresh) return;
+          const refreshed = { ...fresh, readCache: { status: 'miss', fetchedAt: Date.now() } };
+          systemCache.set(code, refreshed);
+          if (currentCode() === code && state.system?.code === code) {
+            state.system = refreshed;
+            renderActivePanel();
+          }
+        });
+      }
+      return snapshot;
     } catch (cause) {
       return { code, capabilities, error: cause instanceof Error ? cause.message : String(cause) };
     }
+  }
+
+  async function cachedSystemSnapshot(code, force = false) {
+    if (force) {
+      systemCache.delete(code);
+      app().invalidateReadCache?.(code);
+    }
+    return systemCache.get(code) ?? getSystemSnapshot(code, force);
+  }
+
+  async function mapLimit(values, limit, callback) {
+    const results = [];
+    for (let start = 0; start < values.length; start += limit) {
+      results.push(...await Promise.all(values.slice(start, start + limit).map(callback)));
+    }
+    return results;
   }
 
   async function getDiscoveredPositions(code = currentCode(), coverage = {}) {
@@ -268,9 +322,24 @@
       return { code, capabilities, positions: [], challenges: [], events: [], account: coverage.account ?? null, fromBlock: null, toBlock: null, complete: false, synthetic: true, warnings: ['Synthetic fixture: no deployed event history is represented.'] };
     }
     try {
-      const client = await app().clientFor(code);
-      const discovered = await window.IMF_DISCOVERY.discover(registryState(), client, coverage.account ?? null);
-      return { code, capabilities, ...discovered, account: coverage.account ?? null };
+      const account = coverage.account ?? null;
+      const result = await app().readDashboardAnalytics('dashboard-discovery', account ?? 'all', code, async () => {
+        const client = await app().clientFor(code, { fresh: Boolean(coverage.force) });
+        const discovered = await window.IMF_DISCOVERY.discover(registryState(), client, account, { resume: !coverage.force });
+        return { code, capabilities, ...discovered, account };
+      });
+      const discovered = { ...result.value, readCache: { status: result.cache, fetchedAt: result.fetchedAt ?? null } };
+      if (result.refresh) {
+        result.refresh.then((fresh) => {
+          if (!fresh) return;
+          const refreshed = { ...fresh, readCache: { status: 'miss', fetchedAt: Date.now() } };
+          if (currentCode() === code && state.discovery?.code === code) {
+            state.discovery = refreshed;
+            renderActivePanel();
+          }
+        });
+      }
+      return discovered;
     } catch (cause) {
       return { code, capabilities, error: cause instanceof Error ? cause.message : String(cause) };
     }
@@ -292,7 +361,62 @@
     }
   }
 
+  function indexerUrl() {
+    const value = registryState()?.runtime?.indexerUrl;
+    if (!value) return null;
+    const url = new URL(value);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname))) {
+      throw new Error('Indexer URL must use HTTPS outside localhost');
+    }
+    if (url.username || url.password || url.search || url.hash) throw new Error('Indexer URL must not contain credentials, query or hash');
+    return url.href.replace(/\/$/, '');
+  }
+
+  async function indexerJson(url, path) {
+    const response = await fetch(`${url}${path}`);
+    if (!response.ok) throw new Error(`Indexer returned HTTP ${response.status} for ${path}`);
+    return response.json();
+  }
+
+  async function getIndexerBundle(code) {
+    let url;
+    try {
+      url = indexerUrl();
+    } catch (cause) {
+      return { status: 'error', health: null, events: [], positions: [], complete: false, error: cause.message };
+    }
+    if (!url) return { status: 'unconfigured', health: null, events: [], positions: [], complete: false, error: null };
+    try {
+      const health = await indexerJson(url, '/indexer/health');
+      if (health.schema !== 'imf.indexer-health.v1' || Number(health.chainId) !== 6281971) throw new Error('Indexer health schema or chain ID does not match this registry');
+      const lag = Number(health.lagBlocks);
+      if (!Number.isSafeInteger(lag) || lag < 0) throw new Error('Indexer has not established a readable synchronization heartbeat');
+      if (lag > 100) return { status: 'stale', health, events: [], positions: [], complete: false, error: `Indexer is ${lag} blocks behind the chain` };
+      const [eventResult, positionResult] = await Promise.all([
+        indexerJson(url, `/indexer/${code}/events?limit=5000`),
+        indexerJson(url, `/indexer/${code}/positions`),
+      ]);
+      if (eventResult.schema !== 'imf.indexer-events.v1' || eventResult.code !== code || positionResult.schema !== 'imf.indexer-positions.v1' || positionResult.code !== code) {
+        throw new Error(`Indexer response does not match selected currency ${code}`);
+      }
+      return {
+        status: 'ready',
+        health,
+        events: eventResult.events,
+        positions: positionResult.positions,
+        complete: eventResult.events.length < 5000,
+        error: eventResult.events.length === 5000 ? 'Event result reached the 5,000-row safety limit; complete history is not asserted' : null,
+      };
+    } catch (cause) {
+      return { status: 'error', health: null, events: [], positions: [], complete: false, error: cause instanceof Error ? cause.message : String(cause) };
+    }
+  }
+
   function getHistory() {
+    if (state.indexer.status === 'ready' && state.indexer.complete) return { status: 'ready', reason: indexerCoverageText() };
+    if (state.indexer.status === 'ready') return { status: 'partial', reason: state.indexer.error };
+    if (state.indexer.status === 'stale' || state.indexer.status === 'error') return { status: 'unavailable', reason: `History unavailable — ${state.indexer.error}` };
+    if (state.indexer.status === 'pending') return { status: 'pending', reason: 'Checking indexer health and historical coverage.' };
     return { status: 'unavailable', reason: 'History unavailable — indexer not configured.' };
   }
 
@@ -300,7 +424,15 @@
     return { status: 'unavailable', reason: 'Reference marks unavailable — verified market/indexer feed not configured.' };
   }
 
+  function indexerCoverageText() {
+    if (state.indexer.status !== 'ready') return state.indexer.error ?? 'Indexer not configured';
+    return `Indexed through block ${state.indexer.health.latestIndexedBlock} · chain block ${state.indexer.health.latestChainBlock} · ${state.indexer.complete ? 'complete event result' : 'partial event result'}`;
+  }
+
   async function getEvents(code = currentCode(), range = {}) {
+    if (code === currentCode() && state.indexer.status === 'ready') {
+      return { code, capabilities: getCapabilities(code), status: 'indexed-events', reason: indexerCoverageText(), events: state.indexer.events, coverage: { complete: state.indexer.complete, health: state.indexer.health } };
+    }
     const discovered = await getDiscoveredPositions(code, { account: range.account ?? null });
     if (discovered.error) return { code, capabilities: discovered.capabilities, status: 'unavailable', reason: discovered.error, events: [] };
     return {
@@ -334,7 +466,7 @@
   function scaleRatio(value, maximum) {
     const safeMaximum = maximum && maximum > 0n ? maximum : 1n;
     const capped = value > safeMaximum ? safeMaximum : value < 0n ? 0n : value;
-    return Number(capped) / Number(safeMaximum);
+    return Number(capped * 100000n / safeMaximum) / 100000;
   }
 
   function axisValue(maximum, line) {
@@ -490,6 +622,7 @@
       provenance: {
         source: $('#dashboard-source-status', root)?.textContent ?? 'Unavailable',
         discovery: state.discovery ? { fromBlock: state.discovery.fromBlock ?? null, toBlock: state.discovery.toBlock ?? null, complete: state.discovery.complete ?? null, account: state.discovery.account ?? null, warnings: state.discovery.warnings ?? [] } : null,
+        indexer: { status: state.indexer.status, complete: state.indexer.complete, error: state.indexer.error, health: state.indexer.health },
       },
     };
     if (state.panel === 'activity') {
@@ -513,16 +646,19 @@
       document.execCommand('copy');
       input.remove();
     }
-    notify('Dashboard view link copied. The link preserves the selected subview.');
+    notify('Dashboard view link copied. The link preserves the selected subview and currency.');
   }
 
   function resetDashboard() {
     state.account = '';
     state.positionScope = 'all';
     state.position = { search: '', collateral: 'ALL', status: 'ALL', health: 'ALL', maxCr: 10000, sort: 'collateralRatio', dir: 'asc', page: 1, perPage: 8 };
-    state.activity = { type: 'all', sort: 'desc' };
+    state.activity = { type: 'all', sort: 'desc', day: null };
     state.scenario = { collateral: -20, fx: 0, liquidity: 15, threshold: 150, preset: 'moderate' };
     state.replay.progress = 0;
+    state.cube.axes = { x: '', y: '', z: '' };
+    state.cube.focus = null;
+    state.cube.mode = '3d';
     stopReplay();
     render();
     notify('Dashboard filters and scenario controls reset. Verified reads were not changed.');
@@ -537,6 +673,14 @@
     if (target) target.innerHTML = html;
   }
 
+  function hourlyReadNote() {
+    const meta = state.system?.readCache ?? state.discovery?.readCache;
+    if (!meta?.fetchedAt) return 'Verified read · auto-refresh hourly';
+    const minutes = Math.max(0, Math.floor((Date.now() - meta.fetchedAt) / 60000));
+    const age = minutes < 1 ? 'just now' : `${minutes} min ago`;
+    return `Updated ${age} · auto-refresh hourly${meta.status === 'expired' ? ' · refreshing' : ''}`;
+  }
+
   function renderPageCopy(sourceBlock = null) {
     const copy = PANEL_COPY[state.panel] ?? PANEL_COPY.overview;
     const title = $('#view-title');
@@ -544,7 +688,7 @@
     const snapshot = $('#dashboard-snapshot', root);
     if (title) title.textContent = copy[0];
     if (subtitle) subtitle.textContent = copy[1];
-    if (snapshot) snapshot.innerHTML = `<b>${sourceBlock ? `BLOCK ${escapeHtml(sourceBlock.number)}` : 'CURRENT STATE'}</b><span>${sourceBlock ? escapeHtml(new Date(Number(sourceBlock.timestamp) * 1000).toISOString()) : 'Source block pending'}</span>`;
+    if (snapshot) snapshot.innerHTML = `<b>${sourceBlock ? `BLOCK ${escapeHtml(sourceBlock.number)}` : 'CURRENT STATE'}</b><span>${sourceBlock ? `${escapeHtml(new Date(Number(sourceBlock.timestamp) * 1000).toISOString())} · ${escapeHtml(hourlyReadNote())}` : 'Source block pending'}</span>`;
     const selector = $('#dashboard-currency', root);
     if (selector) selector.value = currentCode();
   }
@@ -568,7 +712,7 @@
     const capabilities = getCapabilities();
     const sourceBlock = sectionSource(state.system, ['token', 'bridge', 'savings', 'equity']) ?? state.discovery?.positions?.[0]?.sourceBlock ?? state.challenge?.challenge?.sourceBlock;
     const fresh = freshness(sourceBlock);
-    const mode = capabilities.live ? 'LIVE USD' : capabilities.fixture ? 'SYNTHETIC FIXTURE' : capabilities.imported ? 'IMPORTED READ-ONLY' : capabilities.verified ? 'READ-ONLY' : 'UNCONFIGURED';
+    const mode = capabilities.live ? `LIVE ${currentCode()}` : capabilities.fixture ? 'SYNTHETIC FIXTURE' : capabilities.imported ? 'IMPORTED READ-ONLY' : capabilities.verified ? 'READ-ONLY' : 'UNCONFIGURED';
     renderPageCopy(sourceBlock);
     const provenance = $('#dashboard-provenance', root);
     if (provenance) {
@@ -579,7 +723,7 @@
     if (!target) return;
     target.innerHTML = `
       <div><strong>${escapeHtml(currentCode())} · ${escapeHtml(capabilities.registry?.network ?? 'No registry')} · chain ${escapeHtml(capabilities.registry?.chainId ?? '—')}</strong><br><span>${escapeHtml(fresh.message)}</span></div>
-      <div class="dash-actions">${statusPill(capabilities.live ? 'pass' : capabilities.fixture ? 'warn' : 'info', mode)}${statusPill(fresh.status, fresh.label)}</div>`;
+      <div class="dash-actions">${statusPill(capabilities.live ? 'pass' : capabilities.fixture ? 'warn' : 'info', mode)}${statusPill(fresh.status, fresh.label)}${state.indexer.status === 'ready' ? statusPill('info', 'INDEXED HISTORY') : state.indexer.status === 'pending' ? statusPill('neutral', 'INDEXER CHECK') : ['stale', 'error'].includes(state.indexer.status) ? statusPill('warn', 'INDEXER FALLBACK') : ''}</div>`;
   }
 
   function systemOverviewRows() {
@@ -634,9 +778,196 @@
     return `<div class="dash-utilization"><div><span>Bridge utilization</span><strong>${escapeHtml(percentage)}</strong></div><div class="dash-progress" role="progressbar" aria-label="Bridge minted relative to limit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(bounded) / 100}" aria-valuetext="${escapeHtml(percentage)} utilized"><i style="width:${Number(bounded) / 100}%"></i></div><div class="dash-utilization-labels"><span>Minted ${escapeHtml(formatAmount(minted, 18, symbol))}</span><span>Limit ${escapeHtml(formatAmount(limit, 18, symbol))}</span></div></div>`;
   }
 
+  function parseIndexedArgs(event) {
+    try {
+      return JSON.parse(event.args ?? '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  function debtHistoryChart() {
+    const history = getHistory();
+    if (history.status !== 'ready') return chartUnavailable('Gross debt history unavailable', history.reason, 'tall');
+    const updates = state.indexer.events.filter((event) => event.contract === 'Position' && event.event === 'MintingUpdate').slice().sort((left, right) => {
+      const blockDifference = BigInt(left.blockNumber) - BigInt(right.blockNumber);
+      return blockDifference < 0n ? -1 : blockDifference > 0n ? 1 : left.logIndex - right.logIndex;
+    });
+    const positions = new Map();
+    const series = [];
+    for (const event of updates) {
+      const minted = bigintOrNull(event.amount);
+      if (minted === null) continue;
+      positions.set(event.address.toLowerCase(), minted);
+      const total = [...positions.values()].reduce((sum, value) => sum + value, 0n);
+      series.push({ timestamp: BigInt(event.blockTimestamp), total });
+    }
+    if (!series.length) return chartUnavailable('No gross debt history discovered', 'The complete indexed result contains no Position MintingUpdate events.', 'tall');
+    const width = 700;
+    const height = 250;
+    const margin = { left: 70, right: 20, top: 20, bottom: 45 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+    const maximum = series.reduce((max, point) => point.total > max ? point.total : max, 1n);
+    const firstTime = series[0].timestamp;
+    const lastTime = series[series.length - 1].timestamp;
+    const timeRange = lastTime > firstTime ? lastTime - firstTime : 1n;
+    const points = series.map((point) => {
+      const x = margin.left + Number(point.timestamp - firstTime) / Number(timeRange) * innerWidth;
+      const y = margin.top + innerHeight - scaleRatio(point.total, maximum) * innerHeight;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    }).join(' ');
+    return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gross position debt reconstructed from complete indexed MintingUpdate events"><line class="grid-line" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + innerHeight}"/><line class="grid-line" x1="${margin.left}" y1="${margin.top + innerHeight}" x2="${width - margin.right}" y2="${margin.top + innerHeight}"/><polyline points="${points}" fill="none" stroke="#2b2118" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><text x="${margin.left - 8}" y="${margin.top + 5}" text-anchor="end" font-size="9">${escapeHtml(formatCompactAmount(maximum, 18, currentSymbol()))}</text><text x="${margin.left}" y="${height - 12}" font-size="9">${escapeHtml(new Date(Number(firstTime) * 1000).toISOString().slice(0, 10))}</text><text x="${width - margin.right}" y="${height - 12}" text-anchor="end" font-size="9">${escapeHtml(new Date(Number(lastTime) * 1000).toISOString().slice(0, 10))}</text></svg><div class="dash-note">${escapeHtml(indexerCoverageText())}. Reconstructed from per-position MintingUpdate events in native ${escapeHtml(currentSymbol())} units; not collateral market value or system equity.</div>`;
+  }
+
+  function tokenFlowHistory() {
+    const history = getHistory();
+    if (history.status !== 'ready') return chartUnavailable('Token flow history unavailable', history.reason, 'tall');
+    const zero = '0x0000000000000000000000000000000000000000';
+    const days = new Map();
+    for (const event of state.indexer.events) {
+      if (event.contract !== 'Token' || event.event !== 'Transfer') continue;
+      const args = parseIndexedArgs(event);
+      const amount = bigintOrNull(event.amount);
+      if (amount === null) continue;
+      const day = new Date(Number(event.blockTimestamp) * 1000).toISOString().slice(0, 10);
+      if (!days.has(day)) days.set(day, { day, minted: 0n, burned: 0n });
+      const row = days.get(day);
+      if (String(args.from).toLowerCase() === zero) row.minted += amount;
+      if (String(args.to).toLowerCase() === zero) row.burned += amount;
+    }
+    const rows = [...days.values()].filter((row) => row.minted || row.burned).sort((left, right) => left.day.localeCompare(right.day)).slice(-14);
+    if (!rows.length) return chartUnavailable('No token mint or burn flow discovered', 'The complete indexed result contains no zero-address token transfers.', 'tall');
+    const width = 700;
+    const height = 260;
+    const margin = { left: 64, right: 16, top: 20, bottom: 48 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+    const midY = margin.top + innerHeight / 2;
+    const half = innerHeight / 2;
+    const maximum = rows.reduce((max, row) => row.minted > max ? row.minted : row.burned > max ? row.burned : max, 1n);
+    const band = innerWidth / rows.length;
+    const barWidth = Math.max(7, band * 0.6);
+    const bars = rows.map((row, index) => {
+      const x = margin.left + index * band + (band - barWidth) / 2;
+      const mintHeight = scaleRatio(row.minted, maximum) * half;
+      const burnHeight = scaleRatio(row.burned, maximum) * half;
+      const mintBar = mintHeight > 0.5 ? `<rect x="${x.toFixed(2)}" y="${(midY - mintHeight).toFixed(2)}" width="${barWidth.toFixed(2)}" height="${mintHeight.toFixed(2)}" rx="2" fill="#79cf89"><title>${escapeHtml(row.day)} minted ${escapeHtml(formatAmount(row.minted, 18, currentSymbol()))}</title></rect>` : '';
+      const burnBar = burnHeight > 0.5 ? `<rect x="${x.toFixed(2)}" y="${midY.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${burnHeight.toFixed(2)}" rx="2" fill="#2b2118"><title>${escapeHtml(row.day)} burned ${escapeHtml(formatAmount(row.burned, 18, currentSymbol()))}</title></rect>` : '';
+      const label = rows.length > 8 && index % 2 ? '' : `<text x="${(x + barWidth / 2).toFixed(2)}" y="${height - 28}" text-anchor="middle" font-size="8" transform="rotate(-30 ${(x + barWidth / 2).toFixed(2)} ${height - 28})">${escapeHtml(row.day.slice(5))}</text>`;
+      return `${mintBar}${burnBar}${label}`;
+    }).join('');
+    return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Diverging indexed token mint and burn bars by UTC day"><text x="${margin.left - 8}" y="${margin.top + 4}" text-anchor="end" font-size="9">+ ${escapeHtml(formatCompactAmount(maximum, 18, currentSymbol()))}</text><text x="${margin.left - 8}" y="${margin.top + innerHeight + 4}" text-anchor="end" font-size="9">− ${escapeHtml(formatCompactAmount(maximum, 18, currentSymbol()))}</text><line class="grid-line" x1="${margin.left}" y1="${margin.top}" x2="${width - margin.right}" y2="${margin.top}"/><line class="axis-line" x1="${margin.left}" y1="${midY.toFixed(2)}" x2="${width - margin.right}" y2="${midY.toFixed(2)}"/><line class="grid-line" x1="${margin.left}" y1="${margin.top + innerHeight}" x2="${width - margin.right}" y2="${margin.top + innerHeight}"/>${bars}</svg><div class="dash-legend"><span><i class="dash-swatch" style="background:#79cf89"></i>Minted</span><span><i class="dash-swatch" style="background:#2b2118"></i>Burned</span><span>Zero-address token transfers in native ${escapeHtml(currentSymbol())} units; a missing bar is verified zero flow, not missing data.</span></div><div class="dash-note">${escapeHtml(indexerCoverageText())}. Indexed history only; this is not DEX volume.</div>`;
+  }
+
+  function comparisonRows() {
+    return state.comparison.rows.map((snapshot) => {
+      const code = snapshot.code;
+      const token = section(snapshot, 'token');
+      const bridge = section(snapshot, 'bridge');
+      const savings = section(snapshot, 'savings');
+      const equity = section(snapshot, 'equity');
+      const sourceBlock = sectionSource(snapshot, ['token', 'bridge', 'savings', 'equity']);
+      const fresh = freshness(sourceBlock);
+      const failed = snapshot.error || [token, bridge, savings, equity].some((entry) => entry?.error);
+      return `<tr>
+        <td><button type="button" class="btn light small" data-compare-code="${escapeHtml(code)}" ${snapshot.capabilities?.verified ? '' : 'disabled'}>${escapeHtml(currentSymbol(code))}</button><small class="smalltext">${escapeHtml(code)}</small></td>
+        <td class="num mono">${escapeHtml(token?.error || snapshot.error ? 'Unavailable' : formatCompactAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol(code)))}</td>
+        <td class="num mono">${escapeHtml(equity?.error || snapshot.error ? 'Unavailable' : formatCompactAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol(code)))}</td>
+        <td class="num mono">${escapeHtml(savings?.error || snapshot.error ? 'Unavailable' : formatPPM(savings?.currentRatePPM))}</td>
+        <td class="num mono">${escapeHtml(bridge?.error || snapshot.error ? 'Unavailable' : `${formatCompactAmount(bridge?.mintedLocal, 18)} / ${formatCompactAmount(bridge?.limitLocal, 18)} ${token?.symbol ?? currentSymbol(code)}`)}</td>
+        <td>${statusPill(failed ? 'fail' : fresh.status, failed ? 'Partial / unavailable' : fresh.label)}<small class="smalltext">${escapeHtml(sourceBlock ? `Block ${sourceBlock.number}` : snapshot.error ?? 'Source block unavailable')}</small></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function currencyFingerprintRadar() {
+    const usable = state.comparison.rows.filter((snapshot) => !snapshot.error);
+    if (usable.length < 2) return '';
+    const centerX = 150;
+    const centerY = 142;
+    const radius = 94;
+    const angleFor = (index) => -Math.PI / 2 + index * 2 * Math.PI / FINGERPRINT_AXES.length;
+    const axes = FINGERPRINT_AXES.map((axis) => {
+      const maximum = usable.reduce((max, snapshot) => {
+        const raw = bigintOrNull(axis.read(snapshot));
+        return raw !== null && raw > max ? raw : max;
+      }, 0n);
+      return { ...axis, maximum };
+    });
+    const rings = [0.25, 0.5, 0.75, 1].map((fraction) => {
+      const ringPoints = axes.map((axis, index) => { const angle = angleFor(index); return `${(centerX + Math.cos(angle) * radius * fraction).toFixed(2)},${(centerY + Math.sin(angle) * radius * fraction).toFixed(2)}`; }).join(' ');
+      return `<polygon points="${ringPoints}" fill="none" stroke="#e6ddcf" stroke-width="1"/>`;
+    }).join('');
+    const spokes = axes.map((axis, index) => {
+      const angle = angleFor(index);
+      const endX = centerX + Math.cos(angle) * radius;
+      const endY = centerY + Math.sin(angle) * radius;
+      const labelX = centerX + Math.cos(angle) * (radius + 15);
+      const labelY = centerY + Math.sin(angle) * (radius + 13);
+      const anchor = Math.abs(Math.cos(angle)) < 0.35 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end';
+      const suffix = axis.maximum === 0n ? ' · unavailable' : '';
+      return `<line class="grid-line" x1="${centerX}" y1="${centerY}" x2="${endX.toFixed(2)}" y2="${endY.toFixed(2)}"/><text x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="${anchor}" font-size="8.5">${escapeHtml(axis.label.toUpperCase())}${escapeHtml(suffix)}</text>`;
+    }).join('');
+    const polygons = usable.map((snapshot, rowIndex) => {
+      const color = RADAR_COLORS[rowIndex % RADAR_COLORS.length];
+      const points = axes.map((axis, index) => {
+        const raw = bigintOrNull(axis.read(snapshot));
+        const ratio = raw === null ? 0 : scaleRatio(raw, axis.maximum);
+        const angle = angleFor(index);
+        return `${(centerX + Math.cos(angle) * radius * ratio).toFixed(2)},${(centerY + Math.sin(angle) * radius * ratio).toFixed(2)}`;
+      }).join(' ');
+      return `<polygon points="${points}" fill="${color}" fill-opacity=".16" stroke="${color}" stroke-width="1.6"><title>${escapeHtml(snapshot.code)} — independently normalized current reads; the center means the smallest verified read or unavailable.</title></polygon>`;
+    }).join('');
+    const legend = usable.map((snapshot, rowIndex) => `<span><i class="dash-swatch" style="background:${RADAR_COLORS[rowIndex % RADAR_COLORS.length]}"></i>${escapeHtml(snapshot.code)}</span>`).join('');
+    return `<div class="dash-radar-layout"><svg class="dash-svg dash-radar" viewBox="0 0 300 284" role="img" aria-label="Currency fingerprint radar comparing independently normalized reads across verified systems">${rings}${spokes}${polygons}</svg><div class="dash-legend dash-radar-legend">${legend}</div></div><p class="smalltext">Each axis is independently normalized to the largest verified read of that measure across currencies. Axes never share units: no FX conversion, no summation and no cross-currency total is implied.</p>`;
+  }
+
+  function comparisonCard() {
+    const rows = comparisonRows();
+    return `<article class="dash-card"><div class="dash-card-head"><div><h3>All currency systems</h3><p>Compare independent native-unit reads. No FX conversion, shared reserve or aggregate TVL is inferred.</p></div><div class="dash-actions"><button type="button" class="btn light small" id="dashboard-compare-toggle" aria-expanded="${state.comparison.open}">${state.comparison.open ? 'Hide comparison' : 'Compare all currencies'}</button>${state.comparison.open ? '<button type="button" class="btn light small" id="dashboard-compare-refresh">Refresh comparison</button>' : ''}</div></div>${!state.comparison.open ? '<div class="dash-note">Load current token, equity, savings and bridge reads for all configured currencies on demand. Position discovery remains limited to the selected currency.</div>' : state.comparison.pending && !rows ? chartUnavailable('Currency comparison is loading', 'Reading each verified system with limited RPC concurrency. Unavailable reads will remain explicit.', 'short') : `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Currency</th><th class="num">Token supply</th><th class="num">System equity</th><th class="num">Leadrate</th><th class="num">Bridge minted / limit</th><th>Read status</th></tr></thead><tbody>${rows}</tbody></table></div>${currencyFingerprintRadar()}${state.comparison.pending ? '<div class="dash-note">Refreshing currency reads; existing cached rows remain visible until replacement reads arrive.</div>' : ''}`}</article>`;
+  }
+
+  async function loadComparison(force = false) {
+    const nonce = ++state.comparison.nonce;
+    const codes = registryState()?.registry?.codes ?? (window.IMF_CURRENCIES ?? []).map(({ code }) => code);
+    state.comparison.pending = true;
+    renderOverview();
+    const rows = await mapLimit(codes, 3, (code) => cachedSystemSnapshot(code, force));
+    if (nonce !== state.comparison.nonce) return;
+    state.comparison.rows = rows;
+    state.comparison.pending = false;
+    if (state.panel === 'overview') renderOverview();
+  }
+
+  function bindComparison() {
+    $('#dashboard-compare-toggle', root)?.addEventListener('click', () => {
+      state.comparison.open = !state.comparison.open;
+      if (state.comparison.open && !state.comparison.rows.length) {
+        loadComparison().catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
+      } else {
+        renderOverview();
+      }
+    });
+    $('#dashboard-compare-refresh', root)?.addEventListener('click', () => {
+      loadComparison(true).catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
+    });
+    $$('#dashboard-view [data-compare-code]', root).forEach((button) => button.addEventListener('click', () => {
+      const code = button.dataset.compareCode;
+      if (!getCapabilities(code).verified) return;
+      state.code = code;
+      const sharedSelector = $('#v2-currency');
+      if (sharedSelector) sharedSelector.value = code;
+      history.replaceState(null, '', dashboardHash(state.panel, code));
+      state.comparison.open = false;
+      render(false);
+    }));
+  }
+
   function renderOverview() {
     if (systemError(state.system)) {
-      setPanelHtml('overview', `<div class="dash-stack">${unavailableCard('USD V2 state is not verified', state.system.error)}${sourceNote()}</div>`);
+      setPanelHtml('overview', `<div class="dash-stack">${unavailableCard(`${escapeHtml(currentCode())} V2 state is not verified`, state.system.error)}${comparisonCard()}${sourceNote()}</div>`);
+      bindComparison();
       return;
     }
     const token = section(state.system, 'token');
@@ -647,42 +978,45 @@
     const positionCount = state.discoveryPending ? 'Read in progress' : state.discovery?.error ? 'Unavailable' : String(allPositions().length);
     const debt = discoveredDebt();
     const weightedRatio = weightedCollateralRatio();
+    const zeroDebt = zeroDebtVerified();
     const kpis = [
       metricCard('Token supply', token?.error ? 'Unavailable' : formatCompactAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol()), readContext(token), token?.error ? 'fail' : 'pass'),
-      metricCard('Gross position debt', debt === null ? 'Unavailable' : formatCompactAmount(debt, 18, currentSymbol()), state.discovery?.error ?? discoveryCoverageText(), debt === null ? 'fail' : 'pass'),
+      metricCard('Gross position debt', debt === null ? 'Unavailable' : formatCompactAmount(debt, 18, currentSymbol()), zeroDebt ? `Verified zero gross debt across ${allPositions().length} discovered positions` : state.discovery?.error ?? discoveryCoverageText(), debt === null ? 'fail' : 'pass'),
       metricCard('System equity', equity?.error ? 'Unavailable' : formatCompactAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol()), readContext(equity), equity?.error ? 'fail' : 'pass'),
-      metricCard('Debt-weighted CR', weightedRatio === null ? 'Unavailable' : `${sdk().formatDecimal(weightedRatio, 1)}%`, 'Stored liquidation parameters · not a market valuation', weightedRatio === null ? 'neutral' : 'pass'),
+      metricCard('Debt-weighted CR', weightedRatio === null ? (zeroDebt ? 'No debt' : 'Unavailable') : `${sdk().formatDecimal(weightedRatio, 1)}%`, zeroDebt ? 'Contract-parameter CR requires outstanding debt; zero is verified, not missing' : 'Stored liquidation parameters · not a market valuation', weightedRatio === null ? (zeroDebt ? 'info' : 'neutral') : 'pass'),
       metricCard('Discovered positions', positionCount, state.discovery?.error ?? discoveryCoverageText(), state.discoveryPending ? 'info' : state.discovery?.error ? 'fail' : 'pass'),
     ].join('');
     setPanelHtml('overview', `
       <div class="dash-stack">
         <div class="dash-kpis">${kpis}</div>
+        ${comparisonCard()}
         <div class="dash-grid">
-          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Capital structure over time</h3><p>Collateral value, minted debt and system equity require source-pinned historical snapshots.</p></div>${cardTag('INDEXER REQUIRED')}</div>${chartUnavailable('History unavailable — indexer not configured', history.reason, 'tall')}</article>
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Gross position debt over time</h3><p>Per-position MintingUpdate history in native units; no market-value or equity inference.</p></div>${cardTag(history.status === 'ready' ? 'INDEXED HISTORY' : 'INDEXER REQUIRED', history.status === 'ready' ? 'mint' : 'gold')}</div>${debtHistoryChart()}</article>
           <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Collateral composition</h3><p>Discovered position count by collateral asset.</p></div>${cardTag('CURRENT DISCOVERY', 'mint')}</div>${collateralComposition()}</article>
         </div>
         <div class="dash-grid">
           <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Currency system accounting</h3><p>One independent ${escapeHtml(currentSymbol())} system. No shared reserve or automatic FX conversion.</p></div>${cardTag('LIVE CONTRACT READS', 'mint')}</div>${systemMap(token, bridge, savings, equity, positionCount)}</article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Reserve health</h3><p>Debt-weighted contract-parameter CR and current bridge utilization.</p></div>${cardTag('NOT A CREDIT RATING', 'gold')}</div>${reserveHealth()}${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Bridge utilization</h3><p>Current minted local units against the verified per-system limit.</p></div>${cardTag('CURRENT READ', 'mint')}</div>${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}</article>
         </div>
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Position risk constellation</h3><p>Gross debt versus each position’s liquidation-parameter CR.</p></div>${cardTag('CLICK A BUBBLE')}</div>${currentPositionScatter()}</article>
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Position risk constellation</h3><p>${zeroDebt ? 'Verified zero gross debt: minting capacity versus reserve contribution.' : 'Gross debt versus each position’s liquidation-parameter CR.'}</p></div>${cardTag('CLICK A BUBBLE')}</div>${currentPositionScatter()}</article>
           <article class="dash-card span-5"><div class="dash-card-head"><div><h3>CR distribution</h3><p>Discovered position count by collateral-ratio bucket.</p></div>${cardTag(`WATCH < ${state.scenario.threshold}%`, 'gold')}</div>${crDistribution()}</article>
         </div>
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Issuance & repayment flow</h3><p>Mint, repay and bridge volume cannot be reconstructed from current balances.</p></div>${cardTag('NO GENERATED VOLUME', 'gold')}</div>${chartUnavailable('Flow history unavailable', 'A real event indexer and complete coverage are required before volumes or historical flows can be shown.', 'tall')}</article>
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Token mint & burn flow</h3><p>Zero-address token transfers grouped by UTC day; no DEX-volume inference.</p></div>${cardTag(history.status === 'ready' ? 'INDEXED FLOW' : 'NO GENERATED VOLUME', 'gold')}</div>${tokenFlowHistory()}</article>
           <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Current accounting snapshot</h3><p>Separate current reads, not an inferred supply-allocation flow.</p></div>${cardTag('SOURCE-BLOCK PINNED')}</div>${metricList(systemOverviewRows())}</article>
         </div>
         ${sourceNote()}
       </div>`);
     bindPositionPoints();
+    bindComparison();
   }
 
   function sourceNote() {
     const capabilities = getCapabilities();
-    if (capabilities.live) return `<div class="dash-note">Live dashboard reads are available for runtime-config verified USD only. Other currency codes remain planning identifiers until their own V2 registries are configured and verified.</div>`;
+    if (capabilities.live) return `<div class="dash-note">Live dashboard reads for the selected ${escapeHtml(currentCode())} system come from its verified runtime-config V2 registry. Each currency remains independent.</div>`;
     if (capabilities.fixture) return `<div class="dash-note danger">SYNTHETIC FIXTURE — values are teaching inputs and are not deployed contract state.</div>`;
-    if (capabilities.imported) return `<div class="dash-note">Imported registry reads are read-only. Only runtime-config verified USD may be presented as live deployed V2 state.</div>`;
+    if (capabilities.imported) return `<div class="dash-note">Imported registry reads are read-only. Guided writes remain restricted to the approved runtime-config USD system.</div>`;
     return `<div class="dash-note">Configure a verified V2 registry under Wallet, registry & network. Missing reads remain unavailable rather than zero.</div>`;
   }
 
@@ -746,13 +1080,9 @@
     return debt > 0n ? weightedValue * 10000n / debt / 10n ** 18n : null;
   }
 
-  function reserveHealth() {
-    if (state.discoveryPending) return chartUnavailable('Reserve health read in progress', 'Position-level contract parameters are still being verified.', 'short');
-    if (state.discovery?.error) return chartUnavailable('Reserve health unavailable', state.discovery.error, 'short');
-    const ratio = weightedCollateralRatio();
-    if (ratio === null) return chartUnavailable('Debt-weighted CR unavailable', 'No discovered position has the debt, collateral and liquidation-price inputs required for this ratio.', 'short');
-    const bounded = Number(ratio > 25000n ? 25000n : ratio) / 250;
-    return `<div class="dash-gauge-wrap"><svg class="dash-svg" viewBox="0 0 200 120" role="img" aria-label="Debt-weighted liquidation-parameter collateral ratio ${escapeHtml(sdk().formatDecimal(ratio, 2))} percent"><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#f3ecdf" stroke-width="20" stroke-linecap="round" pathLength="100"/><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#aee9d1" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="${bounded} 100"/></svg><div class="dash-gauge-value"><b>${escapeHtml(sdk().formatDecimal(ratio, 1))}%</b><span>DEBT-WEIGHTED CR</span></div></div>${metricList([['Method', 'Collateral × stored liquidation price ÷ gross debt'], ['Discovered positions', String(allPositions().length)], ['User watch threshold', `${state.scenario.threshold}%`], ['Discovery', discoveryCoverageText()]])}<p class="smalltext">A contract-parameter comparison, not a market valuation or guarantee against loss.</p>`;
+  function zeroDebtVerified() {
+    if (state.discoveryPending || state.discovery?.error || state.discovery?.synthetic) return false;
+    return allPositions().length > 0 && discoveredDebt() === 0n;
   }
 
   function crDistribution() {
@@ -767,18 +1097,34 @@
       { label: '≥300% / n.a.', test: (ratio) => ratio === null || ratio >= 30000n, color: '#cdb4db' },
     ].map((bucket) => ({ ...bucket, count: entries.filter((entry) => bucket.test(entry.ratio)).length }));
     const maximum = Math.max(1, ...buckets.map((bucket) => bucket.count));
-    return `<div class="dash-bar-list">${buckets.map((bucket) => `<div class="dash-bar-row"><span>${escapeHtml(bucket.label)}</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:${bucket.count / maximum * 100}%;background:${bucket.color}"></div></div><span class="dash-bar-value">${bucket.count} positions</span></div>`).join('')}</div><div class="dash-legend"><span>Watch threshold is user-defined, not a protocol-wide floor.</span></div>`;
+    const note = entries.every((entry) => entry.ratio === null) ? '<div class="dash-note">Every discovered position carries verified zero gross debt: a contract-parameter CR is undefined here, not a hidden risk rating.</div>' : '<div class="dash-legend"><span>Watch threshold is user-defined, not a protocol-wide floor.</span></div>';
+    return `<div class="dash-bar-list">${buckets.map((bucket) => `<div class="dash-bar-row"><span>${escapeHtml(bucket.label)}</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:${bucket.count / maximum * 100}%;background:${bucket.color}"></div></div><span class="dash-bar-value">${bucket.count} positions</span></div>`).join('')}</div>${note}`;
   }
 
   function currentPositionScatter() {
-    const entries = allPositions().map((position) => ({ position, cr: positionCollateralRatio(position) })).filter((entry) => entry.cr !== null);
     if (state.discoveryPending) return chartUnavailable('Position map read in progress', 'Verified position points will appear after discovery.');
-    if (!entries.length) return chartUnavailable('No position risk points', 'No discovered positions have enough current data for a contract-parameter CR.');
+    if (!allPositions().length) return chartUnavailable('No position risk points', 'No discovered positions matched the current coverage.');
+    const zeroDebt = zeroDebtVerified();
     const width = 700;
     const height = 270;
     const margin = { left: 60, right: 20, top: 18, bottom: 44 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
+    if (zeroDebt) {
+      const entries = allPositions().map((position) => ({ position, capacity: bigintOrNull(position.availableForMinting) ?? 0n, reserve: bigintOrNull(position.reserveContributionPPM) ?? 0n }));
+      const maxCapacity = entries.reduce((maximum, entry) => entry.capacity > maximum ? entry.capacity : maximum, 1n);
+      const maxReserve = entries.reduce((maximum, entry) => entry.reserve > maximum ? entry.reserve : maximum, 1n);
+      const points = entries.map((entry) => {
+        const x = margin.left + scaleRatio(entry.capacity, maxCapacity) * innerWidth;
+        const y = margin.top + innerHeight - scaleRatio(entry.reserve, maxReserve) * innerHeight;
+        const status = positionStatus(entry.position);
+        const color = status.status === 'fail' ? '#ffcfd2' : status.status === 'warn' ? '#e9c46a' : status.status === 'info' ? '#bde0fe' : '#aee9d1';
+        return `<circle class="point" tabindex="0" data-position-detail="${escapeHtml(entry.position.address)}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="7" fill="${color}" fill-opacity=".8" stroke="#2b2118" stroke-opacity=".45"><title>${escapeHtml(entry.position.address)} · minting capacity ${escapeHtml(formatAmount(entry.capacity, 18, currentSymbol()))} · reserve contribution ${escapeHtml(formatPPM(entry.reserve))}</title></circle>`;
+      }).join('');
+      return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Discovered position minting capacity versus reserve contribution">${[0, 1, 2, 3].map((line) => { const y = margin.top + line / 3 * innerHeight; return `<line class="grid-line" x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}"/><text x="${margin.left - 8}" y="${y + 3}" text-anchor="end" font-size="9">${escapeHtml(formatPPM(maxReserve * BigInt(3 - line) / 3n))}</text>`; }).join('')}${points}<text x="${width / 2}" y="${height - 8}" text-anchor="middle" font-size="9">FAMILY MINTING CAPACITY — VERIFIED ZERO GROSS DEBT</text></svg><div class="dash-legend"><span><i class="dash-swatch" style="background:#aee9d1"></i>Active</span><span><i class="dash-swatch" style="background:#bde0fe"></i>No debt</span><span><i class="dash-swatch" style="background:#e9c46a"></i>Watch</span><span><i class="dash-swatch" style="background:#ffcfd2"></i>Critical / challenged</span><span>Axes pivot to capacity because debt-dependent ratios are undefined at verified zero</span></div><div class="dash-note">All discovered positions carry verified zero gross debt. This view replaces debt and CR with real capacity and lifecycle dimensions; it is not a risk score.</div>`;
+    }
+    const entries = allPositions().map((position) => ({ position, cr: positionCollateralRatio(position) })).filter((entry) => entry.cr !== null);
+    if (!entries.length) return chartUnavailable('No position risk points', 'No discovered positions have enough current data for a contract-parameter CR.');
     const maxCr = entries.reduce((maximum, entry) => entry.cr > maximum ? entry.cr : maximum, 30000n);
     const maxDebt = entries.reduce((maximum, entry) => (bigintOrNull(entry.position.minted) ?? 0n) > maximum ? bigintOrNull(entry.position.minted) : maximum, 1n);
     const points = entries.map((entry) => {
@@ -801,6 +1147,42 @@
       button.addEventListener('click', open);
       button.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
     });
+  }
+
+  function collateralNativeBars() {
+    if (state.discoveryPending) return chartUnavailable('Native collateral read in progress', 'Per-asset native-unit balances appear after discovery and verification complete.');
+    if (state.discovery?.error) return chartUnavailable('Native collateral unavailable', state.discovery.error);
+    const groups = collateralGroups();
+    if (!groups.length) return chartUnavailable('No native collateral discovered', 'No verified positions matched the current discovery coverage.', 'short');
+    const maxSegments = 8;
+    const rows = groups.map((group) => {
+      const members = allPositions().filter((position) => (position.collateral?.symbol ?? 'Unknown') === group.symbol);
+      const decimals = members.find((position) => position.collateral?.decimals)?.collateral?.decimals ?? 18;
+      const total = members.reduce((sum, position) => sum + (bigintOrNull(position.collateral?.balance) ?? 0n), 0n);
+      const challenged = members.reduce((sum, position) => sum + (bigintOrNull(position.challengedAmount) ?? 0n), 0n);
+      const ordered = members.slice().sort((left, right) => {
+        const leftValue = bigintOrNull(left.collateral?.balance) ?? 0n;
+        const rightValue = bigintOrNull(right.collateral?.balance) ?? 0n;
+        return leftValue === rightValue ? 0 : leftValue > rightValue ? -1 : 1;
+      });
+      const shown = ordered.slice(0, maxSegments);
+      const rest = ordered.slice(maxSegments);
+      let offset = 0;
+      const segments = shown.map((position, index) => {
+        const share = total > 0n ? scaleRatio(bigintOrNull(position.collateral?.balance) ?? 0n, total) * 100 : 0;
+        const segment = share <= 0 ? '' : `<div class="dash-seg" style="left:${offset.toFixed(2)}%;width:${share.toFixed(2)}%;background:${NATIVE_BAR_COLORS[index % NATIVE_BAR_COLORS.length]}" title="${escapeHtml(position.address)}: ${escapeHtml(formatAmount(position.collateral?.balance, decimals, group.symbol))}"></div>`;
+        offset += share;
+        return segment;
+      }).join('');
+      const restSegment = rest.length && 100 - offset > 0.05 ? `<div class="dash-seg dash-seg-rest" style="left:${offset.toFixed(2)}%;width:${(100 - offset).toFixed(2)}%">+${rest.length}</div>` : '';
+      const challengedWidth = total > 0n ? scaleRatio(challenged, total) * 100 : 0;
+      return `<div class="dash-native-row">
+        <div class="dash-native-head"><strong>${escapeHtml(group.symbol)}</strong><span>${members.length} position${members.length === 1 ? '' : 's'}${rest.length ? ` · largest ${shown.length} shown` : ''}</span><b>${escapeHtml(formatAmount(total, decimals, group.symbol))}</b></div>
+        <div class="dash-seg-track" role="img" aria-label="${escapeHtml(group.symbol)} collateral stacked per position in native units, total ${escapeHtml(formatAmount(total, decimals, group.symbol))}, challenged ${escapeHtml(formatAmount(challenged, decimals, group.symbol))}">${segments}${restSegment}${challengedWidth > 0.05 ? `<div class="dash-seg-challenged" style="width:${challengedWidth.toFixed(2)}%" title="Challenged ${escapeHtml(formatAmount(challenged, decimals, group.symbol))}"></div>` : ''}</div>
+        <div class="dash-native-sub"><span>Challenged ${escapeHtml(formatAmount(challenged, decimals, group.symbol))} (hatched)</span><span>Scaled within this asset only; native units are never added across assets.</span></div>
+      </div>`;
+    }).join('');
+    return `<div class="dash-native-list">${rows}</div><p class="smalltext">Each segment is an exact BigInt share of the same asset's total native balance. Bar length is comparable only within one asset row.</p>`;
   }
 
   function renderCollateral() {
@@ -837,6 +1219,9 @@
           <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Concentration map</h3><p>Share of discovered position count.</p></div></div>${treemap}</article>
         </div>
         <div class="dash-grid">
+          <article class="dash-card"><div class="dash-card-head"><div><h3>Native-unit collateral segments</h3><p>Each asset's discovered balances stacked per position in exact native units; challenged collateral is hatched.</p></div>${cardTag('NATIVE UNITS ONLY', 'mint')}</div>${collateralNativeBars()}</article>
+        </div>
+        <div class="dash-grid">
           <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Collateral value & reference marks</h3><p>Historical values and external marks require verified provenance.</p></div>${cardTag('NO SYNTHETIC MARKS', 'gold')}</div>${chartUnavailable('Reference history unavailable', 'No indexer or market-data feed is configured. Contract liquidation prices remain available in Markets & volume.', 'tall')}</article>
           <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Loss-absorption context</h3><p>Current accounting reads, not a predicted waterfall.</p></div></div>${metricList([
             ['System equity', equity?.error ? 'Unavailable' : formatAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol())],
@@ -852,6 +1237,226 @@
         </div>
         ${sourceNote()}
       </div>`);
+  }
+
+  function lifecycleTimelines() {
+    if (state.discoveryPending) return chartUnavailable('Lifecycle read in progress', 'Position start, cooldown and expiration timestamps appear after verification completes.', 'short');
+    const shown = sortedPositions().slice(0, 12);
+    if (!shown.length) return chartUnavailable('No position lifecycles discovered', 'No positions matched the current explorer filters and discovery coverage.', 'short');
+    const timed = shown.filter((position) => bigintOrNull(position.start) !== null && bigintOrNull(position.expiration) !== null);
+    if (!timed.length) return chartUnavailable('Lifecycle timestamps unavailable', 'Discovered positions do not carry start and expiration timestamps.', 'short');
+    const first = timed.reduce((minimum, position) => { const value = bigintOrNull(position.start) ?? minimum; return value < minimum ? value : minimum; }, bigintOrNull(timed[0].start) ?? 0n);
+    const last = timed.reduce((maximum, position) => { const value = bigintOrNull(position.expiration) ?? maximum; return value > maximum ? value : maximum; }, 0n);
+    const span = last > first ? last - first : 1n;
+    const now = sectionSource(state.system, ['token', 'bridge', 'savings', 'equity'])?.timestamp ?? state.discovery?.positions?.[0]?.sourceBlock?.timestamp ?? null;
+    const width = 700;
+    const rowHeight = 26;
+    const margin = { left: 92, right: 18, top: 22, bottom: 30 };
+    const innerWidth = width - margin.left - margin.right;
+    const xFor = (when) => margin.left + Number((when - first) * BigInt(innerWidth) / span);
+    const rows = shown.map((position, index) => {
+      const y = margin.top + index * rowHeight;
+      const label = `${position.address.slice(0, 6)}…${position.address.slice(-4)}`;
+      const start = bigintOrNull(position.start);
+      const cooldown = bigintOrNull(position.cooldown);
+      const expiration = bigintOrNull(position.expiration);
+      if (start === null || expiration === null) return `<g><text x="${margin.left - 8}" y="${y + 13}" text-anchor="end" font-size="9">${escapeHtml(label)}</text><text x="${margin.left}" y="${y + 13}" font-size="9">timestamps unavailable</text></g>`;
+      const status = positionStatus(position);
+      const startX = xFor(start);
+      const endX = xFor(expiration);
+      const cooldownX = cooldown !== null ? xFor(cooldown) : startX;
+      const initWidth = Math.max(0, cooldownX - startX);
+      const openWidth = Math.max(0, endX - cooldownX);
+      const challenged = (bigintOrNull(position.challengedAmount) ?? 0n) > 0n;
+      return `<g class="dash-life-row" tabindex="0" data-position-detail="${escapeHtml(position.address)}" role="button" aria-label="Position ${escapeHtml(position.address)} lifecycle from start ${escapeHtml(formatTimestamp(start))} through cooldown to expiration ${escapeHtml(formatTimestamp(expiration))}">
+        <text x="${margin.left - 8}" y="${y + 13}" text-anchor="end" font-size="9">${escapeHtml(label)}</text>
+        ${initWidth > 1 ? `<rect x="${startX.toFixed(2)}" y="${y + 5}" width="${initWidth.toFixed(2)}" height="12" fill="#fde9a8"><title>Start → cooldown end</title></rect>` : ''}
+        ${openWidth > 1 ? `<rect x="${cooldownX.toFixed(2)}" y="${y + 5}" width="${openWidth.toFixed(2)}" height="12" fill="${status.status === 'fail' ? '#ffcfd2' : status.status === 'warn' ? '#e9c46a' : status.status === 'info' ? '#bde0fe' : '#cdeccf'}"><title>Cooldown end → expiration</title></rect>` : ''}
+        <line x1="${endX.toFixed(2)}" y1="${y + 3}" x2="${endX.toFixed(2)}" y2="${y + 19}" stroke="#2b2118" stroke-width="1.4"/>
+        ${challenged ? `<circle cx="${endX.toFixed(2)}" cy="${y + 11}" r="3.4" fill="#b84a42"/>` : ''}
+        <title>${escapeHtml(position.address)} · start ${escapeHtml(formatTimestamp(start))} · cooldown ends ${escapeHtml(formatTimestamp(cooldown))} · expiration ${escapeHtml(formatTimestamp(expiration))}</title>
+      </g>`;
+    }).join('');
+    const nowValue = bigintOrNull(now);
+    const nowX = nowValue !== null && nowValue >= first && nowValue <= last ? xFor(nowValue) : null;
+    const nowLine = nowX === null ? '' : `<line class="threshold" x1="${nowX.toFixed(2)}" y1="${margin.top - 6}" x2="${nowX.toFixed(2)}" y2="${margin.top + shown.length * rowHeight}"/><text x="${(nowX + 4).toFixed(2)}" y="${margin.top - 9}" font-size="8.5" fill="#b84a42">SOURCE BLOCK NOW</text>`;
+    const height = margin.top + shown.length * rowHeight + margin.bottom;
+    return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Position lifecycle timelines from start through cooldown to expiration">${rows}${nowLine}<text x="${margin.left}" y="${height - 8}" font-size="8.5">${escapeHtml(formatTimestamp(first))}</text><text x="${width - margin.right}" y="${height - 8}" text-anchor="end" font-size="8.5">${escapeHtml(formatTimestamp(last))}</text></svg><div class="dash-legend"><span><i class="dash-swatch" style="background:#fde9a8"></i>Start → cooldown</span><span><i class="dash-swatch" style="background:#cdeccf"></i>Open window → expiration</span><span><i class="dash-swatch" style="background:#bde0fe"></i>Initializing</span><span>Rows follow the current explorer filters · showing ${shown.length} of ${sortedPositions().length} · select a row for detail</span></div>`;
+  }
+
+  function cubeDefaults() {
+    const anyDebt = allPositions().some((position) => (bigintOrNull(position.minted) ?? 0n) > 0n);
+    if (anyDebt) return { x: 'debt', y: 'availableForMinting', z: 'collateral' };
+    return { x: 'availableForMinting', y: 'reservePPM', z: 'collateral' };
+  }
+
+  function positionDataCube() {
+    if (state.discoveryPending) return chartUnavailable('Position cloud read in progress', 'Verified position points will appear after discovery completes.', 'short');
+    if (state.discovery?.error) return chartUnavailable('Position cloud unavailable', state.discovery.error, 'short');
+    const positions = sortedPositions();
+    if (!positions.length) return chartUnavailable('No position cloud', 'No positions matched the current explorer filters and discovery coverage.', 'short');
+    if (!state.cube.axes.x || !CUBE_DIMENSIONS[state.cube.axes.x]) state.cube.axes = { ...cubeDefaults() };
+    const zeroDebt = !positions.some((position) => (bigintOrNull(position.minted) ?? 0n) > 0n);
+    const axisOptions = (selected) => Object.entries(CUBE_DIMENSIONS).map(([key, dimension]) => `<option value="${key}" ${selected === key ? 'selected' : ''}>${escapeHtml(dimension.label)}</option>`).join('');
+    return `<div class="dash-toolbar dash-cube-controls"><label class="dash-field">X axis<select id="dashboard-cube-x">${axisOptions(state.cube.axes.x)}</select></label><label class="dash-field">Y axis<select id="dashboard-cube-y">${axisOptions(state.cube.axes.y)}</select></label><label class="dash-field">Z axis<select id="dashboard-cube-z">${axisOptions(state.cube.axes.z)}</select></label><span class="dash-cube-buttons"><button type="button" class="btn light" id="dashboard-cube-rotate-left" aria-label="Rotate left">⟲</button><button type="button" class="btn light" id="dashboard-cube-rotate-right" aria-label="Rotate right">⟳</button><button type="button" class="btn light" id="dashboard-cube-tilt-up" aria-label="Tilt up">▲</button><button type="button" class="btn light" id="dashboard-cube-tilt-down" aria-label="Tilt down">▼</button><button type="button" class="btn light" id="dashboard-cube-reset">Reset view</button><button type="button" class="btn light" id="dashboard-cube-mode" aria-pressed="${state.cube.mode === 'table'}">${state.cube.mode === 'table' ? '3D view' : 'Table view'}</button></span></div>
+      ${zeroDebt ? '<div class="dash-note">All matching positions carry verified zero gross debt. Debt stays selectable, but capacity axes are the default; a point on the debt axis floor is a verified zero, not missing data.</div>' : ''}
+      <div id="dashboard-cube-stage"></div>
+      <div id="dashboard-cube-focus"></div>
+      <p class="smalltext">Dependency-free projected SVG — no WebGL and no Three.js. Each axis is scaled with exact BigInt arithmetic against its own maximum before any pixel geometry is computed, and native units are never combined across dimensions. The table view carries the same values for assistive technology.</p>`;
+  }
+
+  function cubeTableHtml() {
+    const positions = sortedPositions();
+    const dimensions = [state.cube.axes.x, state.cube.axes.y, state.cube.axes.z].map((key) => ({ key, ...CUBE_DIMENSIONS[key] }));
+    const head = dimensions.map((dimension) => `<th class="num">${escapeHtml(dimension.label)}</th>`).join('');
+    const rows = positions.slice(0, 40).map((position) => {
+      const status = positionStatus(position);
+      return `<tr><td><button type="button" class="btn light small" data-cube-detail="${escapeHtml(position.address)}">${escapeHtml(position.address.slice(0, 10))}…</button></td><td>${escapeHtml(position.collateral?.symbol ?? 'Unknown')}</td>${dimensions.map((dimension) => `<td class="num mono">${escapeHtml(dimension.format(dimension.get(position), position))}</td>`).join('')}<td>${statusPill(status.status, status.label)}</td></tr>`;
+    }).join('');
+    return `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position</th><th>Collateral</th>${head}<th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><p class="smalltext">Accessible table fallback for the 3D cloud with identical axes and exact values.${positions.length > 40 ? ` Showing 40 of ${positions.length} matching positions.` : ''}</p>`;
+  }
+
+  function cubeSvg() {
+    const positions = sortedPositions();
+    const dimensions = [state.cube.axes.x, state.cube.axes.y, state.cube.axes.z].map((key) => ({ key, ...CUBE_DIMENSIONS[key] }));
+    const maximums = dimensions.map((dimension) => positions.reduce((max, position) => { const raw = dimension.get(position); return raw > max ? raw : max; }, 0n));
+    const width = 640;
+    const height = 460;
+    const centerX = width / 2;
+    const centerY = height / 2 + 12;
+    const radius = Math.min(width, height) * 0.335;
+    const cosYaw = Math.cos(state.cube.yaw);
+    const sinYaw = Math.sin(state.cube.yaw);
+    const cosPitch = Math.cos(state.cube.pitch);
+    const sinPitch = Math.sin(state.cube.pitch);
+    const project = (x, y, z) => {
+      const turnedX = x * cosYaw + z * sinYaw;
+      const turnedZ = -x * sinYaw + z * cosYaw;
+      const turnedY = y * cosPitch - turnedZ * sinPitch;
+      const depth = y * sinPitch + turnedZ * cosPitch;
+      const factor = 3.4 / (3.4 + depth);
+      return { x: centerX + turnedX * factor * radius, y: centerY - turnedY * factor * radius, depth, factor };
+    };
+    const corners = [[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]];
+    const edgePairs = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+    const frame = edgePairs.map(([a, b]) => { const pa = project(...corners[a]); const pb = project(...corners[b]); return `<line class="cube-edge" x1="${pa.x.toFixed(2)}" y1="${pa.y.toFixed(2)}" x2="${pb.x.toFixed(2)}" y2="${pb.y.toFixed(2)}"/>`; }).join('');
+    const axisLines = dimensions.map((dimension, index) => {
+      const unit = [0, 0, 0];
+      unit[index] = 1;
+      const from = project(-unit[0] * 0.5, -unit[1] * 0.5, -unit[2] * 0.5);
+      const to = project(unit[0] * 0.5, unit[1] * 0.5, unit[2] * 0.5);
+      const labelAt = project(unit[0] * 0.78, unit[1] * 0.78, unit[2] * 0.78);
+      const zeroNote = maximums[index] === 0n ? ' · verified zero' : '';
+      return `<line class="cube-axis" x1="${from.x.toFixed(2)}" y1="${from.y.toFixed(2)}" x2="${to.x.toFixed(2)}" y2="${to.y.toFixed(2)}"/><text class="cube-label" x="${labelAt.x.toFixed(2)}" y="${labelAt.y.toFixed(2)}" text-anchor="middle" font-size="9">${escapeHtml(dimension.short)}${escapeHtml(zeroNote)}</text>`;
+    }).join('');
+    const points = positions.map((position) => {
+      const normalized = dimensions.map((dimension, index) => scaleRatio(dimension.get(position), maximums[index] || 1n) - 0.5);
+      const projected = project(normalized[0], normalized[1], normalized[2]);
+      const status = positionStatus(position);
+      const focused = state.cube.focus && sameAddress(state.cube.focus, position.address);
+      const radiusPoint = (3 + 2.6 * projected.factor + (focused ? 1.6 : 0)).toFixed(2);
+      const ring = focused ? `<circle cx="${projected.x.toFixed(2)}" cy="${projected.y.toFixed(2)}" r="${(Number(radiusPoint) + 4).toFixed(2)}" fill="none" stroke="#2b2118" stroke-width="1.4" stroke-dasharray="3 3"/>` : '';
+      return { html: `${ring}<circle class="dash-cube-point" tabindex="0" data-cube-point="${escapeHtml(position.address)}" cx="${projected.x.toFixed(2)}" cy="${projected.y.toFixed(2)}" r="${radiusPoint}" fill="${CUBE_POINT_COLORS[status.status] ?? '#aee9d1'}" fill-opacity="${focused ? '1' : '.82'}" stroke="#2b2118" stroke-opacity=".5"><title>${escapeHtml(position.address)} · ${escapeHtml(dimensions.map((dimension) => `${dimension.label} ${dimension.format(dimension.get(position), position)}`).join(' · '))}</title></circle>`, depth: projected.depth };
+    }).sort((left, right) => right.depth - left.depth).map((point) => point.html).join('');
+    const axisDescription = dimensions.map((dimension) => dimension.label).join(', ');
+    return `<svg class="dash-svg dash-cube-svg" viewBox="0 0 ${width} ${height}" tabindex="0" role="img" aria-label="Projected three-dimensional position cloud with axes ${escapeHtml(axisDescription)}. Focus the chart and use arrow keys to rotate, or use the rotate buttons.">${frame}${axisLines}${points}</svg><div class="dash-legend"><span>Drag the chart or use ← → ↑ ↓ / buttons to rotate.</span><span>Select a point for exact axis values and a detail link.</span><span>${positions.length} matching positions</span></div>`;
+  }
+
+  function renderCubeStage() {
+    const stage = $('#dashboard-cube-stage', root);
+    if (!stage) return;
+    stage.innerHTML = state.cube.mode === 'table' ? cubeTableHtml() : cubeSvg();
+    renderCubeFocus();
+    $$('#dashboard-cube-stage [data-cube-point]', root).forEach((point) => {
+      const select = () => {
+        state.cube.focus = state.cube.focus && sameAddress(state.cube.focus, point.dataset.cubePoint) ? null : point.dataset.cubePoint;
+        renderCubeStage();
+      };
+      point.addEventListener('click', select);
+      point.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); } });
+    });
+    $$('#dashboard-cube-stage [data-cube-detail]', root).forEach((button) => button.addEventListener('click', () => {
+      const position = allPositions().find((candidate) => sameAddress(candidate.address, button.dataset.cubeDetail));
+      if (position) openPositionDrawer(position);
+    }));
+    const svg = $('#dashboard-cube-stage svg', root);
+    if (svg && state.cube.mode === '3d') bindCubeDrag(svg);
+  }
+
+  function renderCubeFocus() {
+    const panel = $('#dashboard-cube-focus', root);
+    if (!panel) return;
+    const idle = '<p class="smalltext">Select a cloud point to inspect its exact axis values.</p>';
+    if (!state.cube.focus) { panel.innerHTML = idle; return; }
+    const position = allPositions().find((candidate) => sameAddress(candidate.address, state.cube.focus));
+    if (!position) { state.cube.focus = null; panel.innerHTML = idle; return; }
+    const dimensions = [state.cube.axes.x, state.cube.axes.y, state.cube.axes.z].map((key) => ({ key, ...CUBE_DIMENSIONS[key] }));
+    const status = positionStatus(position);
+    panel.innerHTML = `<div class="dash-cube-focus-card">${metricList([
+      ['Position', position.address],
+      ['Status', status.label],
+      ...dimensions.map((dimension) => [`${dimension.label} (${dimension.short})`, dimension.format(dimension.get(position), position)]),
+    ])}<div class="dash-actions" style="margin-top:10px"><button type="button" class="btn light small" id="dashboard-cube-open-detail">Open position detail</button><button type="button" class="btn light small" id="dashboard-cube-unfocus">Clear selection</button></div></div>`;
+    $('#dashboard-cube-open-detail', root)?.addEventListener('click', () => openPositionDrawer(position));
+    $('#dashboard-cube-unfocus', root)?.addEventListener('click', () => { state.cube.focus = null; renderCubeStage(); });
+  }
+
+  function bindCubeDrag(svg) {
+    svg.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      let lastX = event.clientX;
+      let lastY = event.clientY;
+      const move = (moveEvent) => {
+        state.cube.yaw += (moveEvent.clientX - lastX) * 0.012;
+        state.cube.pitch = Math.max(-1.3, Math.min(1.3, state.cube.pitch + (moveEvent.clientY - lastY) * 0.012));
+        lastX = moveEvent.clientX;
+        lastY = moveEvent.clientY;
+        renderCubeStage();
+      };
+      const up = () => {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    });
+    svg.addEventListener('keydown', (event) => {
+      const step = 0.22;
+      if (event.key === 'ArrowLeft') state.cube.yaw -= step;
+      else if (event.key === 'ArrowRight') state.cube.yaw += step;
+      else if (event.key === 'ArrowUp') state.cube.pitch = Math.min(1.3, state.cube.pitch + step);
+      else if (event.key === 'ArrowDown') state.cube.pitch = Math.max(-1.3, state.cube.pitch - step);
+      else return;
+      event.preventDefault();
+      renderCubeStage();
+    });
+  }
+
+  function bindDataCube() {
+    for (const axis of ['x', 'y', 'z']) {
+      $(`#dashboard-cube-${axis}`, root)?.addEventListener('change', (event) => { state.cube.axes[axis] = event.target.value; state.cube.focus = null; renderCubeStage(); });
+    }
+    const rotate = (dYaw, dPitch) => { state.cube.yaw += dYaw; state.cube.pitch = Math.max(-1.3, Math.min(1.3, state.cube.pitch + dPitch)); renderCubeStage(); };
+    $('#dashboard-cube-rotate-left', root)?.addEventListener('click', () => rotate(-0.3, 0));
+    $('#dashboard-cube-rotate-right', root)?.addEventListener('click', () => rotate(0.3, 0));
+    $('#dashboard-cube-tilt-up', root)?.addEventListener('click', () => rotate(0, 0.2));
+    $('#dashboard-cube-tilt-down', root)?.addEventListener('click', () => rotate(0, -0.2));
+    $('#dashboard-cube-reset', root)?.addEventListener('click', () => { state.cube.axes = { ...cubeDefaults() }; state.cube.yaw = 0.65; state.cube.pitch = 0.42; state.cube.focus = null; state.cube.mode = '3d'; renderPositions(); });
+    $('#dashboard-cube-mode', root)?.addEventListener('click', () => { state.cube.mode = state.cube.mode === 'table' ? '3d' : 'table'; renderCubeStage(); });
+    renderCubeStage();
+  }
+
+  function bindLifecyclePoints() {
+    $$('#dashboard-view [data-position-detail]', root).forEach((element) => {
+      if (element.tagName !== 'g') return;
+      element.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        const position = allPositions().find((candidate) => sameAddress(candidate.address, element.dataset.positionDetail));
+        if (position) openPositionDrawer(position);
+      });
+    });
   }
 
   function renderPositions() {
@@ -907,6 +1512,10 @@
           </div>
           <div style="padding:0 18px 18px">${positions.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position / owner</th><th>Collateral</th><th class="num">${sortButton('Gross debt', 'debt')}</th><th class="num">${sortButton('CR', 'collateralRatio')}</th><th class="num">Liquidation price</th><th class="num">${sortButton('Expiration', 'expiration')}</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="dash-pagination"><span>${positions.length} matching · page ${state.position.page} of ${totalPages}</span><span class="buttons">${pagination}</span></div>` : unavailableCard(state.discoveryPending ? 'Position discovery is in progress' : 'No positions match', state.discoveryPending ? 'The dashboard is scanning verified events and rereading current position state. No zero or empty position state is asserted yet.' : 'Adjust the filters or run discovery with an explicit account context.')}</div>
         </div>
+        <div class="dash-grid">
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Position lifecycles</h3><p>Actual start → cooldown → expiration timelines against the current source block.</p></div>${cardTag('ACTUAL TIMESTAMPS')}</div>${lifecycleTimelines()}</article>
+          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Position dataqube</h3><p>Interactive projected cloud of the filtered positions. Drag to rotate, pick axes, or open the table fallback.</p></div>${cardTag('INTERACTIVE')}</div>${positionDataCube()}</article>
+        </div>
         ${sourceNote()}
       </div>`);
     bindPositions();
@@ -945,6 +1554,8 @@
       if (position) openPositionDrawer(position);
     }));
     $('#dashboard-positions-export', root)?.addEventListener('click', exportPositionsCsv);
+    bindDataCube();
+    bindLifecyclePoints();
   }
 
   function exportPositionsCsv() {
@@ -1084,6 +1695,10 @@
     }
     const entries = scenarioPositions().sort((left, right) => left.cr === right.cr ? 0 : left.cr < right.cr ? -1 : 1);
     const affected = entries.filter((entry) => entry.cr < BigInt(state.scenario.threshold * 100));
+    const zeroDebt = zeroDebtVerified();
+    const impactBody = zeroDebt
+      ? `<div class="dash-note">All discovered positions carry verified zero gross debt. Collateral-ratio stress has no debt to reprice, so the book view pivots to real capacity and lifecycle dimensions instead of a scenario CR.</div>${currentPositionScatter()}`
+      : entries.length ? riskScatter(entries) : unavailableCard('No scenario points', 'No discovered positions have enough collateral, price and debt data for a scenario CR.');
     const rows = affected.slice(0, 10).map((entry) => `<tr><td><button type="button" class="btn light small" data-position-detail="${escapeHtml(entry.position.address)}">${escapeHtml(entry.position.address.slice(0, 10))}…</button></td><td>${escapeHtml(entry.position.collateral?.symbol ?? 'Unknown')}</td><td class="num mono">${sdk().formatDecimal(entry.cr, 2)}%</td><td class="num mono">${formatAmount(entry.position.minted, 18, currentSymbol())}</td><td>${statusPill(entry.status.status, entry.status.label)}</td></tr>`).join('');
     setPanelHtml('risk', `
       <div class="dash-stack">
@@ -1097,7 +1712,7 @@
             <div class="dash-note danger">${state.scenario.threshold}% is a user watch setting, not a V2 protocol floor. Contract boundaries remain each position’s stored liquidation price.</div>
             <button type="button" class="btn light" id="dashboard-scenario-export" style="width:100%">Download scenario JSON</button>
           </article>
-          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Scenario impact</h3><p>${escapeHtml(scenarioLabel())}</p></div>${statusPill('warn', 'SCENARIO')}</div><div class="dash-kpis">${metricCard('Positions evaluated', String(entries.length), 'Real discovered positions', 'pass')}${metricCard('Below watch threshold', String(affected.length), `Stressed CR < ${state.scenario.threshold}%`, affected.length ? 'warn' : 'pass')}${metricCard('Critical below 100%', String(entries.filter((entry) => entry.cr < 10000n).length), 'Scenario classification', 'pass')}${metricCard('Missing CR inputs', String(allPositions().length - entries.length), 'Unavailable inputs are excluded', allPositions().length - entries.length ? 'warn' : 'pass')}</div>${entries.length ? riskScatter(entries) : unavailableCard('No scenario points', 'No discovered positions have enough collateral, price and debt data for a scenario CR.')}</article>
+          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Scenario impact</h3><p>${escapeHtml(scenarioLabel())}</p></div>${statusPill('warn', 'SCENARIO')}</div><div class="dash-kpis">${metricCard('Positions evaluated', String(entries.length), zeroDebt ? 'Verified zero gross debt across the discovered book' : 'Real discovered positions', 'pass')}${metricCard('Below watch threshold', String(affected.length), `Stressed CR < ${state.scenario.threshold}%`, affected.length ? 'warn' : 'pass')}${metricCard('Critical below 100%', String(entries.filter((entry) => entry.cr < 10000n).length), 'Scenario classification', 'pass')}${metricCard('Missing CR inputs', String(allPositions().length - entries.length), zeroDebt ? 'Expected with verified zero gross debt' : 'Unavailable inputs are excluded', allPositions().length - entries.length ? 'warn' : 'pass')}</div>${impactBody}</article>
         </div>
         <div class="dash-grid">
           <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Most affected positions</h3><p>Ranked by stressed collateral ratio below the user watch threshold.</p></div></div>${affected.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position</th><th>Collateral</th><th class="num">Scenario CR</th><th class="num">Gross debt</th><th>Current status</th></tr></thead><tbody>${rows}</tbody></table></div>` : unavailableCard('No affected positions', 'No scenario CR is below the current user watch threshold.')}</article>
@@ -1205,8 +1820,47 @@
     });
   }
 
+  function activityEvents() {
+    if (state.indexer.status !== 'ready') return state.discovery?.events ?? [];
+    return state.indexer.events.map((event) => {
+      const args = parseIndexedArgs(event);
+      const type = event.event === 'PositionOpened' ? 'position-opened' : event.event === 'ChallengeStarted' ? 'challenge-started' : `${event.contract.toLowerCase()}-${event.event.toLowerCase()}`;
+      const label = event.event.replace(/([a-z])([A-Z])/g, '$1 $2');
+      const summary = event.event === 'PositionOpened'
+        ? `Position ${args.position ?? event.subject} opened by ${args.owner ?? 'unknown owner'}`
+        : event.event === 'ChallengeStarted'
+          ? `Challenge ${args.number ?? 'unknown'} opened for position ${args.position ?? event.subject}`
+          : `${event.contract} · ${event.subject ?? event.address}`;
+      return {
+        type,
+        label,
+        summary,
+        position: args.position ?? event.subject,
+        transactionHash: event.transactionHash,
+        blockNumber: event.blockNumber,
+        blockTimestamp: event.blockTimestamp,
+        logIndex: event.logIndex,
+      };
+    });
+  }
+
+  function eventDayKey(event) {
+    const timestamp = bigintOrNull(event.blockTimestamp);
+    if (timestamp !== null && timestamp > 0n) return `day:${new Date(Number(timestamp) * 1000).toISOString().slice(0, 10)}`;
+    const block = bigintOrNull(event.blockNumber);
+    if (block === null) return 'day:unknown';
+    const start = block / 5000n * 5000n;
+    return `blocks:${start.toString()}`;
+  }
+
+  function activityCoverageText() {
+    if (state.indexer.status === 'ready') return indexerCoverageText();
+    if (state.indexer.status === 'stale' || state.indexer.status === 'error') return `${state.indexer.error}; using RPC discovery instead`;
+    return discoveryCoverageText();
+  }
+
   function filteredEvents() {
-    const events = (state.discovery?.events ?? []).filter((event) => state.activity.type === 'all' || event.type === state.activity.type);
+    const events = activityEvents().filter((event) => (state.activity.type === 'all' || event.type === state.activity.type) && (!state.activity.day || eventDayKey(event) === state.activity.day));
     const direction = state.activity.sort === 'desc' ? 1 : -1;
     return events.slice().sort((left, right) => {
       const leftBlock = bigintOrNull(left.blockNumber) ?? 0n;
@@ -1215,15 +1869,51 @@
     });
   }
 
+  function activityDayTimeline() {
+    if (state.discoveryPending) return chartUnavailable('Activity timeline read in progress', 'Event days appear after discovery completes; no zero activity is asserted during the scan.', 'short');
+    const events = activityEvents();
+    if (!events.length) return chartUnavailable('No real activity to timeline', state.discovery?.synthetic ? 'The synthetic fixture has no deployed event history.' : 'The scanned range contains no events; an empty result is shown only when discovery says so.', 'short');
+    const buckets = new Map();
+    for (const event of events) {
+      const key = eventDayKey(event);
+      if (!buckets.has(key)) buckets.set(key, { key, count: 0, order: 0n });
+      const bucket = buckets.get(key);
+      bucket.count += 1;
+      const timestamp = bigintOrNull(event.blockTimestamp);
+      const order = timestamp !== null && timestamp > 0n ? timestamp : (bigintOrNull(event.blockNumber) ?? 0n);
+      if (order > bucket.order) bucket.order = order;
+    }
+    const byDay = state.indexer.status === 'ready';
+    const rows = [...buckets.values()].sort((left, right) => left.order === right.order ? 0 : left.order > right.order ? 1 : -1).slice(-14);
+    const maximum = Math.max(1, ...rows.map((row) => row.count));
+    const width = 700;
+    const rowHeight = 24;
+    const margin = { left: 108, right: 44, top: 10, bottom: 24 };
+    const innerWidth = width - margin.left - margin.right;
+    const band = rowHeight;
+    const bars = rows.map((row, index) => {
+      const y = margin.top + index * band;
+      const barHeight = 14;
+      const barWidth = Math.max(2.5, row.count / maximum * innerWidth);
+      const active = state.activity.day === row.key;
+      const label = byDay ? row.key.slice(4) : `blocks ${row.key.slice(7)}`;
+      return `<g class="day-bar ${active ? 'active' : ''}" tabindex="0" role="button" aria-pressed="${active}" data-activity-day="${escapeHtml(row.key)}" aria-label="Filter the ledger to ${escapeHtml(byDay ? `UTC day ${row.key.slice(4)}` : `block range ${row.key.slice(7)}`)}, ${row.count} events"><text x="${margin.left - 8}" y="${(y + barHeight / 2 + 3.5).toFixed(2)}" text-anchor="end" font-size="9">${escapeHtml(label)}</text><rect x="${margin.left}" y="${y}" width="${barWidth.toFixed(2)}" height="${barHeight}" rx="3" fill="${active ? '#396c3d' : '#9ac9a5'}"/><text x="${(margin.left + barWidth + 6).toFixed(2)}" y="${(y + barHeight / 2 + 3.5).toFixed(2)}" font-size="9">${row.count}</text><title>${escapeHtml(label)} · ${row.count} real events · select to filter, select again to clear</title></g>`;
+    }).join('');
+    const height = margin.top + rows.length * band + margin.bottom;
+    return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Real activity timeline per ${byDay ? 'UTC day' : 'block range'}; select a bar to filter the ledger">${bars}</svg><div class="dash-legend"><span>${byDay ? 'One bar per UTC day of indexed events, using actual block timestamps.' : 'RPC discovery carries no event timestamps; bars group events by block range instead of inventing days.'}</span><span>Select a bar to filter the ledger; select it again to clear.</span></div>${state.activity.day ? `<div class="dash-actions" style="margin-top:9px"><button type="button" class="btn light small" id="dashboard-activity-day-clear">Clear timeline filter · ${escapeHtml(state.activity.day.slice(4))}</button></div>` : ''}`;
+  }
+
   function renderActivity() {
     if (state.discovery?.error) {
       setPanelHtml('activity', `<div class="dash-stack">${unavailableCard('Activity discovery is unavailable', state.discovery.error)}${sourceNote()}</div>`);
       return;
     }
-    const events = state.discovery?.events ?? [];
+    const events = activityEvents();
     const visible = filteredEvents();
-    const eventRows = visible.slice(0, 50).map((event) => `<div class="dash-event"><div class="dash-event-icon">${escapeHtml(event.type === 'challenge-started' ? 'CH' : 'PO')}</div><div><strong>${escapeHtml(event.label)}</strong><small>${escapeHtml(event.summary)}<br>${escapeHtml(event.transactionHash ?? '')}</small></div><div class="event-amount">${txLink(event.transactionHash)}<small>block ${escapeHtml(String(event.blockNumber ?? 'unknown'))}</small></div></div>`).join('');
-    const types = [['all', 'All events'], ['position-opened', 'Positions'], ['challenge-started', 'Challenges']];
+    const eventRows = visible.slice(0, 50).map((event) => `<div class="dash-event"><div class="dash-event-icon">${escapeHtml(event.label.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase())}</div><div><strong>${escapeHtml(event.label)}</strong><small>${escapeHtml(event.summary)}<br>${escapeHtml(event.transactionHash ?? '')}</small></div><div class="event-amount">${txLink(event.transactionHash)}<small>block ${escapeHtml(String(event.blockNumber ?? 'unknown'))}</small></div></div>`).join('');
+    const baseTypes = [['all', 'All events'], ['position-opened', 'Positions'], ['challenge-started', 'Challenges']];
+    const extraTypes = [...new Set(events.map((event) => event.type))].filter((type) => !baseTypes.some(([key]) => key === type)).map((type) => [type, events.find((event) => event.type === type)?.label ?? type]);
+    const types = [...baseTypes, ...extraTypes];
     setPanelHtml('activity', `
       <div class="dash-stack">
         <div class="dash-grid">
@@ -1231,16 +1921,17 @@
             <div class="dash-toolbar"><label class="dash-field">Challenge index<input id="dashboard-challenge-index" inputmode="numeric" pattern="[0-9]+" value="0"></label><button type="button" class="btn mint" id="dashboard-load-challenge">Read challenge</button><button type="button" class="btn light" id="dashboard-replay-toggle">${state.replay.playing ? 'Pause' : 'Play'}</button><button type="button" class="btn light" id="dashboard-replay-reset">Reset</button></div>
             <div id="dashboard-challenge-panel">${challengeHtml()}</div>
           </article>
-          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Activity summary</h3><p>${escapeHtml(discoveryCoverageText())}</p></div></div>${metricList([
-            ['Event types', state.discoveryPending ? 'Discovery in progress' : state.discovery?.synthetic ? 'Synthetic fixture' : 'PositionOpened · ChallengeStarted'],
+          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Activity summary</h3><p>${escapeHtml(activityCoverageText())}</p></div></div>${metricList([
+            ['Event types', state.discoveryPending ? 'Discovery in progress' : state.discovery?.synthetic ? 'Synthetic fixture' : state.indexer.status === 'ready' ? `${Math.max(0, types.length - 1)} indexed filters` : 'PositionOpened · ChallengeStarted'],
             ['Events discovered', state.discoveryPending ? 'Read in progress' : String(events.length)],
             ['Matching filter', state.discoveryPending ? 'Read in progress' : String(visible.length)],
             ['Account context', state.discovery?.account ?? 'Not supplied'],
-            ['Complete / partial', state.discoveryPending ? 'Pending' : state.discovery ? String(state.discovery.complete ? 'Complete' : 'Partial') : 'Unknown'],
-            ['History / volume', 'Unavailable — indexer not configured'],
+            ['Complete / partial', state.discoveryPending ? 'Pending' : state.indexer.status === 'ready' ? String(state.indexer.complete ? 'Complete event result' : 'Partial event result') : state.discovery ? String(state.discovery.complete ? 'Complete RPC discovery' : 'Partial RPC discovery') : 'Unknown'],
+            ['History / volume', state.indexer.status === 'ready' ? 'Indexed event history · no DEX volume' : 'Unavailable — indexer not configured'],
           ])}<div class="dash-note">An inactive first challenge phase does not prove settlement completion. Reread contract state before drawing a conclusion.</div></article>
         </div>
-        <div class="dash-card"><div class="dash-card-head"><div><h3>Protocol event ledger</h3><p>Real discovered events with transaction hashes. No generated event rows are shown.</p></div><button type="button" class="btn light small" id="dashboard-activity-sort">${state.activity.sort === 'desc' ? 'Newest first' : 'Oldest first'}</button></div><div class="dash-event-layout"><div class="dash-event-types" aria-label="Event type filters">${types.map(([key, label]) => { const count = key === 'all' ? events.length : events.filter((event) => event.type === key).length; return `<button type="button" data-event-type="${key}" class="${state.activity.type === key ? 'active' : ''}" aria-pressed="${state.activity.type === key}"><span>${label}</span><span class="n">${count}</span></button>`; }).join('')}</div><div>${visible.length ? `<div class="dash-event-list">${eventRows}</div>` : unavailableCard(state.discoveryPending ? 'Event discovery is in progress' : 'No matching real events', state.discoveryPending ? 'The dashboard is scanning verified events. No zero or empty event history is asserted yet.' : state.discovery?.synthetic ? 'The synthetic fixture has no deployed event history.' : 'The scanned range or selected event-type filter contains no matching events.')}</div></div></div>
+        <article class="dash-card"><div class="dash-card-head"><div><h3>Activity timeline</h3><p>Real discovered events per ${state.indexer.status === 'ready' ? 'UTC day from indexed block timestamps' : 'block range (RPC discovery carries no timestamps)'}; select a bar to filter the ledger below.</p></div>${cardTag(state.indexer.status === 'ready' ? 'INDEXED DAYS' : 'DISCOVERED BLOCKS', state.indexer.status === 'ready' ? 'mint' : 'gold')}</div>${activityDayTimeline()}</article>
+        <div class="dash-card"><div class="dash-card-head"><div><h3>Protocol event ledger</h3><p>Real discovered events with transaction hashes. No generated event rows are shown.</p></div><button type="button" class="btn light small" id="dashboard-activity-sort">${state.activity.sort === 'desc' ? 'Newest first' : 'Oldest first'}</button></div><div class="dash-event-layout"><div class="dash-event-types" aria-label="Event type filters">${types.map(([key, label]) => { const count = key === 'all' ? events.length : events.filter((event) => event.type === key).length; return `<button type="button" data-event-type="${key}" class="${state.activity.type === key ? 'active' : ''}" aria-pressed="${state.activity.type === key}"><span>${label}</span><span class="n">${count}</span></button>`; }).join('')}</div><div>${visible.length ? `<div class="dash-event-list">${eventRows}</div>` : unavailableCard(state.discoveryPending ? 'Event discovery is in progress' : 'No matching real events', state.discoveryPending ? 'The dashboard is scanning verified events. No zero or empty event history is asserted yet.' : state.discovery?.synthetic ? 'The synthetic fixture has no deployed event history.' : state.activity.day ? 'The selected timeline day or block range contains no events of the current type. Clear the timeline filter to see the full ledger.' : 'The scanned range or selected event-type filter contains no matching events.')}</div></div></div>
         ${sourceNote()}
       </div>`);
     bindActivity();
@@ -1293,6 +1984,15 @@
       state.activity.type = button.dataset.eventType;
       renderActivity();
     }));
+    $$('#dashboard-view [data-activity-day]', root).forEach((bar) => {
+      const apply = () => {
+        state.activity.day = state.activity.day === bar.dataset.activityDay ? null : bar.dataset.activityDay;
+        renderActivity();
+      };
+      bar.addEventListener('click', apply);
+      bar.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); apply(); } });
+    });
+    $('#dashboard-activity-day-clear', root)?.addEventListener('click', () => { state.activity.day = null; renderActivity(); });
     $('#dashboard-activity-sort', root)?.addEventListener('click', () => {
       state.activity.sort = state.activity.sort === 'desc' ? 'asc' : 'desc';
       renderActivity();
@@ -1365,11 +2065,11 @@
       : state.parametersTab === 'registry'
         ? `<div class="dash-address-list">${Object.entries(registry.addresses).map(([label, address]) => `<div class="dash-address-row"><span>${escapeHtml(label)}</span><code>${escapeHtml(address)}</code><a class="btn light small" href="${escapeHtml(`${currentExplorer().replace(/\/$/, '')}/address/${address}`)}" target="_blank" rel="noreferrer">Explorer</a></div>`).join('')}</div><div class="dash-note" style="margin-top:14px">The USD registry has eight Sourcify exact creation/runtime matches. Blockscout display verification remains an external blocker and is not represented as complete here.</div>`
         : state.parametersTab === 'sources'
-          ? `<div class="dash-grid"><article class="dash-card span-6"><div class="dash-card-head"><div><h3>SDK read coverage</h3><p>Capabilities detected for the selected verified registry.</p></div>${cardTag('CURRENT STATE', 'mint')}</div>${metricList(Object.entries(capabilities.capabilities).map(([label, enabled]) => [label, enabled ? 'Available' : 'Unavailable — adapter not configured']))}</article><article class="dash-card span-6"><div class="dash-card-head"><div><h3>Analytics still required</h3><p>Unavailable fields are never replaced with generated telemetry.</p></div>${cardTag('EXPLICIT UNKNOWN', 'gold')}</div>${metricList([['Historical snapshots', 'Indexer required'], ['Position enumeration', discoveryCoverageText()], ['Reference marks', 'Verified market feed required'], ['Volume and depth', 'Indexer and market feed required'], ['Cross-currency FX', 'Explicit provenance required'], ['Production readiness', 'Not claimed']])}</article></div>`
+          ? `<div class="dash-grid"><article class="dash-card span-6"><div class="dash-card-head"><div><h3>SDK read coverage</h3><p>Capabilities detected for the selected verified registry.</p></div>${cardTag('CURRENT STATE', 'mint')}</div>${metricList(Object.entries(capabilities.capabilities).map(([label, enabled]) => [label, enabled ? 'Available' : 'Unavailable — adapter not configured']))}</article><article class="dash-card span-6"><div class="dash-card-head"><div><h3>Analytics still required</h3><p>Unavailable fields are never replaced with generated telemetry.</p></div>${cardTag('EXPLICIT UNKNOWN', 'gold')}</div>${metricList([['Historical event coverage', indexerCoverageText()], ['Position enumeration', discoveryCoverageText()], ['Reference marks', 'Verified market feed required'], ['Volume and depth', 'Verified market feed required'], ['Cross-currency FX', 'Explicit provenance required'], ['Production readiness', 'Not claimed']])}</article></div>`
           : `<div class="dash-stack">${READINESS_GATES.map(([label, description], index) => `<div class="unavailable-card"><strong>${index + 1}. ${escapeHtml(label)}</strong><p>${escapeHtml(description)}</p></div>`).join('')}</div>`;
     setPanelHtml('parameters', `
       <div class="dash-stack">
-        <div class="dash-card"><div class="dash-card-head"><div><h3>System parameters</h3><p>Current on-chain values, registry evidence, adapter coverage and repository-owned readiness gates.</p></div></div><div class="dash-tabs" role="tablist" aria-label="Parameter views">${[['current', 'Current values'], ['registry', 'USD registry'], ['sources', 'Data sources'], ['gates', 'Readiness gates']].map(([key, label]) => `<button type="button" role="tab" data-parameter-tab="${key}" class="${state.parametersTab === key ? 'active' : ''}" aria-selected="${state.parametersTab === key}">${label}</button>`).join('')}</div>${currentPanel}</div>
+        <div class="dash-card"><div class="dash-card-head"><div><h3>System parameters</h3><p>Current on-chain values, registry evidence, adapter coverage and repository-owned readiness gates.</p></div></div><div class="dash-tabs" role="tablist" aria-label="Parameter views">${[['current', 'Current values'], ['registry', `${currentCode()} registry`], ['sources', 'Data sources'], ['gates', 'Readiness gates']].map(([key, label]) => `<button type="button" role="tab" data-parameter-tab="${key}" class="${state.parametersTab === key ? 'active' : ''}" aria-selected="${state.parametersTab === key}">${label}</button>`).join('')}</div>${currentPanel}</div>
         ${sourceNote()}
       </div>`);
     $$('#dashboard-view [data-parameter-tab]', root).forEach((button) => button.addEventListener('click', () => { state.parametersTab = button.dataset.parameterTab; renderParameters(); }));
@@ -1390,25 +2090,38 @@
     const nonce = ++state.nonce;
     const code = currentCode();
     state.code = code;
+    if (state.cube.code !== code) {
+      state.cube.axes = { x: '', y: '', z: '' };
+      state.cube.focus = null;
+      state.cube.code = code;
+    }
     if (!force && state.system && !state.system.error && state.discovery && !state.discovery.error && !state.discoveryPending && state.system.code === code && state.discovery.code === code) {
       await renderActivePanel();
       return;
     }
     const account = normalizedAccount();
+    if (force) {
+      systemCache.delete(code);
+      app().invalidateReadCache?.(code);
+      window.IMF_DISCOVERY.invalidate?.(code);
+    }
     state.discovery = null;
     state.discoveryPending = true;
+    state.indexer = { status: 'pending', health: null, events: [], positions: [], complete: false, error: null };
     state.challenge = null;
     stopReplay();
-    const systemPromise = getSystemSnapshot(code);
-    const discoveryPromise = getDiscoveredPositions(code, { account });
+    const systemPromise = getSystemSnapshot(code, force);
+    const discoveryPromise = getDiscoveredPositions(code, { account, force });
+    const indexerPromise = getIndexerBundle(code);
     const system = await systemPromise;
     if (nonce !== state.nonce) return;
     state.system = system;
     await renderActivePanel();
     try {
-      const discovery = await discoveryPromise;
+      const [discovery, indexer] = await Promise.all([discoveryPromise, indexerPromise]);
       if (nonce !== state.nonce) return;
       state.discovery = discovery;
+      state.indexer = indexer;
     } finally {
       if (nonce === state.nonce) {
         state.discoveryPending = false;
@@ -1426,11 +2139,33 @@
     }
   }
 
-  function panelFromHash(hash = location.hash) {
+  async function invalidate(code = null) {
+    if (code) systemCache.delete(code);
+    else systemCache.clear();
+    if (!code || currentCode() === code) {
+      state.system = null;
+      state.discovery = null;
+      state.comparison.rows = [];
+      await render(true);
+    }
+  }
+
+  function routeFromHash(hash = location.hash) {
     const clean = hash.replace(/^#\/?/, '');
-    if (clean === 'dashboard') return 'overview';
-    const match = clean.match(/^dashboard\/([a-z-]+)$/);
-    return match && PANELS.includes(match[1]) ? match[1] : null;
+    if (clean === 'dashboard') return { panel: 'overview', code: null };
+    const match = clean.match(/^dashboard\/([a-z-]+)(?:\/([a-zA-Z]+))?$/);
+    if (!match || !PANELS.includes(match[1])) return null;
+    const code = match[2]?.toUpperCase() ?? null;
+    if (code && !(window.IMF_CURRENCIES ?? []).some((currency) => currency.code === code)) return null;
+    return { panel: match[1], code };
+  }
+
+  function panelFromHash(hash = location.hash) {
+    return routeFromHash(hash)?.panel ?? null;
+  }
+
+  function dashboardHash(panel, code = currentCode()) {
+    return `#dashboard/${panel}/${code}`;
   }
 
   function revealTab(button, behavior = 'auto') {
@@ -1454,15 +2189,18 @@
       const target = panelRoot(name);
       if (target) target.hidden = name !== panel;
     });
-    if (updateHash) history.replaceState(null, '', `#dashboard/${panel}`);
+    renderPageCopy(sectionSource(state.system, ['token', 'bridge', 'savings', 'equity']));
+    if (updateHash) history.replaceState(null, '', dashboardHash(panel));
     if (focusTab) activeButton?.focus();
     revealTab(activeButton, updateHash ? 'smooth' : 'auto');
     render();
   }
 
   function activate(panel = panelFromHash() ?? 'overview') {
+    const route = routeFromHash();
+    if (route?.code) state.code = route.code;
     setPanel(panel, { updateHash: false });
-    if (!location.hash.startsWith('#dashboard')) history.replaceState(null, '', `#dashboard/${panel}`);
+    if (!location.hash.startsWith('#dashboard')) history.replaceState(null, '', dashboardHash(panel));
   }
 
   function init(options) {
@@ -1470,7 +2208,7 @@
     root = $('#dashboard-view');
     drawer = $('#dashboard-drawer');
     backdrop = $('#dashboard-drawer-backdrop');
-    if (!root) return { activate, refresh: () => render(true), panelFromHash };
+    if (!root) return { activate, refresh: (force = false) => render(force), panelFromHash };
     const tabs = $$('.dashboard-nav [data-dashboard]', root);
     tabs.forEach((button) => {
       button.addEventListener('click', () => setPanel(button.dataset.dashboard));
@@ -1487,9 +2225,23 @@
       state.code = event.target.value;
       const sharedSelector = $('#v2-currency');
       if (sharedSelector) sharedSelector.value = state.code;
-      render(true);
+      history.replaceState(null, '', dashboardHash(state.panel, state.code));
+      render(false);
     });
-    $('#dashboard-refresh', root)?.addEventListener('click', () => { render(true); notify('Refreshing verified current reads and discovery coverage.'); });
+    $('#dashboard-refresh', root)?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = 'Reloading…';
+      notify('Refreshing verified current reads and discovery coverage.');
+      try {
+        await render(true);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        button.textContent = 'Reload now';
+      }
+    });
     $('#dashboard-reset', root)?.addEventListener('click', resetDashboard);
     $('#dashboard-copy-view', root)?.addEventListener('click', copyViewLink);
     $('#dashboard-export-view', root)?.addEventListener('click', exportCurrentView);
@@ -1510,11 +2262,14 @@
       });
     });
     window.addEventListener('hashchange', () => {
-      const panel = panelFromHash();
-      if (panel && !root.hidden) setPanel(panel, { updateHash: false });
+      const route = routeFromHash();
+      if (route && !root.hidden) {
+        if (route.code) state.code = route.code;
+        setPanel(route.panel, { updateHash: false });
+      }
     });
-    return { activate, refresh: () => render(true), panelFromHash };
+    return { activate, refresh: (force = false) => render(force), panelFromHash };
   }
 
-  window.IMF_DASHBOARD = { init, panelFromHash, PANELS };
+  window.IMF_DASHBOARD = { init, invalidate, panelFromHash, routeFromHash, PANELS };
 })();

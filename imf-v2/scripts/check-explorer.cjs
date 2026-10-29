@@ -50,8 +50,8 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync('assets/explore.js', 'utf8'), context);
 assert.equal(get('#learn-net').textContent, '39,500 K9USD');
 assert.equal(get('#learn-ratio').textContent, '200% illustrative collateral ratio');
-assert.equal(get('.currency-picker').children.length, 11);
-assert.equal(get('.currency-list').children.length, 11);
+assert.equal(get('.currency-picker').children.length, 12);
+assert.equal(get('.currency-list').children.length, 12);
 for (const [percent, gross, net, ratio] of [[15, 15000, 11850, '666.7%'], [65, 65000, 51350, '153.8%']]) {
   get('#learn-debt').value = String(percent);
   get('#learn-debt').listeners.input();

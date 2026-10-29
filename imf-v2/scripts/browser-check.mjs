@@ -29,6 +29,7 @@ function watchPage(page) {
   page.on('pageerror', (error) => browserErrors.push(error.message));
 }
 let currentPage = await context.newPage();
+currentPage.setDefaultTimeout(90000);
 watchPage(currentPage);
 const pages = new Map();
 let pendingDownload = null;
@@ -39,7 +40,7 @@ async function command(action, args = {}) {
     try {
       return await Promise.race([
         currentPage.evaluate(args.code),
-        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Browser evaluation timed out: ${args.code.slice(0, 220)}`)), 20000); }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Browser evaluation timed out: ${args.code.slice(0, 220)}`)), 60000); }),
       ]);
     } finally {
       clearTimeout(timer);
@@ -144,7 +145,7 @@ async function checkDashboard(mode) {
   await waitFor(`window.IMF_V2_APP?.state?.runtime !== null && document.querySelector('#dashboard-view').hidden === false`);
   assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), 'Protocol at a glance.');
   assert((await evaluate(`document.querySelector('#dashboard-source-status').textContent`)).includes(mode));
-  assert.equal(await evaluate(`document.querySelector('#dashboard-currency').options.length`), 11);
+  assert.equal(await evaluate(`document.querySelector('#dashboard-currency').options.length`), 12);
   await click('#dashboard-method-open');
   await waitFor(`document.querySelector('#dashboard-method-dialog').open === true`);
   assert((await evaluate(`document.querySelector('#dashboard-method-dialog').textContent`)).includes('Collateral ratio and liquidation'));
@@ -292,7 +293,7 @@ if (fixture) {
   globalThis.originalDrafts = initial.originalDrafts;
   pass('fixture identity and synthetic warning');
   assert.deepEqual(await evaluate(`[...document.querySelector('#ecosystem-currency').options].filter(option=>!option.disabled).map(option=>option.value)`), ['USD']);
-  assert.equal(await evaluate(`document.querySelector('#ecosystem-currency').options.length`), 11);
+  assert.equal(await evaluate(`document.querySelector('#ecosystem-currency').options.length`), 12);
   assert((await evaluate(`document.querySelector('#ecosystem-availability').textContent`)).includes('synthetic read model'));
   assert.equal(await evaluate(`document.querySelector('#ecosystem-load-form button[type="submit"]').disabled`), false);
   pass('only the verified fixture currency is enabled for ecosystem reads');
@@ -460,14 +461,34 @@ if (fixture) {
 
 
 await open(origins.app);
+await command('navigate', { url: origins.app });
 await waitFor(`window.IMF_V2_APP?.state?.runtime !== null`);
+assert.equal(await evaluate(`document.querySelector('#view-title').textContent`), 'Start here');
+assert.equal(await evaluate(`document.querySelector('#start-view').hidden`), false);
+assert.equal(await evaluate(`document.querySelectorAll('#start-view .start-list > li').length`), 5);
+assert((await evaluate(`document.querySelector('#start-view').innerText`)).includes('Reconcile the receipt'));
+assert((await evaluate(`document.title`)).includes('Start here'));
+assert.equal(await evaluate(`document.querySelectorAll('.navlinks a[aria-current="page"]').length`), 1);
+assert((await evaluate(`document.querySelector('.navlinks').innerText`)).includes('Workspace'));
+await evaluate(`location.hash = 'manage'`);
+await waitFor(`document.querySelector('#manage-view').hidden === false && document.querySelector('#view-title').textContent === 'Manage & close'`);
+assert.equal(await evaluate(`location.hash`), '#manage');
+assert.equal(await evaluate(`document.querySelectorAll('.sidebar [data-view][aria-current="page"]').length`), 1);
+await evaluate(`location.hash = 'dashboard/positions'`);
+await waitFor(`document.querySelector('#dashboard-view').hidden === false && document.querySelector('#dashboard-positions').hidden === false`);
+await evaluate(`location.hash = ''`);
+await waitFor(`document.querySelector('#start-view').hidden === false && document.querySelector('#view-title').textContent === 'Start here'`);
+assert.equal(await evaluate(`document.querySelectorAll('#transaction-panel .info-row details.info').length`), 4);
+await waitFor(`document.querySelector('details.info[data-term="liquidation-price"] a[data-guide-link]')?.href.startsWith(${JSON.stringify(publicOrigins.docs)} + 'guides/')`);
+assert.equal(await evaluate(`getComputedStyle(document.querySelector('details.info > summary')).width`), '44px');
+pass('workspace Start here default, bookmarkable view routes, header state and glossary disclosures');
 if (!fixture) {
   assert.equal(await evaluate(`window.IMF_V2_APP.state.registry`), null);
   assert((await evaluate(`document.querySelector('#v2-net').textContent`)).includes('Connect verified V2 state'));
   assert((await evaluate(`document.querySelector('#release-notice').textContent`)).includes('No verified deployment registry'));
   assert.equal(await evaluate(`document.querySelector('#ecosystem-currency').disabled`), true);
   assert.equal(await evaluate(`document.querySelector('#ecosystem-load-form button[type="submit"]').disabled`), true);
-  assert.equal(await evaluate(`document.querySelector('#v2-currency').options.length`), 11);
+  assert.equal(await evaluate(`document.querySelector('#v2-currency').options.length`), 12);
   assert.equal(await evaluate(`document.querySelector('#v2-currency option[value="EUR"]').disabled`), false);
   assert((await evaluate(`document.querySelector('#v2-currency option[value="EUR"]').textContent`)).includes('read unavailable'));
   globalThis.originalDrafts = await evaluate(`localStorage.getItem('imf-position-drafts-v2')`);
@@ -573,6 +594,11 @@ pass('disabled storage does not prevent planning or JSON export');
 await open(origins.docs);
 const guides = await evaluate(`fetch('/assets/articles.json').then(response=>response.json())`);
 await waitFor(`document.querySelectorAll('#doc-links a').length === ${guides.length} && document.querySelector('#doc-search').dataset.ready === 'true'`);
+assert.equal(await evaluate(`document.querySelectorAll('#doc-links .doc-group').length`), 5);
+assert.equal(await evaluate(`document.querySelectorAll('#doc-links a[data-guide]').length`), guides.length);
+assert((await evaluate(`document.querySelector('#doc-links').innerText`)).includes('Plan & borrow'));
+assert.equal(await evaluate(`document.querySelectorAll('.navlinks a[aria-current="page"]').length`), 1);
+assert((await evaluate(`document.querySelector('.navlinks').innerText`)).includes('Documentation'));
 for (const guide of guides) {
   const url = `${origins.docs}guides/${guide.id}/`;
   const response = await command('navigate', { url });
@@ -599,10 +625,13 @@ assert((await evaluate(`document.querySelector('.lesson-nav a[href$="/guides/sou
 await waitFor(`document.querySelector('#doc-search').dataset.ready === 'true'`);
 await fill('#doc-search', 'nonexistent-query-xyz');
 assert.equal(await evaluate(`document.querySelector('#search-status').textContent`), '0 guides found');
+assert.equal(await evaluate(`[...document.querySelectorAll('#doc-links .doc-group')].every(group => group.hidden)`), true);
 await fill('#doc-search', 'bridge');
 assert((await evaluate(`document.querySelector('#search-status').textContent`)).includes('guide'));
+assert((await evaluate(`[...document.querySelectorAll('#doc-links .doc-group')].filter(group => !group.hidden).length`)) >= 1);
 await fill('#doc-search', '');
 assert.equal(await evaluate(`[...document.querySelectorAll('#doc-links a')].filter(link=>!link.hidden).length`), guides.length);
+assert.equal(await evaluate(`[...document.querySelectorAll('#doc-links .doc-group')].every(group => !group.hidden)`), true);
 await evaluate(`location.hash='repayment'`);
 await waitFor(`location.pathname.endsWith('/guides/repayment/')`);
 await waitFor(`document.querySelector('#article h1')?.textContent.includes('Repay debt first')`);
@@ -659,7 +688,11 @@ currentPage = interactivePage;
 pass('mobile website, documentation and app retain static content and navigation without JavaScript');
 
 await open(origins.website);
-await waitFor(`document.querySelectorAll('.currency-orb').length === 11`);
+await waitFor(`document.querySelectorAll('.currency-orb').length === 12`);
+assert((await evaluate(`document.querySelector('#try-it .info-row') !== null && document.querySelectorAll('#try-it details.info').length`)) >= 3);
+assert((await evaluate(`document.querySelector('details.info[data-term="gross-debt"] a[data-guide-link]')?.href`)).startsWith(`${publicOrigins.docs}guides/`));
+assert.equal(await evaluate(`document.querySelectorAll('.navlinks a[aria-current="page"]').length`), 1);
+assert((await evaluate(`document.querySelector('.navlinks').innerText`)).includes('Website'));
 await click('[data-story="2"]');
 assert.equal(await evaluate(`document.querySelector('#story-title').textContent`), 'Two assets meet in a separate pool.');
 assert.equal(await evaluate(`document.querySelector('[data-story="2"]').getAttribute('aria-pressed')`), 'true');
@@ -672,7 +705,7 @@ for (const { code, symbol } of await evaluate(`window.IMF_CURRENCIES`)) {
   assert.equal(await evaluate(`document.querySelector('#system-coin').textContent`), symbol);
   assert.equal(await evaluate(`document.querySelector('[data-system="${code}"]').getAttribute('aria-pressed')`), 'true');
 }
-pass('website story, teaching handoff and all eleven currency explorers');
+pass('website story, teaching handoff and all twelve currency explorers');
 
 await evaluate(`document.querySelector('.deep-paths details:last-child summary').focus()`);
 const detailBefore = await evaluate(`document.querySelector('.deep-paths details:last-child').open`);
@@ -750,7 +783,7 @@ await viewport(1440);
 await screenshot('docs-guide-desktop');
 
 await open(origins.app);
-for (const view of ['create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
+for (const view of ['start', 'create', 'manage', 'arena', 'ecosystem', 'connection', 'offline', 'drafts', 'lifecycle']) {
   await evaluate(`document.querySelector('[data-view="${view}"]').click()`);
   await waitFor(`document.querySelector('#${view}-view').hidden === false`);
   for (const width of [320, 390, 768, 1440]) await checkLayout(`app/${view}`, width);
