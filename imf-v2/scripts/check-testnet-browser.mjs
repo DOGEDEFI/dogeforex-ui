@@ -136,13 +136,14 @@ try {
   assert.deepEqual(await page.locator('#ecosystem-currency option:not([disabled])').evaluateAll((options) => options.map((option) => option.value)), expectedCodes);
   assert.equal(await page.locator('#ecosystem-currency option').count(), 12);
   assert((await page.locator('#ecosystem-availability').textContent()).includes('12 of 12'));
+  await page.locator('.workspace-more > summary').click();
   await page.locator('[data-view="connection"]').click();
   const registryText = await page.locator('#registry-summary').textContent();
   assert(registryText.includes('6281971'));
   for (const code of expectedCodes) assert(registryText.includes(code));
   assert((await page.locator('#runtime-message').textContent()).includes('tUSDC'));
   assert((await page.locator('#runtime-message').textContent()).includes('testnet'));
-  await page.locator('[data-view="ecosystem"]').click();
+  await page.locator('[data-view="ecosystem"][data-ecosystem-focus="savings"]').click();
   await page.locator('input[name="ecosystemAccount"]').fill('0x8666f1d19e04c7831EA23066a4b14c0260fC2B50');
   await page.locator('#ecosystem-load-form button[type="submit"]').click();
   await page.waitForFunction(() => ['#bridge-state', '#savings-state', '#equity-state', '#minter-state'].every((selector) => (document.querySelector(selector)?.textContent || '').trim().length > 40), undefined, { timeout: 60000 });
@@ -241,7 +242,7 @@ try {
       if (indexerEnabled) {
         await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('INDEXED HISTORY'), undefined, { timeout: 120000 });
       } else {
-        await targetPage.waitForFunction(() => document.querySelector('#dashboard-overview')?.innerText.includes('History unavailable — indexer not configured'), undefined, { timeout: 120000 });
+        await targetPage.waitForFunction(() => document.querySelector('#dashboard-overview')?.innerText.includes('Historical curves and complete token-flow timelines need a configured indexer'), undefined, { timeout: 120000 });
       }
       const overview = await targetPage.locator('#dashboard-overview').innerText();
       const tokenSupply = await targetPage.locator('.dash-kpi').first().innerText();
@@ -250,7 +251,7 @@ try {
         assert(overview.includes('INDEXED HISTORY'), `${code}: indexed debt history is missing`);
         assert(overview.includes('Zero-address token transfers'), `${code}: indexed token flow provenance is missing`);
       } else {
-        assert(overview.includes('History unavailable — indexer not configured'), `${code}: unavailable history boundary changed`);
+        assert(overview.includes('Historical curves and complete token-flow timelines need a configured indexer'), `${code}: unavailable history boundary changed`);
       }
       await targetPage.locator('#dashboard-tab-positions').click();
       await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-positions tbody tr').length === 3, undefined, { timeout: 120000 });
@@ -264,13 +265,22 @@ try {
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE CHF') && document.querySelector('#dashboard-parameters')?.innerText.includes('CHF registry'), undefined, { timeout: 120000 });
     assert.equal(new URL(targetPage.url()).hash, '#dashboard/parameters/CHF');
     await targetPage.goto(endpoint(portBase + 2, '#dashboard/overview/USD'), { waitUntil: 'networkidle' });
-    await targetPage.locator('#dashboard-compare-toggle').click();
-    await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-overview [data-compare-code]').length === 12, undefined, { timeout: 120000 });
+    await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-overview .currency-table [data-compare-code]').length === 12, undefined, { timeout: 120000 });
     const comparison = await targetPage.locator('#dashboard-overview').innerText();
     for (const code of expectedCodes) assert(comparison.includes(`K9${code}`), `comparison: missing K9${code}`);
-    await targetPage.locator('[data-compare-code="EUR"]').click();
+    await targetPage.locator('#dashboard-comparison-search').fill('CHF');
+    await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-overview .currency-table [data-compare-code]').length === 1);
+    await targetPage.locator('#dashboard-comparison-search').fill('');
+    await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-overview .currency-table [data-compare-code]').length === 12);
+    await targetPage.locator('[data-compare-sort="code"]').click();
+    assert((await targetPage.locator('.currency-table tbody tr').first().innerText()).includes('K9AUD'));
+    await targetPage.locator('.currency-table [data-compare-code="EUR"]').click();
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE EUR'), undefined, { timeout: 120000 });
     assert.equal(new URL(targetPage.url()).hash, '#dashboard/overview/EUR');
+    await targetPage.locator('#dashboard-tab-positions').click();
+    await targetPage.waitForFunction(() => document.querySelectorAll('#dashboard-positions tbody tr').length === 3, undefined, { timeout: 120000 });
+    await targetPage.screenshot({ path: path.join(root, 'artifacts/testnet-dashboard-positions.png'), fullPage: true });
+    await targetPage.locator('#dashboard-tab-overview').click();
     return { positions: observed, comparisonCurrencies: 12, currencyDeepLink: 'CHF' };
   }
 
@@ -292,6 +302,22 @@ try {
   await checkWorkspace(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: path.join(root, 'artifacts/testnet-app-desktop.png'), fullPage: true });
+  await page.locator('[data-ecosystem-focus="savings"]').click();
+  assert(await page.locator('#savings-deposit-form').isVisible());
+  assert.equal(await page.locator('#bridge-state').isVisible(), false);
+  await page.locator('[data-task-tab="savings-withdraw"]').click();
+  assert(await page.locator('#savings-withdraw-form').isVisible());
+  assert.equal(await page.locator('#savings-deposit-form').isVisible(), false);
+  await page.locator('[data-task-tab="savings-deposit"]').click();
+  await page.screenshot({ path: path.join(root, 'artifacts/testnet-earn-desktop.png'), fullPage: true });
+  await page.locator('[data-ecosystem-focus="equity"]').click();
+  assert(await page.locator('#equity-invest-form').isVisible());
+  assert.equal(await page.locator('#savings-state').isVisible(), false);
+  await page.locator('[data-task-tab="equity-redeem"]').click();
+  assert(await page.locator('#equity-redeem-form').isVisible());
+  await page.locator('[data-task-tab="equity-invest"]').click();
+  await page.screenshot({ path: path.join(root, 'artifacts/testnet-invest-desktop.png'), fullPage: true });
+  await page.locator('[data-view="create"]').click();
   await checkDashboard(page);
   const currencyDashboards = await checkAllCurrencyDashboards(page);
   const warmRpcBefore = rpcMethods.length;
@@ -321,11 +347,11 @@ try {
   assert.equal(mobileOverflow, false);
   await checkWorkspace(mobilePage);
   await mobilePage.setViewportSize({ width: 390, height: 844 });
-  await mobilePage.waitForFunction(() => document.querySelector('.sidebar-toggle').getAttribute('aria-expanded') === 'false');
-  await mobilePage.locator('.sidebar-toggle').click();
-  await mobilePage.waitForFunction(() => document.querySelector('.sidebar-toggle').getAttribute('aria-expanded') === 'true');
+  await mobilePage.waitForFunction(() => !document.querySelector('.workspace-more').open);
+  await mobilePage.locator('.workspace-more > summary').click();
+  await mobilePage.waitForFunction(() => document.querySelector('.workspace-more').open);
   await mobilePage.keyboard.press('Escape');
-  await mobilePage.waitForFunction(() => document.querySelector('.sidebar-content').hidden);
+  await mobilePage.waitForFunction(() => !document.querySelector('.workspace-more').open && document.activeElement.matches('.workspace-more > summary'));
   await mobilePage.evaluate(() => window.scrollTo({ top: 0, behavior: 'auto' }));
   await mobilePage.screenshot({ path: path.join(root, 'artifacts/testnet-app-mobile.png'), fullPage: true });
 
@@ -417,8 +443,8 @@ try {
   assert(await crawlerPage.locator('.navlinks').isVisible());
   assert.equal(await crawlerPage.locator('.menu').isVisible(), false);
   await crawlerPage.goto(endpoint(portBase + 2), { waitUntil: 'load' });
-  assert((await crawlerPage.locator('#view-title').textContent()).includes('V2 position planner'));
-  assert((await crawlerPage.locator('.sidebar-content').textContent()).includes('Interactive V2 forms require JavaScript'));
+  assert((await crawlerPage.locator('#view-title').textContent()).includes('Borrow'));
+  assert((await crawlerPage.locator('main > noscript').textContent()).includes('Interactive V2 forms require JavaScript'));
   assert.equal(rpcMethods.length, rpcBeforeCrawling);
   await crawlerContext.close();
   assert.deepEqual(forbiddenMethods, []);

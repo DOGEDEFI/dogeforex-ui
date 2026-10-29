@@ -138,5 +138,47 @@
     "plain": "The wallet shows the final transaction and network fee. One explicit confirmation submits it; the receipt is journaled and is never resubmitted or extended automatically.",
     "guide": "agents",
     "link": "Read the agent workflows guide"
+  },
+  {
+    "term": "currency-independence",
+    "question": "What does the currency selector change?",
+    "plain": "It selects one independent K9 currency system with its own token, positions, savings, bridge, equity, and governance. It does not convert between currencies or select a shared reserve.",
+    "guide": "architecture",
+    "link": "Read the system architecture guide"
+  },
+  {
+    "term": "write-eligibility",
+    "question": "Why can some currencies be read but not used for guided transactions?",
+    "plain": "All verified runtime currencies support public reads. Guided MetaMask writes are deliberately limited to the verified USD DogeOS Chikyū testnet runtime. Imported registries and other currencies remain read-only.",
+    "guide": "architecture",
+    "link": "Read the integration and runtime guide"
+  },
+  {
+    "term": "savings-lock",
+    "question": "How does the savings lock work?",
+    "plain": "New savings deposits receive a weighted lock of up to three days. The exact ability to withdraw depends on the account's current on-chain savings state, so the app rereads it before preparing a withdrawal.",
+    "guide": "savings",
+    "link": "Read the savings and rate clocks guide"
+  },
+  {
+    "term": "share-price-risk",
+    "question": "Can K9 pool shares lose value?",
+    "plain": "Yes. Pool shares participate in one system's gains and losses. Their nonlinear protocol quote changes with equity and share supply; they are not K9 currency and have no face-value redemption guarantee.",
+    "guide": "equity",
+    "link": "Read the reserves and equity guide"
+  },
+  {
+    "term": "bridge-credits",
+    "question": "What is an unpaid source credit?",
+    "plain": "Burning local currency can create a credit for a recipient instead of sending source tokens immediately. A separate payout step is required, and decimal normalization can leave a local-currency remainder.",
+    "guide": "source-bridge",
+    "link": "Read the source bridge guide"
+  },
+  {
+    "term": "source-freshness",
+    "question": "How current is dashboard data?",
+    "plain": "Public analytics may be reused for up to one hour and always show their observation age. Reload now forces fresh reads. Guided quotes and transaction preparation never use this dashboard cache.",
+    "guide": "dashboard-metrics",
+    "link": "Read the dashboard methodology guide"
   }
 ]

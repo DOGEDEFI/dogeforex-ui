@@ -85,6 +85,11 @@
       setSidebar(false);
       sidebarToggle.focus();
     }
+    const more = document.querySelector('details.workspace-more[open]');
+    if (more) {
+      more.removeAttribute('open');
+      more.querySelector(':scope > summary')?.focus();
+    }
   });
 
   document.querySelectorAll('.skip').forEach((link) => link.addEventListener('click', (event) => {

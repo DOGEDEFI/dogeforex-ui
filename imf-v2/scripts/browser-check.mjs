@@ -97,10 +97,19 @@ async function waitFor(code, timeout = 20000) {
 }
 
 async function fill(selector, value) {
+  const field = currentPage.locator(selector).first();
+  if (!(await field.isVisible())) {
+    const disclosure = field.locator('xpath=ancestor::details[not(@open)][1]');
+    if (await disclosure.count()) await disclosure.locator(':scope > summary').click();
+  }
   await command('fill', { selector, value: String(value) });
 }
 
 async function click(selector) {
+  if (selector.startsWith('[data-view=') && !(await currentPage.locator(selector).first().isVisible())) {
+    const more = currentPage.locator('.workspace-more > summary');
+    if (await more.isVisible()) await command('click', { selector: '.workspace-more > summary' });
+  }
   await command('click', { selector });
 }
 
@@ -384,7 +393,7 @@ if (fixture) {
   await waitFor(`document.querySelector('#challenge-result').innerText.length > 0`);
   pass('management: repayment reserve, full candidate, withdrawal and expiry');
 
-  await click('[data-view="ecosystem"]');
+  await click('[data-view="ecosystem"][data-ecosystem-focus="bridge"]');
   await fill('[name="ecosystemAccount"]', '0xF17e00000000000000000000000000000000000B');
   await click('#ecosystem-load-form button[type="submit"]');
   await waitFor(`window.IMF_V2_APP.state.ecosystem.bridge?.sourceDecimals === 6 && !!window.IMF_V2_APP.state.ecosystem.savings && !!window.IMF_V2_APP.state.ecosystem.equity`);
@@ -394,8 +403,10 @@ if (fixture) {
   const bridge = await evaluate(`document.querySelector('#bridge-quote').innerText`);
   assert(bridge.includes('0.000000000000000001'));
   assert(bridge.includes('Unpaid credit'));
+  await click('[data-view="ecosystem"][data-ecosystem-focus="equity"]');
   await click('#equity-form button[type="submit"]');
   await waitFor(`document.querySelector('#equity-quote').innerText.includes('Quoted pool shares')`);
+  await click('[data-view="ecosystem"][data-ecosystem-focus="governance"]');
   await click('#governance-form button[type="submit"]');
   await waitFor(`document.querySelector('#governance-state').innerText.includes('Contract checkQualified')`);
   const governance = await evaluate(`document.querySelector('#governance-state').innerText`);
@@ -404,7 +415,7 @@ if (fixture) {
   pass('bridge credits, savings, equity and vote qualification');
 
   await setScenario('no-votes');
-  await click('[data-view="ecosystem"]');
+  await click('[data-view="ecosystem"][data-ecosystem-focus="governance"]');
   await click('#governance-form button[type="submit"]');
   await waitFor(`document.querySelector('#governance-state').innerText.includes('Contract checkQualified')`);
   const noVotes = await evaluate(`document.querySelector('#governance-state').innerText`);
@@ -471,9 +482,9 @@ assert((await evaluate(`document.title`)).includes('Start here'));
 assert.equal(await evaluate(`document.querySelectorAll('.navlinks a[aria-current="page"]').length`), 1);
 assert((await evaluate(`document.querySelector('.navlinks').innerText`)).includes('Workspace'));
 await evaluate(`location.hash = 'manage'`);
-await waitFor(`document.querySelector('#manage-view').hidden === false && document.querySelector('#view-title').textContent === 'Manage & close'`);
+await waitFor(`document.querySelector('#manage-view').hidden === false && document.querySelector('#view-title').textContent === 'My positions'`);
 assert.equal(await evaluate(`location.hash`), '#manage');
-assert.equal(await evaluate(`document.querySelectorAll('.sidebar [data-view][aria-current="page"]').length`), 1);
+assert.equal(await evaluate(`document.querySelectorAll('.workspace-command [data-view][aria-current="page"]').length`), 1);
 await evaluate(`location.hash = 'dashboard/positions'`);
 await waitFor(`document.querySelector('#dashboard-view').hidden === false && document.querySelector('#dashboard-positions').hidden === false`);
 await evaluate(`location.hash = ''`);
@@ -681,8 +692,8 @@ assert.equal(await evaluate(`getComputedStyle(document.querySelector('.menu')).d
 assert.equal(await evaluate(`getComputedStyle(document.querySelector('.navlinks')).display`), 'flex');
 await screenshot('website-nojs-mobile');
 await command('navigate', { url: origins.app });
-assert((await evaluate(`document.querySelector('#view-title').textContent`)).includes('V2 position planner'));
-assert((await evaluate(`document.querySelector('.sidebar-content').innerText`)).includes('Interactive V2 forms require JavaScript'));
+assert((await evaluate(`document.querySelector('#view-title').textContent`)).includes('Borrow'));
+assert((await evaluate(`document.querySelector('main noscript').innerText`)).includes('Interactive V2 forms require JavaScript'));
 await currentPage.close();
 currentPage = interactivePage;
 pass('mobile website, documentation and app retain static content and navigation without JavaScript');
@@ -728,17 +739,15 @@ pass('keyboard details, mobile menu, Escape, skip link and visible focus');
 await open(origins.app);
 await viewport(390);
 await evaluate(`window.scrollTo({top:0,behavior:'auto'})`);
-assert.equal(await evaluate(`document.querySelector('.sidebar-toggle').getAttribute('aria-expanded')`), 'false');
-await click('.sidebar-toggle');
-assert.equal(await evaluate(`document.querySelector('.sidebar-toggle').getAttribute('aria-expanded')`), 'true');
-assert.equal(await evaluate(`document.querySelector('.sidebar-content').hidden`), false);
+assert.equal(await evaluate(`document.querySelector('.workspace-more').open`), false);
+await click('.workspace-more > summary');
+assert.equal(await evaluate(`document.querySelector('.workspace-more').open`), true);
 await key('Escape');
-assert.equal(await evaluate(`document.querySelector('.sidebar-toggle').getAttribute('aria-expanded')`), 'false');
-assert.equal(await evaluate(`document.querySelector('.sidebar-content').hidden`), true);
-assert(await evaluate(`document.activeElement.classList.contains('sidebar-toggle')`));
-await click('.sidebar-toggle');
+assert.equal(await evaluate(`document.querySelector('.workspace-more').open`), false);
+assert(await evaluate(`document.activeElement.matches('.workspace-more > summary')`));
+await click('.workspace-more > summary');
 await click('[data-view="connection"]');
-assert.equal(await evaluate(`document.querySelector('.sidebar-content').hidden`), true);
+assert.equal(await evaluate(`document.querySelector('.workspace-more').open`), false);
 assert.equal(await evaluate(`document.querySelector('#connection-view').hidden`), false);
 await open(origins.docs);
 await viewport(390);

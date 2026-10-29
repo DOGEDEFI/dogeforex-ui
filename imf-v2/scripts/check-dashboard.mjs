@@ -25,11 +25,13 @@ for (const panel of panels) {
 }
 assert(appHtml.includes('class="dashboard-nav" aria-label="Dashboard views" role="tablist"'), 'dashboard must use one horizontal tablist');
 assert(!appHtml.includes('class="dashboard-layout"'), 'dashboard must not restore a nested sidebar layout');
-assert(appHtml.includes('class="nav-group">Monitor') && appHtml.includes('class="nav-group">Positions') && appHtml.includes('class="nav-group">Participate') && appHtml.includes('class="nav-group">Resources'), 'workspace navigation must be grouped by user intent');
+assert(appHtml.includes('class="workspace-primary"') && appHtml.includes('data-ecosystem-focus="savings"') && appHtml.includes('data-ecosystem-focus="equity"') && appHtml.includes('class="workspace-more"'), 'workspace must lead with Borrow, Earn, Invest, Dashboard and More');
+assert(appHtml.includes('id="workspace-currency"') && appHtml.includes('id="borrow-find-positions"'), 'currency selector and read-backed borrow browser are required');
 assert(dashboard.includes('ArrowLeft') && dashboard.includes('ArrowRight') && dashboard.includes("'Home'") && dashboard.includes("'End'"), 'dashboard tabs must support keyboard navigation');
 assert(dashboard.includes('function systemMap(') && dashboard.includes('function bridgeUtilization('), 'live-data visual components are missing');
 assert(dashboard.includes('minted * 10000n / limit'), 'bridge utilization must use exact integer arithmetic');
-assert(appHtml.indexOf('data-view="dashboard"') < appHtml.indexOf('data-view="create"'), 'Dashboard must be the first workspace menu item');
+assert(appHtml.indexOf('data-view="create"') < appHtml.indexOf('data-ecosystem-focus="savings"') && appHtml.indexOf('data-ecosystem-focus="savings"') < appHtml.indexOf('data-ecosystem-focus="equity"'), 'Borrow, Earn and Invest must retain their goal-oriented order');
+assert(dashboard.includes('function currencySupplyBars(') && dashboard.includes('function sortedComparisonRows(') && !dashboard.includes('dashboard-compare-toggle'), 'all-currency explorer must be visible by default with native-unit bars and sorting');
 assert(appHtml.includes('href="../assets/dashboard.css"'), 'app must load dashboard.css');
 assert(appHtml.includes('id="dashboard-drawer"') && appHtml.includes('id="dashboard-source-status"'), 'dashboard shell is missing provenance or drawer');
 for (const control of ['dashboard-currency', 'dashboard-copy-view', 'dashboard-export-view', 'dashboard-reset', 'dashboard-refresh', 'dashboard-method-dialog']) {

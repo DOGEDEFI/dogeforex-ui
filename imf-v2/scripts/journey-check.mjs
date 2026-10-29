@@ -35,6 +35,13 @@ function pass(name) {
   console.log(`PASS ${name}`);
 }
 
+async function clickView(page, view, focus = null) {
+  const selector = `[data-view="${view}"]${focus ? `[data-ecosystem-focus="${focus}"]` : ''}`;
+  const target = page.locator(selector).first();
+  if (!(await target.isVisible())) await page.locator('.workspace-more > summary').click();
+  await target.click();
+}
+
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.addInitScript({ content: mockSource });
@@ -87,6 +94,7 @@ try {
   await page.locator('[data-view="create"]').click();
   await page.locator('#create-view').waitFor({ state: 'visible' });
   await page.locator('#v2-position-form [name=project]').fill('Isolated test project');
+  await page.locator('#new-fields > summary').click();
   await page.locator('#v2-position-form [name=token]').fill(collateral);
   await page.locator('#v2-position-form [name=collateral]').fill('600000');
   await page.locator('#prepare-position').click();
@@ -124,10 +132,10 @@ try {
   assert.equal(decoded.args.amount, 1000000000000000000000n);
   pass('existing-position mint uses recipient and gross amount correctly');
 
-  await page.locator('[data-view=connection]').click();
+  await clickView(page, 'connection');
   await page.locator('#fixture-scenario').selectOption('challenged');
   await page.waitForFunction(() => window.IMF_V2_APP.state.verifying.size === 0);
-  await page.locator('[data-view=arena]').click();
+  await clickView(page, 'arena');
   const bid = page.locator('[data-operation="hub.bid"]');
   await bid.locator('[name=index]').fill('0');
   await bid.locator('[name=amount]').fill('1');
@@ -148,7 +156,13 @@ try {
     await page.evaluate(() => window.IMF_WALLET.invalidate('Next isolated form check'));
     const form = page.locator(`form[data-operation="${operation}"]`);
     const view = await form.evaluate((element) => element.closest('section[id$="-view"]').id.replace('-view', ''));
-    await page.locator(`[data-view="${view}"]`).click();
+    const focus = view !== 'ecosystem' ? null
+      : ['savings.save', 'savings.withdraw', 'savings.adjust', 'savings.refreshMyBalance', 'savings.refreshBalance'].includes(operation) ? 'savings'
+        : ['equity.invest', 'equity.redeemExpected'].includes(operation) ? 'equity'
+          : operation.startsWith('bridge.') ? 'bridge' : 'governance';
+    await clickView(page, view, focus);
+    const taskTab = { 'savings.save': 'savings-deposit', 'savings.withdraw': 'savings-withdraw', 'equity.invest': 'equity-invest', 'equity.redeemExpected': 'equity-redeem' }[operation];
+    if (taskTab) await page.locator(`[data-task-tab="${taskTab}"]`).click();
     await form.evaluate((element) => { let parent = element.parentElement; while (parent) { if (parent.tagName === 'DETAILS') parent.open = true; parent = parent.parentElement; } });
     const inputs = await form.locator('input, textarea').all();
     for (const input of inputs) {

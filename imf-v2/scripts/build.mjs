@@ -149,7 +149,7 @@ for (const surface of surfaces) {
       ],
     ] : surface === 'app' ? [
       ['Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution', 'DogeOS Chikyū testnet · Guided USD MetaMask transactions after simulation and explicit confirmation · Test assets only'],
-      ['<span class="tag" id="sidebar-connection">V2 registry not configured</span>', '<span class="tag" id="sidebar-connection">DogeOS testnet · 12 verified currencies</span>'],
+      ['<span class="tag" id="sidebar-connection" hidden>V2 registry not configured</span>', '<span class="tag" id="sidebar-connection" hidden>DogeOS testnet · 12 verified currencies</span>'],
       ['<span class="tag" id="connection-status">Unconfigured</span>', '<span class="tag" id="connection-status">DogeOS testnet · 12 verified currencies</span>'],
       ['No verified V2 deployment registry is configured. You can inspect a V2 registry locally without sending it to a server.', runtime.message],
       ['Read-only preview; no production V2 registry, signing or execution is connected.', 'DogeOS Chikyū testnet preview; explicit MetaMask transactions require current simulation, review and confirmation. tUSDC is a test asset; production readiness is not claimed.'],

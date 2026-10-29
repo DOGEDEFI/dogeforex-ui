@@ -28,37 +28,37 @@
   </div>
 </header>
 <div class="notice" id="release-notice">Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution</div>
-<main id="main" class="wrap shell">
-  <aside class="sidebar" aria-label="Workspace navigation">
-    <button type="button" class="sidebar-toggle" aria-expanded="true" aria-controls="sidebar-content">Workspace views <span aria-hidden="true">⌄</span></button>
-    <div class="sidebar-content" id="sidebar-content">
-      <nav aria-label="Workspace">
-        <button data-view="start">Start here</button>
-        <h2 class="nav-group">Monitor</h2>
-        <button data-view="dashboard">Dashboard</button>
-        <h2 class="nav-group">Positions</h2>
-        <button class="active" data-view="create">Create & mint</button>
-        <button data-view="manage">Manage & close</button>
-        <h2 class="nav-group">Participate</h2>
-        <button data-view="arena">Challenges & auctions</button>
-        <button data-view="ecosystem">Bridge, savings & equity</button>
-        <h2 class="nav-group">Resources</h2>
-        <button data-view="connection">Wallet, registry & network</button>
-        <button data-view="drafts">Saved drafts</button>
-        <button data-view="lifecycle">Operating workflow</button>
-        <button data-view="offline">Teaching & legacy plans</button>
-        <a href="../docs/#agents">Agent documentation</a>
-      </nav>
-      <p>Connection</p>
-      <span class="tag" id="sidebar-connection">V2 registry not configured</span>
-      <p>Execution boundary</p>
-      <span class="smalltext">DogeOS testnet transactions only after explicit review and MetaMask confirmation. Planning documents never grant authority. No private keys, DEX or keeper execution.</span>
-      <noscript><p class="smalltext">Interactive V2 forms require JavaScript. The documentation and static operating guidance remain available without it.</p></noscript>
-    </div>
-  </aside>
+<main id="main" class="wrap workspace-shell">
+  <span class="tag" id="sidebar-connection" hidden>V2 registry not configured</span>
+  <div class="workspace-command" aria-label="Workspace controls">
+    <nav class="workspace-primary" aria-label="Workspace">
+      <button type="button" data-view="create">Borrow</button>
+      <button type="button" data-view="ecosystem" data-ecosystem-focus="savings">Earn</button>
+      <button type="button" data-view="ecosystem" data-ecosystem-focus="equity">Invest</button>
+      <button type="button" data-view="dashboard">Dashboard</button>
+      <details class="workspace-more">
+        <summary>More <span aria-hidden="true">⌄</span></summary>
+        <div class="workspace-more-menu">
+          <button type="button" data-view="start">Start here</button>
+          <button type="button" data-view="manage">My positions</button>
+          <button type="button" data-view="arena">Challenges &amp; auctions</button>
+          <button type="button" data-view="ecosystem" data-ecosystem-focus="bridge">Source bridge</button>
+          <button type="button" data-view="ecosystem" data-ecosystem-focus="governance">Governance</button>
+          <button type="button" data-view="connection">Registry &amp; network</button>
+          <button type="button" data-view="drafts">Saved drafts</button>
+          <button type="button" data-view="lifecycle">Operating workflow</button>
+          <button type="button" data-view="offline">Teaching &amp; legacy plans</button>
+          <a href="../docs/#agents">Agent documentation</a>
+        </div>
+      </details>
+    </nav>
+    <label class="workspace-currency">Currency<select id="workspace-currency" aria-label="Workspace currency"></select></label>
+    <details class="info" data-term="currency-independence"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What does the currency selector change?</span></summary><div class="info-body"><p>It selects one independent K9 currency system, not a shared reserve or FX conversion.</p><a data-guide-link href="../docs/#architecture">Read the architecture guide</a></div></details>
+  </div>
+  <noscript><p class="smalltext">Interactive V2 forms require JavaScript. The documentation and static operating guidance remain available without it.</p></noscript>
   <div class="workspace-content">
     <div class="app-title">
-      <div><p class="smalltext">Project treasury · Independent system per currency</p><h1 id="view-title">V2 position planner</h1></div>
+      <div><p class="smalltext" id="workspace-kicker">Oracle-free K9 currencies · one independent system per currency</p><h1 id="view-title">Borrow</h1></div>
       <div class="mode-switch" aria-label="Planning mode">
         <button id="human-mode" class="active" aria-pressed="true">Human</button>
         <button id="agent-mode" aria-pressed="false">Agent</button>
@@ -107,6 +107,7 @@
         <button type="button" class="btn light small" id="dashboard-export-view">Export view</button>
         <button type="button" class="btn light small" id="dashboard-reset">Reset</button>
         <button type="button" class="btn mint small" id="dashboard-refresh">Reload now</button>
+        <details class="info" data-term="source-freshness"><summary><span aria-hidden="true">i</span><span class="visually-hidden">How current is dashboard data?</span></summary><div class="info-body"><p>Analytics may be cached for one hour. Reload now forces fresh reads; guided actions never use this cache.</p><a data-guide-link href="../docs/#dashboard-metrics">Read the dashboard methodology guide</a></div></details>
       </div>
       <div class="dashboard-source" id="dashboard-source-status"><div><strong>No registry selected</strong><br><span>Configure a verified V2 registry to read dashboard state.</span></div></div>
       <nav class="dashboard-nav" aria-label="Dashboard views" role="tablist">
@@ -148,10 +149,24 @@
     </section>
 
     <section id="create-view">
+      <div class="journey-hero">
+        <div class="section-intro"><h2>Borrow K9 currency against collateral.</h2><p class="muted">Deposit collateral, record gross debt, and receive the net currency amount after reserve and fees. Each K9 currency has independent contracts and accounting.</p></div>
+        <ol class="journey-steps" aria-label="How borrowing works">
+          <li><span>1</span><div><strong>Choose collateral</strong><p>Propose terms or clone an accepted position after reading its current state.</p></div></li>
+          <li><span>2</span><div><strong>Define the position</strong><p>Review liquidation price, capacity, timing, gross debt, reserve, and fees.</p></div></li>
+          <li><span>3</span><div><strong>Receive K9 currency</strong><p>After the required initialization window, mint with a fresh quote and explicit wallet review.</p></div></li>
+        </ol>
+        <div class="info-row journey-info" aria-label="Borrowing explanations"><details class="info" data-term="gross-debt"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Gross debt versus wallet proceeds</span></summary><div class="info-body"><p>Gross debt includes the retained reserve and upfront fee, so wallet proceeds are lower.</p><a data-guide-link href="../docs/#borrowing-costs">Read the borrowing costs guide</a></div></details><details class="info" data-term="write-eligibility"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Which currencies support guided transactions?</span></summary><div class="info-body"><p>All verified currencies can be read. Guided testnet writes remain USD-only.</p><a data-guide-link href="../docs/#architecture">Read the runtime guide</a></div></details></div>
+      </div>
       <div class="app-guide">
         <img class="app-guide-image" src="../assets/guide-dog.png" alt="Chairpup, your planning guide">
         <div><strong>Choose the operation before the terms.</strong><p>New proposals, cloned terms and existing-position mints have different prerequisites.</p><a href="../docs/#project-guide">Read the V2 project guide</a></div>
       </div>
+      <section class="panel borrow-browser" aria-labelledby="borrow-browser-title">
+        <div class="borrow-browser-head"><div><h2 id="borrow-browser-title">Start from accepted terms</h2><p class="smalltext">Discover positions in the selected currency, then clone a parent after fresh verification. Event discovery is followed by current-state reads.</p></div><button class="btn light" type="button" id="borrow-find-positions">Find positions</button></div>
+        <label class="field borrow-search">Search collateral or address<input type="search" id="borrow-position-search" placeholder="DEMO03 or 0x…"></label>
+        <div id="borrow-position-list" role="status"><p class="smalltext">No positions loaded. Choose a currency and run a read-backed discovery, or propose new terms below.</p></div>
+      </section>
       <form id="v2-position-form">
         <fieldset class="action-picker">
           <legend>Position operation</legend>
@@ -168,7 +183,7 @@
                 <label class="field">Currency system<select name="currency" id="v2-currency" required></select></label>
               </div>
               <label class="field">Public account address for read checks<input name="account" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false"><small>New: future owner. Clone: collateral funder. Existing mint: caller. Required for caller-specific checks; never enter a key.</small></label>
-              <div id="new-fields">
+              <details class="advanced-fields" id="new-fields"><summary>Define collateral, debt, price, and timing</summary>
                 <label class="field">Collateral token address<input name="token" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false" data-required-action="new"><small>ERC20 metadata and bytecode must be verified before a read-backed quote.</small></label>
                 <div class="field-grid">
                   <label class="field">Collateral decimals<input name="collateralDecimals" inputmode="numeric" value="18" data-required-action="new"><small>Planning hint only. Verified token metadata takes precedence; V2 accepts at most 24.</small></label>
@@ -194,7 +209,7 @@
                 <div class="field-wrap"><label class="field">Reserve contribution (PPM)<input name="reservePPM" inputmode="numeric" value="200000" data-required-action="new"><small>20,000–1,000,000 PPM. A 100% reserve has repayment edge cases.</small></label>
                 <details class="info" data-term="reserve-contribution-ppm"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What is the reserve contribution (PPM)?</span></summary><div class="info-body"><p>The share of each mint assigned to the retained reserve, expressed in parts per million. 200,000 PPM means 20% of the gross mint stays reserved.</p><a data-guide-link href="../docs/#borrowing-costs">Read the borrowing costs guide</a></div></details></div>
                 <label class="field">Planned gross mint after initialization<input name="gross" inputmode="decimal" value="50000" data-required-action="new"><small>Separate from openPosition. This amount is not minted by opening a proposal.</small></label>
-              </div>
+              </details>
               <div id="clone-fields" hidden>
                 <label class="field">Parent position address<input name="parent" pattern="0x[a-fA-F0-9]{40}" maxlength="42" placeholder="0x…" spellcheck="false" data-required-action="clone"></label>
                 <div class="field-grid">
@@ -352,7 +367,15 @@
     </section>
 
     <section id="ecosystem-view" hidden>
-      <div class="section-intro"><h2>One selected currency. Four different relationships.</h2><p class="muted">Bridge conversion is nominal, not an FX trade. Savings, pool shares and position debt are not interchangeable.</p></div>
+      <div class="journey-hero">
+        <div class="section-intro"><h2 id="ecosystem-heading">Earn with K9 savings.</h2><p class="muted" id="ecosystem-description">Deposit the selected currency into its savings module. Interest depends on the current leadrate and available system equity.</p></div>
+        <ol class="journey-steps" id="ecosystem-steps" aria-label="How this workflow works">
+          <li><span>1</span><div><strong>Deposit K9 currency</strong><p>Choose an amount and review the current savings state.</p></div></li>
+          <li><span>2</span><div><strong>Track the current rate</strong><p>The governed leadrate and available equity determine interest.</p></div></li>
+          <li><span>3</span><div><strong>Withdraw with a fresh review</strong><p>New deposits have a weighted lock of up to three days.</p></div></li>
+        </ol>
+        <div class="info-row journey-info" aria-label="Savings, equity, and bridge explanations"><details class="info" data-term="savings-leadrate"><summary><span aria-hidden="true">i</span><span class="visually-hidden">How the savings leadrate works</span></summary><div class="info-body"><p>The current governed rate is limited by available equity and can change after a separate delay.</p><a data-guide-link href="../docs/#savings">Read the savings guide</a></div></details><details class="info" data-term="savings-lock"><summary><span aria-hidden="true">i</span><span class="visually-hidden">How the savings lock works</span></summary><div class="info-body"><p>New deposits have a weighted lock of up to three days.</p><a data-guide-link href="../docs/#savings">Read the savings timing guide</a></div></details><details class="info" data-term="pool-shares"><summary><span aria-hidden="true">i</span><span class="visually-hidden">What K9 pool shares represent</span></summary><div class="info-body"><p>Shares represent equity in one independent currency system, not the currency itself.</p><a data-guide-link href="../docs/#equity">Read the equity guide</a></div></details><details class="info" data-term="share-price-risk"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Pool share price and redemption risk</span></summary><div class="info-body"><p>Pool shares participate in gains and losses and have no face-value redemption guarantee.</p><a data-guide-link href="../docs/#equity">Read the share pricing guide</a></div></details><details class="info" data-term="bridge-credits"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Immediate redemption versus unpaid credits</span></summary><div class="info-body"><p>A credit needs a separate payout and decimal normalization can leave a remainder.</p><a data-guide-link href="../docs/#source-bridge">Read the bridge guide</a></div></details><details class="info" data-term="write-eligibility"><summary><span aria-hidden="true">i</span><span class="visually-hidden">Read and guided-write eligibility</span></summary><div class="info-body"><p>Verified reads cover all currencies; guided writes remain USD-only.</p><a data-guide-link href="../docs/#architecture">Read the runtime guide</a></div></details></div>
+      </div>
       <form class="panel inline-form" id="ecosystem-load-form">
         <label class="field">Currency system<select name="ecosystemCurrency" id="ecosystem-currency"></select><small id="ecosystem-availability">Only verified currency systems can be read. Planning codes do not imply deployment.</small></label>
         <label class="field">Public account address<input name="ecosystemAccount" pattern="0x[a-fA-F0-9]{40}" placeholder="Optional for account reads" spellcheck="false"></label>
@@ -368,16 +391,18 @@
           <details class="action-disclosure"><summary>Redeem to unpaid credit</summary><form data-operation="bridge.burnAndCredit" data-currency="ecosystem"><label class="field">Local amount<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Credit recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review credit redemption</button></form><form data-operation="bridge.payoutCredit" data-currency="ecosystem"><label class="field">Credit recipient to pay<input name="recipient" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review credit payout</button></form></details>
           <a href="../docs/#source-bridge">Read source bridge units and redemption</a>
         </section>
-        <section class="panel"><h2>Savings</h2><div id="savings-state" class="state-grid"></div><a href="../docs/#savings">Savings timing and interest limits</a>
-          <form data-operation="savings.save" data-currency="ecosystem"><label class="field">Amount to save<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Savings account owner (blank = wallet)<input name="owner" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">New deposits have a weighted lock of up to three days. Interest depends on the current rate and available system equity.</p><button class="btn mint" type="submit">Review savings deposit</button></form>
-          <form data-operation="savings.withdraw" data-currency="ecosystem"><label class="field">Amount to withdraw<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review savings withdrawal</button></form>
+        <section class="panel task-panel"><h2>Your savings</h2><div id="savings-state" class="state-grid"></div><a href="../docs/#savings">Savings timing and interest limits</a>
+          <div class="task-tablist" role="tablist" aria-label="Savings action"><button type="button" role="tab" aria-selected="true" aria-controls="savings-deposit-form" data-task-tab="savings-deposit">Deposit</button><button type="button" role="tab" aria-selected="false" aria-controls="savings-withdraw-form" data-task-tab="savings-withdraw" tabindex="-1">Withdraw</button></div>
+          <form id="savings-deposit-form" role="tabpanel" data-operation="savings.save" data-currency="ecosystem"><label class="field">Amount to save<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Savings account owner (blank = wallet)<input name="owner" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">New deposits have a weighted lock of up to three days. Interest depends on the current rate and available system equity.</p><button class="btn mint" type="submit">Review savings deposit</button></form>
+          <form id="savings-withdraw-form" role="tabpanel" data-operation="savings.withdraw" data-currency="ecosystem" hidden><label class="field">Amount to withdraw<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><button class="btn light" type="submit">Review savings withdrawal</button></form>
           <details class="action-disclosure"><summary>Adjust or refresh savings</summary><form data-operation="savings.adjust" data-currency="ecosystem"><label class="field">Absolute target savings balance<input name="amount" inputmode="decimal" required></label><button class="btn light" type="submit">Review target balance</button></form><form data-operation="savings.refreshMyBalance" data-currency="ecosystem"><p class="smalltext">Refresh the connected account and compound accrued interest, subject to available equity.</p><button class="btn light" type="submit">Review interest refresh</button></form><form data-operation="savings.refreshBalance" data-currency="ecosystem"><label class="field">Other savings account to refresh<input name="owner" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">Permissionless refresh: you pay the transaction fee; any interest is credited to the selected account.</p><button class="btn light" type="submit">Review account refresh</button></form></details>
         </section>
       </div>
-      <section class="panel governance-panel"><h2>Buy and sell pool shares</h2><p class="smalltext">These are protocol-native investment and reserve redemption, not a DEX market. Quotes are nonlinear and state-dependent. Minimum outputs protect against changes before confirmation.</p><div id="equity-state" class="state-grid"></div>
+      <section class="panel governance-panel task-panel"><h2>K9 pool shares</h2><p class="smalltext">Invest in or redeem shares of this independent currency system. Quotes are nonlinear and state-dependent; shares participate in gains and losses and are not the currency itself.</p><div id="equity-state" class="state-grid"></div>
         <form id="equity-form"><label class="field">Local currency investment<input name="investmentAmount" inputmode="decimal" value="100"></label><label class="field">Pool shares to redeem<input name="sharesAmount" inputmode="decimal" value="1"></label><button class="btn light" type="submit">Read equity quotes</button></form><div id="equity-quote" class="quote-result"></div>
-        <div class="app-grid"><form data-operation="equity.invest" data-currency="ecosystem"><h3>Invest for shares</h3><label class="field">Currency investment<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Minimum shares to receive<input name="minimum" inputmode="decimal" value="1" required></label><button class="btn mint" type="submit">Review share investment</button></form>
-        <form data-operation="equity.redeemExpected" data-currency="ecosystem"><h3>Redeem shares</h3><label class="field">Shares to redeem<input name="shares" inputmode="decimal" value="1" required></label><label class="field">Minimum currency proceeds<input name="minimum" inputmode="decimal" value="1" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">The average holding period must be satisfied and more than one share must remain outstanding.</p><button class="btn mint" type="submit">Review share redemption</button></form></div>
+        <div class="task-tablist" role="tablist" aria-label="Pool share action"><button type="button" role="tab" aria-selected="true" aria-controls="equity-invest-form" data-task-tab="equity-invest">Invest</button><button type="button" role="tab" aria-selected="false" aria-controls="equity-redeem-form" data-task-tab="equity-redeem" tabindex="-1">Redeem</button></div>
+        <form id="equity-invest-form" role="tabpanel" data-operation="equity.invest" data-currency="ecosystem"><h3>Invest for shares</h3><label class="field">Currency investment<input name="amount" inputmode="decimal" value="100" required></label><label class="field">Minimum shares to receive<input name="minimum" inputmode="decimal" value="1" required></label><button class="btn mint" type="submit">Review share investment</button></form>
+        <form id="equity-redeem-form" role="tabpanel" data-operation="equity.redeemExpected" data-currency="ecosystem" hidden><h3>Redeem shares</h3><label class="field">Shares to redeem<input name="shares" inputmode="decimal" value="1" required></label><label class="field">Minimum currency proceeds<input name="minimum" inputmode="decimal" value="1" required></label><label class="field">Recipient (blank = wallet)<input name="recipient" pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><p class="smalltext">The average holding period must be satisfied and more than one share must remain outstanding.</p><button class="btn mint" type="submit">Review share redemption</button></form>
       </section>
       <section class="panel governance-panel"><h2>Participant governance</h2><p class="smalltext">Strictly more than 2% of time-weighted votes is required for qualified actions. Token balances alone do not qualify. Helpers must be strictly address-sorted, unique, valid delegators.</p>
         <div id="minter-state" class="state-grid"></div>

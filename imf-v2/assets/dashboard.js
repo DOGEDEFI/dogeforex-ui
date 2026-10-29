@@ -69,7 +69,7 @@
     activity: { type: 'all', sort: 'desc', day: null },
     scenario: { collateral: -20, fx: 0, liquidity: 15, threshold: 150, preset: 'moderate' },
     replay: { progress: 0, playing: false, timer: null },
-    comparison: { open: false, pending: false, rows: [], nonce: 0 },
+    comparison: { open: true, pending: false, rows: [], nonce: 0, search: '', sort: 'supply', dir: 'desc' },
     indexer: { status: 'unconfigured', health: null, events: [], positions: [], complete: false, error: null },
     cube: { axes: { x: '', y: '', z: '' }, code: '', yaw: 0.65, pitch: 0.42, focus: null, mode: '3d' },
   };
@@ -860,8 +860,33 @@
     return `<svg class="dash-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Diverging indexed token mint and burn bars by UTC day"><text x="${margin.left - 8}" y="${margin.top + 4}" text-anchor="end" font-size="9">+ ${escapeHtml(formatCompactAmount(maximum, 18, currentSymbol()))}</text><text x="${margin.left - 8}" y="${margin.top + innerHeight + 4}" text-anchor="end" font-size="9">− ${escapeHtml(formatCompactAmount(maximum, 18, currentSymbol()))}</text><line class="grid-line" x1="${margin.left}" y1="${margin.top}" x2="${width - margin.right}" y2="${margin.top}"/><line class="axis-line" x1="${margin.left}" y1="${midY.toFixed(2)}" x2="${width - margin.right}" y2="${midY.toFixed(2)}"/><line class="grid-line" x1="${margin.left}" y1="${margin.top + innerHeight}" x2="${width - margin.right}" y2="${margin.top + innerHeight}"/>${bars}</svg><div class="dash-legend"><span><i class="dash-swatch" style="background:#79cf89"></i>Minted</span><span><i class="dash-swatch" style="background:#2b2118"></i>Burned</span><span>Zero-address token transfers in native ${escapeHtml(currentSymbol())} units; a missing bar is verified zero flow, not missing data.</span></div><div class="dash-note">${escapeHtml(indexerCoverageText())}. Indexed history only; this is not DEX volume.</div>`;
   }
 
+  function sortedComparisonRows() {
+    const query = state.comparison.search.trim().toLowerCase();
+    const key = state.comparison.sort;
+    const direction = state.comparison.dir === 'asc' ? 1 : -1;
+    const value = (snapshot) => {
+      if (key === 'code') return snapshot.code;
+      const source = key === 'supply' ? section(snapshot, 'token')?.totalSupply
+        : key === 'equity' ? section(snapshot, 'equity')?.equityAmount
+          : key === 'rate' ? section(snapshot, 'savings')?.currentRatePPM
+            : section(snapshot, 'bridge')?.mintedLocal;
+      return bigintOrNull(source) ?? -1n;
+    };
+    return state.comparison.rows.filter((snapshot) => !query || `${snapshot.code} K9${snapshot.code}`.toLowerCase().includes(query)).slice().sort((left, right) => {
+      const a = value(left);
+      const b = value(right);
+      if (typeof a === 'bigint' && typeof b === 'bigint') return a === b ? left.code.localeCompare(right.code) : a > b ? direction : -direction;
+      return String(a).localeCompare(String(b)) * direction;
+    });
+  }
+
+  function compareSortButton(label, key) {
+    const active = state.comparison.sort === key;
+    return `<button type="button" data-compare-sort="${key}" aria-pressed="${active}">${escapeHtml(label)}${active ? state.comparison.dir === 'asc' ? ' ↑' : ' ↓' : ''}</button>`;
+  }
+
   function comparisonRows() {
-    return state.comparison.rows.map((snapshot) => {
+    return sortedComparisonRows().map((snapshot) => {
       const code = snapshot.code;
       const token = section(snapshot, 'token');
       const bridge = section(snapshot, 'bridge');
@@ -870,15 +895,31 @@
       const sourceBlock = sectionSource(snapshot, ['token', 'bridge', 'savings', 'equity']);
       const fresh = freshness(sourceBlock);
       const failed = snapshot.error || [token, bridge, savings, equity].some((entry) => entry?.error);
+      const minted = bigintOrNull(bridge?.mintedLocal);
+      const limit = bigintOrNull(bridge?.limitLocal);
+      const utilization = minted !== null && limit !== null && limit > 0n ? `${sdk().formatDecimal(minted * 10000n / limit, 2)}%` : 'Unavailable';
       return `<tr>
-        <td><button type="button" class="btn light small" data-compare-code="${escapeHtml(code)}" ${snapshot.capabilities?.verified ? '' : 'disabled'}>${escapeHtml(currentSymbol(code))}</button><small class="smalltext">${escapeHtml(code)}</small></td>
+        <td><button type="button" class="currency-link" data-compare-code="${escapeHtml(code)}" ${snapshot.capabilities?.verified ? '' : 'disabled'}><span class="currency-badge">${escapeHtml(code.slice(0, 1))}</span><span><strong>${escapeHtml(currentSymbol(code))}</strong><small>${escapeHtml(code)} · independent system</small></span></button></td>
         <td class="num mono">${escapeHtml(token?.error || snapshot.error ? 'Unavailable' : formatCompactAmount(token?.totalSupply, 18, token?.symbol ?? currentSymbol(code)))}</td>
         <td class="num mono">${escapeHtml(equity?.error || snapshot.error ? 'Unavailable' : formatCompactAmount(equity?.equityAmount, 18, token?.symbol ?? currentSymbol(code)))}</td>
         <td class="num mono">${escapeHtml(savings?.error || snapshot.error ? 'Unavailable' : formatPPM(savings?.currentRatePPM))}</td>
-        <td class="num mono">${escapeHtml(bridge?.error || snapshot.error ? 'Unavailable' : `${formatCompactAmount(bridge?.mintedLocal, 18)} / ${formatCompactAmount(bridge?.limitLocal, 18)} ${token?.symbol ?? currentSymbol(code)}`)}</td>
+        <td class="num mono"><strong>${escapeHtml(utilization)}</strong><small class="smalltext">${escapeHtml(bridge?.error || snapshot.error ? 'Bridge read unavailable' : `${formatCompactAmount(bridge?.mintedLocal, 18)} / ${formatCompactAmount(bridge?.limitLocal, 18)} ${token?.symbol ?? currentSymbol(code)}`)}</small></td>
         <td>${statusPill(failed ? 'fail' : fresh.status, failed ? 'Partial / unavailable' : fresh.label)}<small class="smalltext">${escapeHtml(sourceBlock ? `Block ${sourceBlock.number}` : snapshot.error ?? 'Source block unavailable')}</small></td>
       </tr>`;
     }).join('');
+  }
+
+  function currencySupplyBars() {
+    const rows = sortedComparisonRows();
+    const maximum = rows.reduce((max, snapshot) => {
+      const supply = bigintOrNull(section(snapshot, 'token')?.totalSupply) ?? 0n;
+      return supply > max ? supply : max;
+    }, 1n);
+    return `<div class="currency-supply-chart" role="group" aria-label="Current token supply by independent currency, normalized to the largest verified supply">${rows.map((snapshot, index) => {
+      const supply = bigintOrNull(section(snapshot, 'token')?.totalSupply);
+      const width = supply === null ? 0 : Math.max(1, scaleRatio(supply, maximum) * 100);
+      return `<button type="button" class="currency-supply-row" data-compare-code="${escapeHtml(snapshot.code)}"><span>${escapeHtml(snapshot.code)}</span><span class="currency-supply-track"><i style="width:${width.toFixed(2)}%;background:${RADAR_COLORS[index % RADAR_COLORS.length]}"></i></span><strong>${escapeHtml(supply === null ? 'Unavailable' : formatCompactAmount(supply, 18))}</strong></button>`;
+    }).join('')}</div><p class="smalltext">Bar length is normalized only for visual comparison. Labels retain native K9 units; no combined market value or FX total is calculated.</p>`;
   }
 
   function currencyFingerprintRadar() {
@@ -925,12 +966,14 @@
 
   function comparisonCard() {
     const rows = comparisonRows();
-    return `<article class="dash-card"><div class="dash-card-head"><div><h3>All currency systems</h3><p>Compare independent native-unit reads. No FX conversion, shared reserve or aggregate TVL is inferred.</p></div><div class="dash-actions"><button type="button" class="btn light small" id="dashboard-compare-toggle" aria-expanded="${state.comparison.open}">${state.comparison.open ? 'Hide comparison' : 'Compare all currencies'}</button>${state.comparison.open ? '<button type="button" class="btn light small" id="dashboard-compare-refresh">Refresh comparison</button>' : ''}</div></div>${!state.comparison.open ? '<div class="dash-note">Load current token, equity, savings and bridge reads for all configured currencies on demand. Position discovery remains limited to the selected currency.</div>' : state.comparison.pending && !rows ? chartUnavailable('Currency comparison is loading', 'Reading each verified system with limited RPC concurrency. Unavailable reads will remain explicit.', 'short') : `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Currency</th><th class="num">Token supply</th><th class="num">System equity</th><th class="num">Leadrate</th><th class="num">Bridge minted / limit</th><th>Read status</th></tr></thead><tbody>${rows}</tbody></table></div>${currencyFingerprintRadar()}${state.comparison.pending ? '<div class="dash-note">Refreshing currency reads; existing cached rows remain visible until replacement reads arrive.</div>' : ''}`}</article>`;
+    return `<article class="dash-card currency-explorer"><div class="dash-card-head"><div><h3>Explore 12 currency systems</h3><p>Verified native-unit reads. No FX conversion, shared reserve or aggregate TVL is inferred.</p></div><div class="dash-actions"><button type="button" class="btn light small" id="dashboard-compare-refresh">Refresh currencies</button></div></div>
+      <div class="currency-filter-row"><label class="dash-field">Search currencies<input type="search" id="dashboard-comparison-search" value="${escapeHtml(state.comparison.search)}" placeholder="K9CHF or CHF"></label><span>${sortedComparisonRows().length} of ${state.comparison.rows.length} systems</span></div>
+      ${state.comparison.pending && !state.comparison.rows.length ? chartUnavailable('Currency systems are loading', 'Reading each verified system with limited RPC concurrency. Unavailable reads will remain explicit.', 'short') : `${currencySupplyBars()}<div class="dash-table-wrap currency-table-wrap" tabindex="0"><table class="dash-table currency-table"><thead><tr><th>${compareSortButton('Currency', 'code')}</th><th class="num">${compareSortButton('Token supply', 'supply')}</th><th class="num">${compareSortButton('System equity', 'equity')}</th><th class="num">${compareSortButton('Leadrate', 'rate')}</th><th class="num">${compareSortButton('Bridge used', 'bridge')}</th><th>Read status</th></tr></thead><tbody>${rows || `<tr><td colspan="6">No currency matches this search.</td></tr>`}</tbody></table></div><details class="currency-radar"><summary>Compare normalized currency fingerprints</summary>${currencyFingerprintRadar()}</details>${state.comparison.pending ? '<div class="dash-note">Refreshing currency reads; existing cached rows remain visible until replacement reads arrive.</div>' : ''}`}</article>`;
   }
 
   async function loadComparison(force = false) {
     const nonce = ++state.comparison.nonce;
-    const codes = registryState()?.registry?.codes ?? (window.IMF_CURRENCIES ?? []).map(({ code }) => code);
+    const codes = (registryState()?.registry?.codes ?? (window.IMF_CURRENCIES ?? []).map(({ code }) => code)).filter((code) => getCapabilities(code).verified);
     state.comparison.pending = true;
     renderOverview();
     const rows = await mapLimit(codes, 3, (code) => cachedSystemSnapshot(code, force));
@@ -941,25 +984,34 @@
   }
 
   function bindComparison() {
-    $('#dashboard-compare-toggle', root)?.addEventListener('click', () => {
-      state.comparison.open = !state.comparison.open;
-      if (state.comparison.open && !state.comparison.rows.length) {
-        loadComparison().catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
-      } else {
-        renderOverview();
-      }
-    });
     $('#dashboard-compare-refresh', root)?.addEventListener('click', () => {
       loadComparison(true).catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
     });
+    $('#dashboard-comparison-search', root)?.addEventListener('input', (event) => {
+      state.comparison.search = event.target.value;
+      renderOverview();
+      const search = $('#dashboard-comparison-search', root);
+      search?.focus();
+      search?.setSelectionRange(search.value.length, search.value.length);
+    });
+    $$('#dashboard-view [data-compare-sort]', root).forEach((button) => button.addEventListener('click', () => {
+      const key = button.dataset.compareSort;
+      if (state.comparison.sort === key) state.comparison.dir = state.comparison.dir === 'asc' ? 'desc' : 'asc';
+      else {
+        state.comparison.sort = key;
+        state.comparison.dir = key === 'code' ? 'asc' : 'desc';
+      }
+      renderOverview();
+    }));
     $$('#dashboard-view [data-compare-code]', root).forEach((button) => button.addEventListener('click', () => {
       const code = button.dataset.compareCode;
       if (!getCapabilities(code).verified) return;
       state.code = code;
       const sharedSelector = $('#v2-currency');
       if (sharedSelector) sharedSelector.value = code;
+      const workspaceSelector = $('#workspace-currency');
+      if (workspaceSelector) workspaceSelector.value = code;
       history.replaceState(null, '', dashboardHash(state.panel, code));
-      state.comparison.open = false;
       render(false);
     }));
   }
@@ -991,21 +1043,17 @@
         <div class="dash-kpis">${kpis}</div>
         ${comparisonCard()}
         <div class="dash-grid">
-          <article class="dash-card span-8"><div class="dash-card-head"><div><h3>Gross position debt over time</h3><p>Per-position MintingUpdate history in native units; no market-value or equity inference.</p></div>${cardTag(history.status === 'ready' ? 'INDEXED HISTORY' : 'INDEXER REQUIRED', history.status === 'ready' ? 'mint' : 'gold')}</div>${debtHistoryChart()}</article>
-          <article class="dash-card span-4"><div class="dash-card-head"><div><h3>Collateral composition</h3><p>Discovered position count by collateral asset.</p></div>${cardTag('CURRENT DISCOVERY', 'mint')}</div>${collateralComposition()}</article>
-        </div>
-        <div class="dash-grid">
           <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Currency system accounting</h3><p>One independent ${escapeHtml(currentSymbol())} system. No shared reserve or automatic FX conversion.</p></div>${cardTag('LIVE CONTRACT READS', 'mint')}</div>${systemMap(token, bridge, savings, equity, positionCount)}</article>
+          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Collateral composition</h3><p>Discovered position count by collateral asset.</p></div>${cardTag('CURRENT DISCOVERY', 'mint')}</div>${collateralComposition()}</article>
+        </div>
+        <div class="dash-grid">
           <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Bridge utilization</h3><p>Current minted local units against the verified per-system limit.</p></div>${cardTag('CURRENT READ', 'mint')}</div>${bridgeUtilization(bridge, token?.symbol ?? currentSymbol())}</article>
-        </div>
-        <div class="dash-grid">
           <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Position risk constellation</h3><p>${zeroDebt ? 'Verified zero gross debt: minting capacity versus reserve contribution.' : 'Gross debt versus each position’s liquidation-parameter CR.'}</p></div>${cardTag('CLICK A BUBBLE')}</div>${currentPositionScatter()}</article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>CR distribution</h3><p>Discovered position count by collateral-ratio bucket.</p></div>${cardTag(`WATCH < ${state.scenario.threshold}%`, 'gold')}</div>${crDistribution()}</article>
         </div>
         <div class="dash-grid">
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Token mint & burn flow</h3><p>Zero-address token transfers grouped by UTC day; no DEX-volume inference.</p></div>${cardTag(history.status === 'ready' ? 'INDEXED FLOW' : 'NO GENERATED VOLUME', 'gold')}</div>${tokenFlowHistory()}</article>
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Current accounting snapshot</h3><p>Separate current reads, not an inferred supply-allocation flow.</p></div>${cardTag('SOURCE-BLOCK PINNED')}</div>${metricList(systemOverviewRows())}</article>
+          <article class="dash-card"><div class="dash-card-head"><div><h3>CR distribution</h3><p>Discovered position count by collateral-ratio bucket.</p></div>${cardTag(`WATCH < ${state.scenario.threshold}%`, 'gold')}</div>${crDistribution()}</article>
         </div>
+        ${history.status === 'ready' ? `<div class="dash-grid"><article class="dash-card span-6"><div class="dash-card-head"><div><h3>Gross position debt over time</h3><p>Per-position MintingUpdate history in native units.</p></div>${cardTag('INDEXED HISTORY', 'mint')}</div>${debtHistoryChart()}</article><article class="dash-card span-6"><div class="dash-card-head"><div><h3>Token mint & burn flow</h3><p>Zero-address token transfers grouped by UTC day; no DEX-volume inference.</p></div>${cardTag('INDEXED FLOW', 'mint')}</div>${tokenFlowHistory()}</article></div>` : '<div class="dash-note">Historical curves and complete token-flow timelines need a configured indexer. Current verified comparisons remain available above; no synthetic history is shown.</div>'}
         ${sourceNote()}
       </div>`);
     bindPositionPoints();
@@ -2126,6 +2174,9 @@
       if (nonce === state.nonce) {
         state.discoveryPending = false;
         await renderActivePanel();
+        if (state.panel === 'overview' && registryState()?.registry && !state.comparison.pending && (force || !state.comparison.rows.length)) {
+          loadComparison(force).catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
+        }
       }
     }
   }
