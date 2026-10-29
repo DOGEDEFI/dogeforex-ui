@@ -312,4 +312,4 @@ Public Vercel deployments all reported READY and aliased their existing origins:
 
 Final public HTTP checks returned 200 for all three origins and 404 for missing paths. Fresh public Chrome selected every currency, verified live token data and three positions per currency, loaded all 12 comparison rows and opened the CHF deep link. It observed 4,423 read-only RPC requests, zero forbidden signing/broadcast methods, zero browser errors and `transactionSent: false`; the warm hourly-cache reload used zero RPC requests. Evidence: `artifacts/live-chf-browser-results.json` and the reviewed `artifacts/live-dashboard-chf.png`.
 
-Published commits: protocol `39d0f05` and `c3f5fb6`, SDK `4b4ebab`, MCP `a0b1453`, and Ponder `5a647a6`. The frontend commit follows the final local-browser rerun.
+Published commits: protocol `39d0f05` and `c3f5fb6`, SDK `4b4ebab`, MCP `a0b1453`, Ponder `5a647a6`, and frontend `dea4573`. All implementation repositories were pushed to their respective `main` branches.
