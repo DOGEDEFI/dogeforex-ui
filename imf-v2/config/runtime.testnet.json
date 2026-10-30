@@ -1440,5 +1440,14 @@
       "decimals": 18
     }
   },
-  "message": "DogeOS Chikyū testnet · 12 independent V2 currency systems · tUSDC is a deployer-minted test asset, not USDC or a production reserve. Guided writes remain USD-only and require current simulation, review and MetaMask confirmation. Production readiness is not claimed."
+  "dogeos": {
+    "clientId": "z2EQLnLZRCHX165FFs7Avf7Sjnf953LXwRTFLsDsl7NzzsPhoreePFWhGsgzmELnkKtrPECzS1fo8SxmcUqENGFK",
+    "metadata": {
+      "name": "International Money Foundry",
+      "description": "Guided oracle-free K9 currency missions in Much Reserve World on DogeOS Chikyū testnet.",
+      "url": "https://app.imf.li/",
+      "icons": ["https://imf.li/assets/imf.svg"]
+    }
+  },
+  "message": "DogeOS Chikyū testnet · 12 independent V2 currency systems · tUSDC is a deployer-minted test asset, not USDC or a production reserve. Guided writes remain USD-only and require current simulation, review and explicit wallet confirmation. Production readiness is not claimed."
 }

@@ -2,32 +2,52 @@
   "name": "@imf/frontend-v2",
   "version": "0.2.0",
   "private": true,
-  "description": "International Multicurrency Framework website, documentation and guided DogeOS testnet application",
+  "description": "International Money Foundry website, documentation and guided DogeOS testnet application",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:testnet": "IMF_RUNTIME_CONFIG=config/runtime.testnet.json IMF_WEBSITE_ORIGIN=https://imf.li/ IMF_DOCS_ORIGIN=https://docs.imf.li/ IMF_APP_ORIGIN=https://app.imf.li/ npm run build -- --out .production-dist",
     "build:review": "node scripts/build.mjs --review",
     "prepare:vercel": "node scripts/prepare-vercel.mjs",
-    "verify:testnet": "npm run build:testnet && python3 scripts/check-content.py --dist=.production-dist && python3 scripts/check-discoverability.py --dist=.production-dist && npm run prepare:vercel && node scripts/check-testnet-browser.mjs",
+    "verify:testnet": "npm run check:dogeos && npm run build:testnet && python3 scripts/check-content.py --dist=.production-dist && python3 scripts/check-discoverability.py --dist=.production-dist && npm run prepare:vercel && node scripts/check-testnet-browser.mjs",
     "dns:vercel:dry-run": "node --env-file=.env scripts/sync-infomaniak-dns.mjs",
     "dns:vercel:apply": "node --env-file=.env scripts/sync-infomaniak-dns.mjs --apply",
     "build:fixture": "IMF_WEBSITE_ORIGIN=http://127.0.0.1:5190/ IMF_DOCS_ORIGIN=http://127.0.0.1:5191/ IMF_APP_ORIGIN=http://127.0.0.1:5192/ node scripts/build.mjs --review --fixture --out .fixture-dist",
     "dev": "npm run build:review && python3 scripts/serve.py",
     "dev:fixture": "npm run build:fixture && python3 scripts/serve.py --root .fixture-dist --port-base 5190",
-    "check": "node --check assets/shared.js && node --check assets/docs.js && node --check assets/app.js && node --check assets/offline.js && node --check assets/planning.js && node --check assets/explore.js && node --check assets/read-cache.js && node --check assets/v2.js && node --check assets/dashboard.js && node --check assets/wallet.js && node --check assets/discovery.js && node --check assets/actions.js && node --check scripts/build.mjs && node --check scripts/discoverability.mjs && node --check scripts/browser-check.mjs && node --check scripts/verify-browser.mjs && node --check scripts/check-testnet-browser.mjs && node --check scripts/check-actions.mjs && node --check scripts/check-dashboard.mjs && node --check scripts/check-read-cache.mjs && node --check scripts/mock-eip1193.mjs && node --check scripts/wallet-check.mjs && node --check scripts/journey-check.mjs",
-    "verify": "npm run check && npm run build:review && npm run build:fixture && python3 scripts/check-content.py && python3 scripts/check-content.py --dist && python3 scripts/check-content.py --dist=.fixture-dist && python3 scripts/check-discoverability.py --dist && python3 scripts/check-discoverability.py --dist=.fixture-dist && node scripts/check-explorer.cjs && node scripts/check-planning.cjs && node scripts/check-fixture.mjs && node scripts/check-v2.mjs && node scripts/check-read-cache.mjs && node scripts/check-actions.mjs && node scripts/check-dashboard.mjs",
+    "check": "node --check assets/shared.js && node --check assets/docs.js && node --check assets/app.js && node --check assets/offline.js && node --check assets/planning.js && node --check assets/explore.js && node --check assets/read-cache.js && node --check assets/v2.js && node --check assets/dashboard.js && node --check assets/wallet.js && node --check assets/dogeos.js && node --check assets/discovery.js && node --check assets/actions.js && node --check scripts/build.mjs && node --check scripts/discoverability.mjs && node --check scripts/browser-check.mjs && node --check scripts/verify-browser.mjs && node --check scripts/check-testnet-browser.mjs && node --check scripts/check-actions.mjs && node --check scripts/check-dashboard.mjs && node --check scripts/check-read-cache.mjs && node --check scripts/mock-eip1193.mjs && node --check scripts/wallet-check.mjs && node --check scripts/journey-check.mjs && node --check scripts/check-dogeos.mjs",
+    "check:dogeos": "tsc --noEmit --jsx react-jsx --target ES2020 --module ESNext --moduleResolution bundler --skipLibCheck --allowSyntheticDefaultImports src/dogeos-wallet.tsx && node scripts/check-dogeos.mjs",
+    "verify": "npm run check && npm run check:dogeos && npm run build:review && npm run build:fixture && python3 scripts/check-content.py && python3 scripts/check-content.py --dist && python3 scripts/check-content.py --dist=.fixture-dist && python3 scripts/check-discoverability.py --dist && python3 scripts/check-discoverability.py --dist=.fixture-dist && node scripts/check-explorer.cjs && node scripts/check-planning.cjs && node scripts/check-fixture.mjs && node scripts/check-v2.mjs && node scripts/check-read-cache.mjs && node scripts/check-actions.mjs && node scripts/check-dashboard.mjs",
     "verify:browser": "npm run build:review && npm run build:fixture && python3 scripts/check-content.py --dist && python3 scripts/check-content.py --dist=.fixture-dist && python3 scripts/check-discoverability.py --dist && python3 scripts/check-discoverability.py --dist=.fixture-dist && node scripts/verify-browser.mjs"
   },
   "dependencies": {
-    "ethers": "^6.13.0"
+    "@dogeos/dogeos-sdk": "4.0.4",
+    "ethers": "^6.13.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@dogeforex/sdk": "file:../../dogeforex-sdk-ts",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
     "esbuild": "0.28.2",
-    "playwright-core": "^1.64.1"
+    "playwright-core": "^1.64.1",
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.8.15",
+    "axios": "1.21.0",
+    "postcss": "8.5.32",
+    "protobufjs": "7.6.3",
+    "send": "0.19.0",
+    "stream-json": "3.8.0",
+    "tar": "7.5.22",
+    "uuid": "11.1.1",
+    "valibot": "1.5.0",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
   }
 }

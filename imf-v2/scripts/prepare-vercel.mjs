@@ -103,7 +103,11 @@ for (const surface of ['website', 'docs', 'app']) {
       assert(!protocol.includes(marker), `${surface}: test implementation ${marker} is not allowed in the production SDK bundle`);
     }
     const wallet = await readFile(path.join(source, 'assets/wallet.js'), 'utf8');
-    assert(wallet.includes("policy.writeMode === 'mock-only' ? window.__IMF_TEST_WALLET__ : window.ethereum"), `${surface}: production wallet must use window.ethereum outside the explicit mock policy`);
+    assert(wallet.includes("policy.writeMode === 'mock-only' ? window.__IMF_TEST_WALLET__ : (externalProvider || window.ethereum)"), `${surface}: production wallet must use a registered EIP-1193 provider or window.ethereum outside the explicit mock policy`);
+    const dogeOsBridge = await readFile(path.join(source, 'assets/dogeos.js'), 'utf8');
+    const appHtml = await readFile(path.join(source, 'index.html'), 'utf8');
+    assert(!appHtml.includes('src="/assets/dogeos-wallet.js"'), `${surface}: DogeOS SDK must not be eager-loaded`);
+    assert(dogeOsBridge.includes("button.addEventListener('click', loadWallet)"), `${surface}: DogeOS SDK must load only after explicit wallet connection`);
     const actions = await readFile(path.join(source, 'assets/actions.js'), 'utf8');
     if (actions.includes('__IMF_TEST_DECORATE_PROVIDER__')) {
       assert(actions.includes('v2.state.fixture && window.__IMF_TEST_DECORATE_PROVIDER__'), `${surface}: test provider decoration must be gated by the synthetic fixture`);

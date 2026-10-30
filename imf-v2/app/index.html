@@ -6,10 +6,11 @@
   <meta name="description" content="Plan project collateral positions and inspect verified V2 state with exact, read-only workflows.">
   <meta name="theme-color" content="#fff8ee">
   <script>document.documentElement.classList.add('js')</script>
-  <title>Project workspace · IMF</title>
+  <title>Much Reserve World workspace · IMF</title>
   <link rel="icon" href="../assets/imf.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css">
   <link rel="stylesheet" href="../assets/dashboard.css">
+  <link rel="stylesheet" href="../assets/foundry.css">
   <script src="../assets/shared.js" defer></script>
   <script src="../assets/app.js" defer></script>
 </head>
@@ -17,7 +18,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="header">
   <div class="wrap nav">
-    <a class="brand" href="../"><span class="monogram">imf</span><span class="brand-name">International<br>Multicurrency Framework</span></a>
+    <a class="brand" href="../"><span class="monogram">imf</span><span class="brand-name">International<br>Money Foundry</span></a>
     <button class="menu" aria-expanded="false" aria-controls="navigation">Menu</button>
     <nav class="navlinks" id="navigation" aria-label="Main navigation">
       <a href="../">Website</a>
@@ -66,9 +67,10 @@
     </div>
     <div id="feedback" role="status" class="status" hidden></div>
     <section class="wallet-bar" aria-label="Connected wallet">
-      <div><span class="tag" id="wallet-status">MetaMask not connected</span><p id="wallet-account" class="wallet-address">No wallet account connected</p><small id="wallet-chain">DogeOS Chikyū testnet · chain 6281971</small></div>
-      <div class="actions"><button class="btn mint" type="button" id="wallet-connect">Connect MetaMask</button><button class="btn light" type="button" id="wallet-switch">Switch to DogeOS</button><button class="btn light" type="button" id="wallet-forget">Forget wallet</button></div>
+      <div><span class="tag" id="wallet-status">Wallet not connected</span><p id="wallet-account" class="wallet-address">No wallet account connected</p><small id="wallet-chain">DogeOS Chikyū testnet · chain 6281971</small></div>
+      <div class="actions"><button class="btn mint" type="button" id="wallet-dogeos" hidden>Connect wallet</button><button class="btn light" type="button" id="wallet-connect">Connect MetaMask directly</button><button class="btn light" type="button" id="wallet-switch">Switch to DogeOS</button><button class="btn light" type="button" id="wallet-forget">Forget wallet</button></div>
     </section>
+    <div id="dogeos-wallet-root"></div>
     <details class="pending-transactions" id="pending-transactions" hidden><summary>Pending or uncertain transactions</summary><div id="pending-list"></div><button class="btn light" type="button" id="wallet-reconcile">Check receipts</button><p class="smalltext">Receipt checks never resubmit a transaction. An unknown outcome needs an externally verified hash, not another blind attempt.</p></details>
     <section class="panel transaction-panel" id="transaction-panel" hidden aria-labelledby="transaction-title">
       <span class="tag">Guided transaction</span><h2 id="transaction-title">Review transaction</h2>
@@ -77,19 +79,32 @@
       <p id="transaction-status" role="status" aria-live="polite"></p>
       <div id="transaction-review" class="state-grid"></div>
       <details><summary>Inspect exact calldata</summary><pre id="transaction-calldata"></pre></details>
-      <p class="smalltext">Simulation checks the current state, not a future guarantee. MetaMask provides the final network-fee review. Rejecting or closing the wallet never authorizes another attempt.</p>
-      <button class="btn mint" type="button" id="transaction-send" disabled>Confirm in MetaMask</button>
+      <p class="smalltext">Simulation checks the current state, not a future guarantee. Your wallet provides the final network-fee review. Rejecting or closing the wallet never authorizes another attempt.</p>
+      <button class="btn mint" type="button" id="transaction-send" disabled>Confirm in wallet</button>
     </section>
 
     <section id="start-view" hidden>
-      <div class="section-intro"><h2>Start here: five steps behind every workflow.</h2><p class="muted">The same operating steps as the lifecycle guide, each pointing at the workspace view that carries it. No step signs, broadcasts or executes anything by itself.</p></div>
-      <div class="panel"><ol class="workflow-list start-list">
-        <li><span class="step">1</span><div><b>Choose the journey</b><p>Create or clone, mint, manage or close, challenge or bid, bridge, save, invest or participate in governance. Each currency remains an independent system.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Create &amp; mint</button><button class="btn light small" type="button" data-start-target="manage">Manage &amp; close</button><button class="btn light small" type="button" data-start-target="arena">Challenges &amp; auctions</button><button class="btn light small" type="button" data-start-target="ecosystem">Bridge, savings &amp; equity</button></div></div></li>
-        <li><span class="step">2</span><div><b>Connect and verify current reads</b><p>Connect MetaMask, switch to DogeOS, and verify the registry, chain, contract links, token metadata, balances and timers. Failure is not zero.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="connection">Wallet, registry &amp; network</button><button class="btn light small" type="button" data-start-target="dashboard">Dashboard</button></div></div></li>
-        <li><span class="step">3</span><div><b>Review terms and exact approvals</b><p>Separate gross debt, reserve, fees, proceeds, repayment and collateral effects. Any required approval uses an exact amount and a separate confirmation.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Read terms &amp; quote</button></div></div></li>
-        <li><span class="step">4</span><div><b>Simulate and confirm once</b><p>The app checks the exact caller, target and calldata with a fresh static call and gas estimate. Review the full transaction in the app and then in MetaMask. No follow-up transaction is automatic.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Prepare a guided transaction</button></div></div></li>
-        <li><span class="step">5</span><div><b>Reconcile the receipt</b><p>A pending hash is not a success or a reason to resubmit. Confirmation refreshes current state; a reverted transaction stays reverted. DEX liquidity, keeper automation and agent-originated execution remain separate decisions.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="manage">Reconcile positions</button><button class="btn light small" type="button" data-start-target="lifecycle">Operating workflow</button></div></div></li>
-      </ol><p class="smalltext start-note">Guided transactions are available only on the verified USD DogeOS Chikyū testnet runtime after current simulation, exact review and explicit MetaMask confirmation; every other registry and connection stays read-only. Planning exports and drafts never grant authority.</p><a class="btn light" href="../docs/#project-guide">Read the project workflow guide</a></div>
+      <div class="section-intro"><h2>Welcome to Much Reserve World.</h2><p class="muted">Pick a destination or follow the five-step field guide. Learning stays on this device; no token, airdrop, or wallet authority is created.</p></div>
+      <div class="start-world">
+        <div class="start-world-map">
+          <div class="world-map-top"><span class="world-season">FOUNDRY FIELD GUIDE</span><span class="world-network">START WITH MINT</span></div>
+          <img src="../assets/foundry-world.jpg" srcset="../assets/foundry-world-480.jpg 480w, ../assets/foundry-world-960.jpg 960w, ../assets/foundry-world.jpg 1200w" sizes="(max-width: 800px) calc(100vw - 58px), 58vw" width="1200" height="885" alt="Much Reserve World island with five protocol destinations">
+          <button class="world-hotspot mint" style="--x:17%;--y:55%" type="button" data-start-target="create" aria-label="Start the Borrow mission">MINT</button>
+          <button class="world-hotspot" style="--x:46%;--y:39%" type="button" data-start-target="ecosystem" data-ecosystem-focus="equity" aria-label="Start the Invest mission">BANK</button>
+          <button class="world-hotspot" style="--x:38%;--y:65%" type="button" data-start-target="ecosystem" data-ecosystem-focus="savings" aria-label="Start the Earn mission">VAULT</button>
+          <button class="world-hotspot" style="--x:77%;--y:45%" type="button" data-start-target="arena" aria-label="Enter the Arena">ARENA</button>
+          <button class="world-hotspot" style="--x:72%;--y:65%" type="button" data-start-target="dashboard" aria-label="Open Reserve Lab">SNIFF</button>
+          <span class="world-map-hint">Tap a building to begin</span>
+        </div>
+        <div class="start-world-copy"><span class="tag">Chairpup’s recommended route</span><h2>First day at the Foundry.</h2><p class="muted">Three small stops. Learn the map, inspect one system, then choose whether you want a guided transaction.</p><div class="start-mission-list"><div class="start-mission"><span>1</span> Visit the Treat Machine</div><div class="start-mission"><span>2</span> Read one currency system</div><div class="start-mission"><span>3</span> Review before your wallet acts</div></div><p class="smalltext">Local field guide only · no points with monetary value · no cross-device profile</p><button class="btn mint" type="button" data-start-target="create">Start the Borrow mission</button></div>
+      </div>
+      <div class="panel" style="margin-top:24px"><ol class="workflow-list start-list">
+        <li><span class="step">1</span><div><b>Choose the journey</b><p>Borrow, manage, challenge, bridge, save, invest, or participate in governance. Each currency remains independent.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Create &amp; mint</button><button class="btn light small" type="button" data-start-target="manage">My positions</button><button class="btn light small" type="button" data-start-target="arena">Arena</button></div></div></li>
+        <li><span class="step">2</span><div><b>Connect and verify</b><p>Connect a compatible wallet, switch to DogeOS, and verify registry, chain, contract links, balances, and timers. Failure is not zero.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="connection">Wallet &amp; network</button><button class="btn light small" type="button" data-start-target="dashboard">Reserve Lab</button></div></div></li>
+        <li><span class="step">3</span><div><b>Review exact terms</b><p>Separate gross debt, reserve, fees, proceeds, repayment, and collateral effects. Required approvals use exact amounts.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Read terms &amp; quote</button></div></div></li>
+        <li><span class="step">4</span><div><b>Simulate and confirm once</b><p>The app checks caller, target, and calldata with fresh simulation and gas estimation. Review in the app and then in your wallet.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="create">Prepare a transaction</button></div></div></li>
+        <li><span class="step">5</span><div><b>Reconcile the receipt</b><p>A pending hash is not success or a reason to resubmit. Confirmation refreshes current state; no follow-up is automatic.</p><div class="start-actions"><button class="btn light small" type="button" data-start-target="manage">Reconcile positions</button><button class="btn light small" type="button" data-start-target="lifecycle">Operating workflow</button></div></div></li>
+      </ol><p class="smalltext start-note">Guided transactions are available only on the verified USD DogeOS Chikyū testnet runtime after current simulation, exact review, and explicit wallet confirmation; every other registry and connection stays read-only. Planning exports and drafts never grant authority.</p><a class="btn light" href="../docs/#project-guide">Read the project workflow guide</a></div>
     </section>
 
     <section id="dashboard-view" hidden>
@@ -345,8 +360,9 @@
     </section>
 
     <section id="arena-view" hidden>
-      <div class="section-intro"><h2>Challenges and auctions, with the clock visible.</h2><p class="muted">First comes the aversion window, then the Dutch auction. Expired collateral purchases use a different price curve.</p></div>
-      <button class="btn light" type="button" id="discover-challenges">Find challenges</button><div id="challenge-discovery" class="discovery-list"></div>
+      <div class="arena-hero"><div><span class="tag">Much Arena · real contract state</span><h2>The mechanism is the game.</h2><p class="muted">First comes the aversion window, then the Dutch auction. Expired collateral purchases use a different price curve. No simulated opponents or production medals.</p></div><img src="../assets/foundry-arena.jpg" srcset="../assets/foundry-arena-480.jpg 480w, ../assets/foundry-arena-960.jpg 960w, ../assets/foundry-arena.jpg 1200w" sizes="(max-width: 800px) calc(100vw - 74px), 42vw" width="1200" height="685" alt="The low-poly Much Reserve World challenge arena" loading="lazy"></div>
+      <ol class="journey-steps" aria-label="How challenges work" style="margin-bottom:20px"><li><span>1</span><div><strong>Find a challenge</strong><p>Discover events, then reread current position and challenge state.</p></div></li><li><span>2</span><div><strong>Watch the clock</strong><p>Review the aversion window or declining Dutch-auction price.</p></div></li><li><span>3</span><div><strong>Review the exact bid</strong><p>Simulate the current call and confirm once in your wallet.</p></div></li></ol>
+      <button class="btn mint" type="button" id="discover-challenges">Find challenges</button><div id="challenge-discovery" class="discovery-list"></div>
       <div class="app-grid">
         <section class="panel"><h2>Start a challenge</h2><p class="smalltext">You supply the challenged collateral. The minimum-price guard protects against a lower price being inserted before your transaction.</p>
           <form data-operation="hub.challenge" data-position-input><label class="field">Position<input name="position" required pattern="0x[a-fA-F0-9]{40}" spellcheck="false"></label><label class="field">Collateral to challenge<input name="amount" inputmode="decimal" required></label><label class="field">Minimum liquidation price (blank = current)<input name="minimumPrice" inputmode="decimal"></label><button class="btn mint" type="submit">Review challenge</button></form>
@@ -474,6 +490,6 @@
     <section class="panel agent-code" id="agent-panel" hidden><h2>Structured read-only planning intent</h2><p class="muted">The same active form represented for an agent. No private data, execution authority or inferred live state.</p><pre id="agent-json"></pre><button class="btn light" type="button" id="export-agent-plan">Export active plan</button></section>
   </div>
 </main>
-<footer class="footer"><div class="wrap"><div class="footer-row"><div><strong>IMF</strong><br>International Multicurrency Framework</div><div class="footer-links"><a href="../docs/#mechanism">Mechanism</a><a href="../docs/#agents">For agents</a><a href="../docs/#responsibilities">Participation</a><a href="../docs/#architecture">V2 architecture</a></div></div><p>An independent extension of Frankencoin mechanics, building on DogeOS. No official Frankencoin, DogeOS or International Monetary Fund affiliation is implied. Read-only preview; no production V2 registry, signing or execution is connected.</p></div></footer>
+<footer class="footer"><div class="wrap"><div class="footer-row"><div><strong>IMF</strong><br>International Money Foundry</div><div class="footer-links"><a href="../docs/#mechanism">Mechanism</a><a href="../docs/#agents">For agents</a><a href="../docs/#responsibilities">Participation</a><a href="../docs/#architecture">V2 architecture</a></div></div><p>An independent extension of Frankencoin mechanics, building on DogeOS. No official Frankencoin, DogeOS or International Monetary Fund affiliation is implied. Read-only preview; no production V2 registry, signing or execution is connected.</p></div></footer>
 </body>
 </html>

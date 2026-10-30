@@ -76,7 +76,8 @@ for file, parser in parsers.items():
             if target == (root / 'docs/index.html').resolve():
                 assert parsed.fragment in article_ids or parsed.fragment in parsers[target].ids, link
             elif target in parsers:
-                assert parsed.fragment in parsers[target].ids or parsed.fragment in parsers[target].buttons, link
+                friendly_routes = {'earn', 'invest', 'bridge', 'governance'} if target == (root / 'app/index.html').resolve() else set()
+                assert parsed.fragment in parsers[target].ids or parsed.fragment in parsers[target].buttons or parsed.fragment in friendly_routes, link
         count += 1
 
 for article in articles:
@@ -110,14 +111,14 @@ if not source_mode:
             assert (base / required).is_file(), f'{surface}: missing {required}'
         for internal in ['PLAN.html', 'AGENTS.md', 'handoff', 'scripts', 'node_modules']:
             assert not (base / internal).exists(), f'{surface}: internal file published: {internal}'
-    for required in ['protocol.js', 'planning.js', 'offline.js', 'wallet.js', 'discovery.js', 'v2.js', 'actions.js', 'app.js']:
+    for required in ['protocol.js', 'planning.js', 'offline.js', 'wallet.js', 'dogeos-config.js', 'dogeos.js', 'discovery.js', 'v2.js', 'actions.js', 'app.js']:
         assert (output / 'app/assets' / required).is_file(), f'app: missing {required}'
     app_html = (output / 'app/index.html').read_text()
     runtime = json.loads((output / 'app/assets/runtime.json').read_text())
     if runtime['mode'] == 'testnet-metamask':
         assert runtime['status'] == 'configured-testnet-metamask'
-        assert '<title>IMF Workspace | DogeOS Testnet V2 &amp; MetaMask</title>' in app_html
-        assert 'guided USD MetaMask transactions after current simulation and explicit review' in app_html
+        assert '<title>IMF Workspace | DogeOS Testnet &amp; Wallet Missions</title>' in app_html
+        assert 'guided USD wallet transactions after current simulation and explicit review' in app_html
         assert 'DogeOS testnet · 12 verified currencies' in app_html
         assert 'tUSDC is a test asset; production readiness is not claimed' in app_html
         for stale in ['Read-only V2 preview', 'network execution is not connected', 'no production V2 registry', 'This frontend does not do so']:

@@ -481,6 +481,14 @@ assert((await evaluate(`document.querySelector('#start-view').innerText`)).inclu
 assert((await evaluate(`document.title`)).includes('Start here'));
 assert.equal(await evaluate(`document.querySelectorAll('.navlinks a[aria-current="page"]').length`), 1);
 assert((await evaluate(`document.querySelector('.navlinks').innerText`)).includes('Workspace'));
+await click('#start-view .start-world-map [data-start-target="create"]');
+await waitFor(`document.querySelector('#create-view').hidden === false && document.querySelector('#view-title').textContent === 'Borrow'`);
+await evaluate(`location.hash = ''`);
+await waitFor(`document.querySelector('#start-view').hidden === false`);
+await click('#start-view .start-world-map [data-ecosystem-focus="savings"]');
+await waitFor(`document.querySelector('#ecosystem-view').hidden === false && document.querySelector('#view-title').textContent === 'Earn'`);
+await evaluate(`location.hash = ''`);
+await waitFor(`document.querySelector('#start-view').hidden === false`);
 await evaluate(`location.hash = 'manage'`);
 await waitFor(`document.querySelector('#manage-view').hidden === false && document.querySelector('#view-title').textContent === 'My positions'`);
 assert.equal(await evaluate(`location.hash`), '#manage');
@@ -639,7 +647,7 @@ for (const guide of guides) {
 pass(`${guides.length} statically rendered documentation routes, canonical metadata, figures and local assets`);
 
 await command('navigate', { url: `${origins.docs}guides/overview/` });
-await waitFor(`document.querySelector('#article h1')?.textContent.includes('multicurrency')`);
+await waitFor(`document.querySelector('#article h1')?.textContent === ${JSON.stringify(guides.find((guide) => guide.id === 'overview').title)}`);
 const articleLinks = await evaluate(`[...document.querySelectorAll('#article a')].map(link=>link.href)`);
 assert(articleLinks.some((href) => href.startsWith(publicOrigins.app)));
 await command('navigate', { url: `${origins.docs}guides/source-bridge/` });
@@ -679,7 +687,7 @@ for (const [surface, origin] of Object.entries(origins)) {
   const llms = await fetch(new URL('llms.txt', origin)).then((response) => response.text());
   assert(robots.includes('User-agent: *\nAllow: /'));
   assert(sitemap.includes('<urlset') && sitemap.includes(`<loc>${publicOrigins[surface]}</loc>`));
-  assert(llms.includes('International Multicurrency Framework'));
+  assert(llms.includes('International Money Foundry'));
   assert(llms.includes('not transaction authorization'));
 }
 pass('robots, sitemaps and the experimental llms.txt index are publicly readable');
@@ -699,7 +707,7 @@ await command('navigate', { url: `${origins.docs}guides/currencies/` });
 assert.equal(await evaluate(`document.querySelectorAll('#article table').length`), 1);
 await screenshot('docs-nojs-mobile');
 await command('navigate', { url: origins.website });
-assert((await evaluate(`document.querySelector('.lead').textContent`)).includes('International Multicurrency Framework'));
+assert((await evaluate(`document.querySelector('.lead').textContent`)).includes('International Money Foundry'));
 assert.equal(await evaluate(`getComputedStyle(document.querySelector('.menu')).display`), 'none');
 assert.equal(await evaluate(`getComputedStyle(document.querySelector('.navlinks')).display`), 'flex');
 await screenshot('website-nojs-mobile');

@@ -68,6 +68,13 @@ function validateTestnetRuntime(configuration) {
   if (!native || native.name !== TESTNET_CHAIN.nativeCurrency.name || native.symbol !== TESTNET_CHAIN.nativeCurrency.symbol || native.decimals !== TESTNET_CHAIN.nativeCurrency.decimals) {
     throw new Error('Static DogeOS native currency must be 18-decimal Test DOGE (tDOGE)');
   }
+  const dogeos = configuration.dogeos;
+  if (!dogeos || typeof dogeos.clientId !== 'string' || !/^[A-Za-z0-9]{64,128}$/.test(dogeos.clientId)) {
+    throw new Error('Production DogeOS wallet configuration requires a public client ID');
+  }
+  if (dogeos.metadata?.url !== 'https://app.imf.li/' || dogeos.metadata?.name !== 'International Money Foundry') {
+    throw new Error('DogeOS wallet metadata must identify the approved IMF app origin');
+  }
 }
 
 const runtimeFile = fixture ? 'config/runtime.fixture.json' : process.env.IMF_RUNTIME_CONFIG || 'config/runtime.json';
@@ -85,7 +92,7 @@ if (runtime.protocolVersion !== 2 || !['read-only', 'testnet-metamask'].includes
 if (runtime.mode === 'testnet-metamask') validateTestnetRuntime(runtime);
 if (fixture && (!runtime.fixture || runtime.mode !== 'read-only')) throw new Error('Fixture builds require an explicitly labelled read-only fixture configuration');
 if (!fixture && runtime.fixture) throw new Error('Fixture configuration is forbidden in a normal or production build');
-if (!review && runtime.mode !== 'testnet-metamask') throw new Error('Production builds require the explicit DogeOS testnet MetaMask runtime');
+if (!review && runtime.mode !== 'testnet-metamask') throw new Error('Production builds require the explicit DogeOS testnet wallet runtime');
 if (!review && !runtime.registry) throw new Error('Production builds require an explicit verified V2 runtime configuration');
 if (runtime.registry && !runtime.rpcUrl) throw new Error('A configured registry requires an explicit public RPC URL');
 if (runtime.rpcUrl && !(fixture && runtime.rpcUrl === 'fixture://v2') && !/^https?:\/\//.test(runtime.rpcUrl)) throw new Error('RPC URL must use HTTP(S)');
@@ -129,30 +136,17 @@ for (const surface of surfaces) {
   html = surfaceLinks(html);
   html = html.replaceAll('src="assets/', 'src="/assets/');
   if (!review && runtime.mode === 'testnet-metamask') {
-    const replacements = surface === 'website' ? [
-      [
-        'The app includes read-only V2 tooling, but no verified V2 deployment registry is currently configured. You can model a position, save a draft on this device and export a plan. It does not simulate, sign or broadcast transactions.',
-        'The public app verifies 12 independent V2 registries and reads DogeOS Chikyū testnet state. Guided USD actions use current simulation and explicit MetaMask confirmation on chain 6281971; tUSDC and tDOGE are test assets. Planning JSON remains non-executable. Production readiness is not claimed.',
-      ],
-      [
-        'The frontend supports local planning and read-only V2 tooling. Live contract state requires a verified deployment registry. Simulation, wallet signing and agent execution are not connected.',
-        'The frontend supports local planning, verified DogeOS Chikyū testnet reads for 12 independent currency systems and USD-guided MetaMask transactions after current simulation and explicit confirmation. DEX and agent execution are not connected.',
-      ],
+    const replacements = surface === 'website' ? [] : surface === 'docs' ? [
       [
         'Frontend preview; network execution is not connected.',
-        'DogeOS Chikyū testnet preview; explicit MetaMask transactions use test assets only. Production readiness is not claimed.',
-      ],
-    ] : surface === 'docs' ? [
-      [
-        'Frontend preview; network execution is not connected.',
-        'DogeOS Chikyū testnet documentation; guided app transactions require explicit MetaMask confirmation. Test assets only; production readiness is not claimed.',
+        'DogeOS Chikyū testnet documentation; guided app transactions require explicit wallet confirmation. Test assets only; production readiness is not claimed.',
       ],
     ] : surface === 'app' ? [
-      ['Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution', 'DogeOS Chikyū testnet · Guided USD MetaMask transactions after simulation and explicit confirmation · Test assets only'],
+      ['Read-only V2 preview · No verified deployment registry configured · No simulation, signing or transaction execution', 'DogeOS Chikyū testnet · Guided USD wallet transactions after simulation and explicit confirmation · Test assets only'],
       ['<span class="tag" id="sidebar-connection" hidden>V2 registry not configured</span>', '<span class="tag" id="sidebar-connection" hidden>DogeOS testnet · 12 verified currencies</span>'],
       ['<span class="tag" id="connection-status">Unconfigured</span>', '<span class="tag" id="connection-status">DogeOS testnet · 12 verified currencies</span>'],
       ['No verified V2 deployment registry is configured. You can inspect a V2 registry locally without sending it to a server.', runtime.message],
-      ['Read-only preview; no production V2 registry, signing or execution is connected.', 'DogeOS Chikyū testnet preview; explicit MetaMask transactions require current simulation, review and confirmation. tUSDC is a test asset; production readiness is not claimed.'],
+      ['Read-only preview; no production V2 registry, signing or execution is connected.', 'DogeOS Chikyū testnet preview; explicit wallet transactions require current simulation, review and confirmation. tUSDC is a test asset; production readiness is not claimed.'],
       ['<h2>Structured read-only planning intent</h2>', '<h2>Structured non-executable planning intent</h2>'],
     ] : [];
     for (const [before, after] of replacements) {
@@ -166,7 +160,7 @@ for (const surface of surfaces) {
   );
   if (surface === 'app') html = html.replace(
     /<script src="\/?assets\/app\.js" defer><\/script>/,
-    '<script src="/assets/protocol.js" defer></script><script src="/assets/planning.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/wallet.js" defer></script><script src="/assets/discovery.js" defer></script><script src="/assets/read-cache.js" defer></script><script src="/assets/v2.js" defer></script><script src="/assets/dashboard.js" defer></script><script src="/assets/actions.js" defer></script><script src="/assets/app.js" defer></script>',
+    '<script src="/assets/protocol.js" defer></script><script src="/assets/planning.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/wallet.js" defer></script><script src="/assets/dogeos-config.js" defer></script><script src="/assets/dogeos.js" defer></script><script src="/assets/discovery.js" defer></script><script src="/assets/read-cache.js" defer></script><script src="/assets/v2.js" defer></script><script src="/assets/dashboard.js" defer></script><script src="/assets/actions.js" defer></script><script src="/assets/app.js" defer></script>',
   );
   html = html.replace('</head>', '<noscript><style>.menu,.sidebar-toggle{display:none!important}#doc-search,label[for="doc-search"]{display:none}@media(max-width:700px){.navlinks{display:flex!important}}</style></noscript></head>');
   const docsTemplate = surface === 'docs' ? html : null;
@@ -175,15 +169,15 @@ for (const surface of surfaces) {
     html = html.replace(/<article class="doc" id="article">[\s\S]*?<\/article>/, discoverability.documentationHome());
   }
   const titles = {
-    website: 'International Multicurrency Framework (IMF) on DogeOS',
-    docs: 'IMF Documentation | Independent Currency Systems',
-    app: discoverability.mode === 'testnet' ? 'IMF Workspace | DogeOS Testnet V2 & MetaMask' : 'IMF Workspace | V2 Position Planning',
+    website: 'International Money Foundry (IMF) | Much Reserve World on DogeOS',
+    docs: 'IMF Documentation | Much Reserve World & K9 Currency Systems',
+    app: discoverability.mode === 'testnet' ? 'IMF Workspace | DogeOS Testnet & Wallet Missions' : 'IMF Workspace | V2 Position Planning',
   };
   const descriptions = {
     website: 'Use project tokens as collateral to mint currencies on DogeOS. IMF extends Frankencoin mechanics with one independent system per currency.',
     docs: 'Technical guides to project-token collateral, independent currency systems, V2 positions, non-executable planning and explicit DogeOS testnet workflows.',
     app: discoverability.mode === 'testnet'
-      ? 'Inspect 12 verified V2 systems on DogeOS Chikyū testnet and prepare guided USD MetaMask transactions after current simulation and explicit review. Test assets only; production readiness is not claimed.'
+      ? 'Inspect 12 verified V2 systems on DogeOS Chikyū testnet and prepare guided USD wallet transactions after current simulation and explicit review. Test assets only; production readiness is not claimed.'
       : 'Prepare non-executable project-collateral position plans with exact decimal-aware inputs and optional read-only V2 registry inspection. No signing or execution in this review.',
   };
   html = discoverability.metadata(html, { surface, canonical: origins[surface], title: titles[surface], description: descriptions[surface], type: surface === 'docs' ? 'CollectionPage' : 'WebPage' });
@@ -214,6 +208,15 @@ for (const surface of surfaces) {
   await writeFile(path.join(destination, 'assets/site-config.js'), `window.IMF_SITE=${JSON.stringify({ surface, origins, review, releaseStatus: discoverability.releaseStatus })};\n`);
   await writeFile(path.join(destination, 'assets/currencies.js'), `window.IMF_CURRENCIES=${JSON.stringify(currencies.map(([code, name]) => ({ code, name, symbol: `K9${code}` })))};\n`);
   await writeFile(path.join(destination, 'assets/runtime.json'), `${JSON.stringify(runtime, null, 2)}\n`);
+  if (surface === 'app') {
+    const dogeos = runtime.dogeos?.clientId ? {
+      clientId: runtime.dogeos.clientId,
+      chainId: TESTNET_CHAIN_ID,
+      chain: runtime.chain,
+      metadata: runtime.dogeos.metadata,
+    } : null;
+    await writeFile(path.join(destination, 'assets/dogeos-config.js'), `window.IMF_DOGEOS_CONFIG=${JSON.stringify(dogeos)};\n`);
+  }
 }
 
 await bundle({
@@ -229,4 +232,16 @@ await bundle({
   logLevel: 'warning',
 });
 
-console.log(JSON.stringify({ mode: review ? 'review' : 'production', output, origins, registryConfigured: Boolean(runtime.registry) }, null, 2));
+if (runtime.dogeos?.clientId) await bundle({
+  entryPoints: [path.join(root, 'src/dogeos-wallet.tsx')],
+  outfile: path.join(output, 'app/assets/dogeos-wallet.js'),
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['es2020'],
+  sourcemap: review,
+  minify: !review,
+  logLevel: 'warning',
+});
+
+console.log(JSON.stringify({ mode: review ? 'review' : 'production', output, origins, registryConfigured: Boolean(runtime.registry), dogeOsWallet: Boolean(runtime.dogeos?.clientId) }, null, 2));

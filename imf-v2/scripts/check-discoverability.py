@@ -81,11 +81,11 @@ for surface in ['website', 'docs', 'app']:
     assert f'Sitemap: {origin}sitemap.xml' in robots, f'{surface}: sitemap origin mismatch'
     assert 'Disallow:' not in robots, f'{surface}: unexpected crawler restriction'
     llms = (base / 'llms.txt').read_text()
-    assert 'International Multicurrency Framework' in llms
+    assert 'International Money Foundry' in llms
     assert 'not the International Monetary Fund' in llms
     assert 'not transaction authorization' in llms
     if testnet_transactions:
-        assert 'MetaMask' in llms and 'DogeOS Chikyū testnet' in llms
+        assert 'wallet' in llms and 'DogeOS Chikyū testnet' in llms
         assert 'tUSDC is a test asset' in llms
         assert 'The frontend is read-only' not in llms
     elif runtime.get('fixture'):
@@ -113,7 +113,7 @@ for surface in ['website', 'docs', 'app']:
         elif surface == 'docs':
             expected_scripts.append('/assets/docs.js')
         else:
-            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/discovery.js', '/assets/read-cache.js', '/assets/v2.js', '/assets/dashboard.js', '/assets/actions.js', '/assets/app.js'])
+            expected_scripts.extend(['/assets/protocol.js', '/assets/planning.js', '/assets/offline.js', '/assets/wallet.js', '/assets/dogeos-config.js', '/assets/dogeos.js', '/assets/discovery.js', '/assets/read-cache.js', '/assets/v2.js', '/assets/dashboard.js', '/assets/actions.js', '/assets/app.js'])
         assert page.scripts == expected_scripts, f'{file}: incorrect ordered scripts: {page.scripts}'
         assert len(page.titles) == 1 and page.titles[0].strip(), f'{file}: missing unique title'
         assert len(page.descriptions) == 1 and 60 <= len(page.descriptions[0]) <= 220, f'{file}: missing or inadequate description'
@@ -143,7 +143,7 @@ for surface in ['website', 'docs', 'app']:
         assert structured['@context'] == 'https://schema.org'
         graph = structured['@graph']
         project = next(node for node in graph if node.get('@type') == 'Organization')
-        assert project['name'] == 'International Multicurrency Framework'
+        assert project['name'] == 'International Money Foundry'
         assert 'not the International Monetary Fund' in project['disambiguatingDescription']
         assert all(node.get('@id') != '#website' for node in graph)
         for image in page.images:
@@ -153,25 +153,27 @@ for surface in ['website', 'docs', 'app']:
                 assert '480w' in image.get('srcset', '') and '960w' in image.get('srcset', ''), f'{file}: missing responsive sources'
                 assert image.get('sizes'), f'{file}: missing responsive sizes'
         if surface == 'website':
-            faq = next(node for node in graph if node.get('@type') == 'FAQPage')
-            faq_source = re.search(r'<section class="section faq">[\s\S]*?</section>', source).group(0)
-            visible = re.findall(r'<details><summary>([^<]+)</summary><p>([\s\S]*?)</p></details>', faq_source)
-            assert len(visible) == 4
-            assert len(faq['mainEntity']) == 4
-            for (question, answer), entity in zip(visible, faq['mainEntity']):
-                assert entity['name'] == text(question)
-                assert entity['acceptedAnswer']['text'] == text(answer)
+            faq = next((node for node in graph if node.get('@type') == 'FAQPage'), None)
+            faq_match = re.search(r'<section class="section faq">[\s\S]*?</section>', source)
+            if faq_match:
+                visible = re.findall(r'<details><summary>([^<]+)</summary><p>([\s\S]*?)</p></details>', faq_match.group(0))
+                assert faq is not None and len(visible) == len(faq['mainEntity']) == 4
+                for (question, answer), entity in zip(visible, faq['mainEntity']):
+                    assert entity['name'] == text(question)
+                    assert entity['acceptedAnswer']['text'] == text(answer)
+            else:
+                assert faq is None
             assert any(node.get('@type') == 'WebApplication' for node in graph)
         if surface == 'app':
             application = next(node for node in graph if node.get('@type') == 'WebApplication')
             if testnet_transactions:
-                assert page.titles[0] == 'IMF Workspace | DogeOS Testnet V2 & MetaMask'
-                assert 'guided USD MetaMask transactions after current simulation and explicit review' in page.descriptions[0]
+                assert page.titles[0] == 'IMF Workspace | DogeOS Testnet & Wallet Missions'
+                assert 'guided USD wallet transactions after current simulation and explicit review' in page.descriptions[0]
                 assert 'production readiness is not claimed' in page.descriptions[0]
                 assert 'Read-only' not in page.titles[0] and 'Read-only' not in page.descriptions[0]
-                assert 'MetaMask' in application['description']
-                assert any('explicit MetaMask confirmation' in feature for feature in application['featureList'])
-                assert 'MetaMask is optional' in application['browserRequirements']
+                assert 'wallet' in application['description']
+                assert any('explicit wallet confirmation' in feature for feature in application['featureList'])
+                assert 'wallet is optional' in application['browserRequirements']
             else:
                 assert page.titles[0] == 'IMF Workspace | V2 Position Planning'
                 assert 'non-executable' in page.descriptions[0]

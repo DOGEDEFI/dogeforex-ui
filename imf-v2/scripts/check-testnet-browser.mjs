@@ -333,7 +333,7 @@ try {
   await checkWorkspace(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: path.join(root, 'artifacts/testnet-app-desktop.png'), fullPage: true });
-  await page.locator('[data-ecosystem-focus="savings"]').click();
+  await page.locator('[data-view="ecosystem"][data-ecosystem-focus="savings"]').click();
   assert(await page.locator('#savings-deposit-form').isVisible());
   assert.equal(await page.locator('#bridge-state').isVisible(), false);
   await page.locator('[data-task-tab="savings-withdraw"]').click();
@@ -341,7 +341,7 @@ try {
   assert.equal(await page.locator('#savings-deposit-form').isVisible(), false);
   await page.locator('[data-task-tab="savings-deposit"]').click();
   await page.screenshot({ path: path.join(root, 'artifacts/testnet-earn-desktop.png'), fullPage: true });
-  await page.locator('[data-ecosystem-focus="equity"]').click();
+  await page.locator('[data-view="ecosystem"][data-ecosystem-focus="equity"]').click();
   assert(await page.locator('#equity-invest-form').isVisible());
   assert.equal(await page.locator('#savings-state').isVisible(), false);
   await page.locator('[data-task-tab="equity-redeem"]').click();
@@ -390,7 +390,7 @@ try {
   monitor(websitePage);
   const websiteResponse = await websitePage.goto(endpoint(portBase), { waitUntil: 'networkidle' });
   assert.equal(websiteResponse.status(), 200);
-  assert((await websitePage.locator('.lead').textContent()).includes('International Multicurrency Framework'));
+  assert((await websitePage.locator('.lead').textContent()).includes('International Money Foundry'));
   for (const width of [320, 390, 700, 768, 1440]) await checkLayout(websitePage, 'website', width);
   await websitePage.setViewportSize({ width: 1440, height: 1000 });
   await websitePage.screenshot({ path: path.join(root, 'artifacts/testnet-website-desktop.png'), fullPage: true });
@@ -404,7 +404,7 @@ try {
   monitor(docsPage);
   const docsResponse = await docsPage.goto(endpoint(portBase + 1), { waitUntil: 'networkidle' });
   assert.equal(docsResponse.status(), 200);
-  assert((await docsPage.locator('#article').textContent()).includes('What is the International Multicurrency Framework?'));
+  assert((await docsPage.locator('#article').textContent()).includes('What is the International Money Foundry?'));
   for (const guide of articles) {
     const url = endpoint(portBase + 1, `/guides/${guide.id}/`);
     const raw = await fetch(url).then((response) => response.text());
@@ -470,7 +470,7 @@ try {
   assert.equal(await crawlerPage.locator('.sidebar-toggle').isVisible(), false);
   await crawlerPage.screenshot({ path: path.join(root, 'artifacts/testnet-docs-nojs-mobile.png'), fullPage: true });
   await crawlerPage.goto(endpoint(portBase), { waitUntil: 'load' });
-  assert((await crawlerPage.locator('.lead').textContent()).includes('International Multicurrency Framework'));
+  assert((await crawlerPage.locator('.lead').textContent()).includes('International Money Foundry'));
   assert(await crawlerPage.locator('.navlinks').isVisible());
   assert.equal(await crawlerPage.locator('.menu').isVisible(), false);
   await crawlerPage.goto(endpoint(portBase + 2), { waitUntil: 'load' });
@@ -478,10 +478,21 @@ try {
   assert((await crawlerPage.locator('main > noscript').textContent()).includes('Interactive V2 forms require JavaScript'));
   assert.equal(rpcMethods.length, rpcBeforeCrawling);
   await crawlerContext.close();
-  assert.deepEqual(forbiddenMethods, []);
+  const walletPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  monitor(walletPage);
+  await walletPage.goto(endpoint(portBase + 2, '/#start'), { waitUntil: 'networkidle' });
+  assert.equal(await walletPage.locator('script[src$="dogeos-wallet.js"]').count(), 0, 'DogeOS SDK must not load before explicit connection');
+  await walletPage.locator('#wallet-dogeos').click();
+  await walletPage.getByText('Connect your wallet', { exact: true }).waitFor({ timeout: 120000 });
+  assert.equal(await walletPage.locator('script[src$="dogeos-wallet.js"]').count(), 1, 'DogeOS SDK loads once after explicit connection');
+  assert.equal(await walletPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'DogeOS wallet modal must fit the mobile viewport');
+  await walletPage.keyboard.press('Escape');
+  await walletPage.close();
+  assert.deepEqual(forbiddenMethods, [], 'Opening the DogeOS wallet modal must not sign or broadcast');
   assert.deepEqual(errors, []);
   const result = {
     ok: true,
+    dogeOsLazyModal: true,
     automaticRegistryVerification: true,
     chainId: 6281971,
     testAssetLabel: 'tUSDC',

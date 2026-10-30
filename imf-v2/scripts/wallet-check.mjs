@@ -540,6 +540,37 @@ try {
     assert.equal((await state()).account, account);
   });
 
+  await test('external DogeOS providers connect and provider swaps invalidate unsent preparations', async () => {
+    await fresh({ writeMode: 'testnet-metamask', connected: false });
+    assert.equal((await state()).available, false);
+    await page.evaluate(() => {
+      const makeProvider = (account) => ({
+        on() {}, removeListener() {},
+        async request({ method }) {
+          if (['eth_requestAccounts', 'eth_accounts'].includes(method)) return [account];
+          if (method === 'eth_chainId') return `0x${BigInt(6281971).toString(16)}`;
+          throw new Error(`Unexpected provider method ${method}`);
+        },
+      });
+      window.__dogeOsA = makeProvider('0x1000000000000000000000000000000000000001');
+      window.__dogeOsB = makeProvider('0x1000000000000000000000000000000000000002');
+      window.IMF_WALLET.registerProvider(window.__dogeOsA, 'DogeOS');
+    });
+    assert.equal((await state()).available, true);
+    await page.evaluate(() => window.IMF_WALLET.connect());
+    assert.equal((await state()).account, account);
+    await prepare();
+    assert.equal((await state()).prepared.from, account);
+    await page.evaluate(() => window.IMF_WALLET.registerProvider(window.__dogeOsB, 'DogeOS'));
+    assert.equal((await state()).prepared, null);
+    assert.equal((await state()).account, null);
+    await page.evaluate(() => window.IMF_WALLET.connect());
+    assert.equal((await state()).account, otherAccount);
+    await page.evaluate(() => window.IMF_WALLET.registerProvider(null, 'DogeOS'));
+    assert.equal((await state()).available, false);
+    assert.equal((await state()).prepared, null);
+  });
+
   assert.deepEqual(browserErrors, [], `Unexpected browser errors: ${browserErrors.join('; ')}`);
   console.log(`\n${results.length} wallet engine checks passed in isolated Chrome with no real wallet or network calls.`);
 } finally {

@@ -11,6 +11,7 @@
   const unresolvedStatuses = new Set(['pending', 'unknown']);
   let hooks = {};
   let provider = null;
+  let externalProvider = null;
   let readProvider = null;
   let policySnapshot = null;
   let policySignature = null;
@@ -169,8 +170,19 @@
 
   function providerFor(policy) {
     if (!policy) return null;
-    const candidate = policy.writeMode === 'mock-only' ? window.__IMF_TEST_WALLET__ : window.ethereum;
+    const candidate = policy.writeMode === 'mock-only' ? window.__IMF_TEST_WALLET__ : (externalProvider || window.ethereum);
     return candidate && typeof candidate.request === 'function' ? candidate : null;
+  }
+
+  function registerProvider(nextProvider, label = 'External wallet') {
+    if (nextProvider !== null && typeof nextProvider?.request !== 'function') throw failure('INVALID_PROVIDER', `${label} did not supply an EIP-1193 provider.`);
+    if (externalProvider === nextProvider) return getState();
+    externalProvider = nextProvider;
+    invalidate(`${label} provider changed. Any unsent preparation was cleared.`);
+    synchronizePolicy();
+    if (provider) setStatus('disconnected', `${label} is available. Connect or restore an account.`);
+    else setStatus('unavailable', 'No compatible EIP-1193 provider is available.');
+    return getState();
   }
 
   function publicEntry(entry) {
@@ -817,6 +829,7 @@
     unbindProvider();
     hooks = options || {};
     provider = null;
+    externalProvider = null;
     readProvider = null;
     policySnapshot = null;
     policySignature = null;
@@ -861,6 +874,7 @@
     init,
     getState,
     getJournal,
+    registerProvider,
     connect,
     restore,
     switchChain,
