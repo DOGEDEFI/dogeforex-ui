@@ -385,3 +385,23 @@ Release evidence:
 - Public HTTP returned 200 for all three origins, `/guides/wallet-sdk/`, and `dogeos-wallet.js`; missing paths and `/.env` returned 404. Fresh public Chrome confirmed the world-led website, all 20 guide links, all 12 dashboard currency rows, zero DogeOS assets before connection, one lazy wallet bundle after connection, the real DogeOS modal, no mobile overflow, no browser errors and no forbidden signing/broadcast methods. `transactionSent: false`. Reviewed `artifacts/production-foundry-website.png`, `production-foundry-wallet-guide.png`, `production-dogeos-modal.png`, and `production-foundry-dashboard-mobile.png`.
 
 The standalone prototype remains local and was not included in the commit. No blockchain transaction was prepared or broadcast for this redesign. Real MyDoge/MetaMask confirmation, independent audit, production readiness and the separately scheduled CHF mint remain outside this frontend release.
+
+## DogeOS Google/X social login and mobile verification — 2026-10-30
+
+**Status: IMPLEMENTED, VERIFIED, COMMITTED, PUSHED AND DEPLOYED TO THE PUBLIC TESTNET ORIGINS.** DogeOS SDK 4.0.4 now offers external wallets plus DogeOS-managed Google and X login. Social login uses the embedded EVM wallet through the existing `connectors.evm.provider` handoff and the unchanged account/chain checks, fresh simulation, explicit review, confirmation and receipt boundaries. Email login, WalletConnect without a separate project ID, non-EVM providers, message signing and wallet authentication remain disabled. The SDK still loads only after Connect or log in; no React/DogeOS assets load on the initial app page.
+
+Local and testnet evidence on Node 22:
+
+- `npm run verify` passed syntax, DogeOS type/policy checks, builds, content/discovery, exact planning, read cache, dashboard and all 37 action checks. Gitleaks 8.30.1 scanned 1.16 GB and found no leaks.
+- `npm run verify:browser` passed 34 fixture checks, 22 default checks, 28 isolated wallet checks and 36 guided journeys with zero browser errors. An earlier resource-contended run timed out; the final sequential Node 22 run passed.
+- `npm run verify:testnet` passed all 12 currencies including CHF, 20 static guides and 200 responsive checks. Results: `rpcRequestCount: 7214`, `warmReloadRpcDelta: 98`, `manualReloadRpcBurst: 269`, `forbiddenMethods: []`, `browserErrors: []`, `desktopOverflow: false`, `mobileOverflow: false`, `transactionSent: false`, and `dogeOsSocialLogins: ['google', 'x']`.
+- Real mobile DogeOS modal checks passed at 390×844 and 320×740 with no horizontal overflow. Google and X controls each measured 48px high, exceeding the 44px touch-target minimum. Reviewed `artifacts/testnet-dogeos-social-login-mobile.png` and `testnet-dogeos-social-login-320.png`.
+
+Release evidence:
+
+- Implementation commit `282d5f2cb171016024764b118c0314565592be39` (`Add DogeOS social login`) was pushed to `DOGEDEFI/dogeforex-ui` `main`; GitHub Actions run `41128136432` completed successfully. The standalone prototype paths remained untracked and were not committed.
+- Vercel CLI 65.8.0 deployed READY bundles and aliased all existing origins: website `https://imf-website-o6wyvp5zd-operalag-gmailcoms-projects.vercel.app` → `https://imf.li`, docs `https://imf-docs-mb1skbb7b-operalag-gmailcoms-projects.vercel.app` → `https://docs.imf.li`, and app `https://imf-p0jnkm127-operalag-gmailcoms-projects.vercel.app` → `https://app.imf.li`.
+- Public HTTP returned 200 for all three surfaces, the Wallet & DogeOS SDK guide and the lazy wallet bundle. Fresh public Chrome confirmed zero SDK assets before connection, one lazy bundle afterward, visible Google/X controls, 48px touch targets, no mobile overflow at 320/390px, no page exceptions and no forbidden signing/broadcast methods. The updated static guide is public. Reviewed `artifacts/production-dogeos-social-390.png` and `production-dogeos-social-320.png`.
+- The production OAuth handoff reached the real Google sign-in page. X reached the correct `x.com/i/oauth2/authorize` URL, but X returned HTTP 403 to the isolated headless browser; this is recorded as a provider-side/manual-review limitation, not a successful X login. No social credentials were entered and no OAuth flow was completed. DogeOS's anonymous session probe returned its expected `session_revoked` 401 before login and did not prevent the modal or Google handoff.
+
+No blockchain transaction was prepared or broadcast. Real Google/X account completion, external-wallet confirmation and assistive-technology review remain manual follow-ups.
