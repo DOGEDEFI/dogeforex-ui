@@ -496,7 +496,7 @@ assert((await evaluate(`parseFloat(getComputedStyle(document.querySelector('deta
 assert.equal(await evaluate(`getComputedStyle(document.querySelector('details.info > summary'), '::after').content`), '"Info"');
 for (const width of [320, 390]) {
   await viewport(width);
-  assert.equal(await evaluate(`(() => { const nav=document.querySelector('.workspace-primary'); const more=document.querySelector('.workspace-more'); return nav.scrollWidth <= nav.clientWidth + 1 && more.getBoundingClientRect().right <= nav.getBoundingClientRect().right + 1; })()`), true, `primary navigation must fit at ${width}px`);
+  assert.equal(await evaluate(`(() => { const nav=document.querySelector('.workspace-primary'); const more=document.querySelector('.workspace-more'); const items=[...nav.querySelectorAll(':scope > button, :scope > .workspace-more > summary')]; return nav.scrollWidth <= nav.clientWidth + 1 && more.getBoundingClientRect().right <= nav.getBoundingClientRect().right + 1 && items.every((item) => item.scrollWidth <= item.clientWidth + 1); })()`), true, `primary navigation and every label must fit at ${width}px`);
 }
 await click('.workspace-command details.info > summary');
 await waitFor(`document.querySelector('.workspace-command details.info').open === true`);

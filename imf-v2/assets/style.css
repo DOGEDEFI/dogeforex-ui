@@ -54,7 +54,7 @@ details.info .info-body a{display:inline-flex;align-items:center;min-height:44px
 @media(max-width:700px){
   .workspace-command{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;margin-bottom:20px}
   .workspace-primary{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;width:100%;overflow:visible;padding-bottom:0}
-  .workspace-primary>button,.workspace-more>summary{min-width:0;width:100%;padding:9px 4px;font-size:12px}
+  .workspace-primary>button,.workspace-more>summary{min-width:0;width:100%;padding:9px 4px;font-size:12px;letter-spacing:-.25px}
   .workspace-more{min-width:0}
   .workspace-currency{min-width:0;padding:0 3px}
   .workspace-command>details.info{justify-self:end}
@@ -64,4 +64,4 @@ details.info .info-body a{display:inline-flex;align-items:center;min-height:44px
   details.info .info-body p{font-size:14px}
   details.info .info-body a{font-size:13px}
 }
-@media(max-width:370px){.workspace-primary>button,.workspace-more>summary{padding-left:2px;padding-right:2px;font-size:11px}}
+@media(max-width:370px){.workspace-primary>button,.workspace-more>summary{padding:8px 1px;font-size:10px;letter-spacing:-.25px}.workspace-currency{gap:0;font-size:0}}

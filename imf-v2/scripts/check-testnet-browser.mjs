@@ -246,7 +246,8 @@ try {
         assert.equal(await directPage.evaluate(() => {
           const nav = document.querySelector('.workspace-primary');
           const more = document.querySelector('.workspace-more');
-          return nav.scrollWidth <= nav.clientWidth + 1 && more.getBoundingClientRect().right <= nav.getBoundingClientRect().right + 1;
+          const items = [...nav.querySelectorAll(':scope > button, :scope > .workspace-more > summary')];
+          return nav.scrollWidth <= nav.clientWidth + 1 && more.getBoundingClientRect().right <= nav.getBoundingClientRect().right + 1 && items.every((item) => item.scrollWidth <= item.clientWidth + 1);
         }), true, `${hash}: all primary actions must fit at ${width}px`);
         if (hash === '#dashboard') assert.equal(await directPage.locator('.wallet-bar').isVisible(), false, 'mobile read-only dashboard must not show the wallet panel');
       }
