@@ -483,9 +483,22 @@ try {
   await walletPage.goto(endpoint(portBase + 2, '/#start'), { waitUntil: 'networkidle' });
   assert.equal(await walletPage.locator('script[src$="dogeos-wallet.js"]').count(), 0, 'DogeOS SDK must not load before explicit connection');
   await walletPage.locator('#wallet-dogeos').click();
-  await walletPage.getByText('Connect your wallet', { exact: true }).waitFor({ timeout: 120000 });
+  await walletPage.getByText('Google', { exact: true }).waitFor({ timeout: 120000 });
+  await walletPage.getByText('X', { exact: true }).waitFor({ timeout: 30000 });
   assert.equal(await walletPage.locator('script[src$="dogeos-wallet.js"]').count(), 1, 'DogeOS SDK loads once after explicit connection');
-  assert.equal(await walletPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'DogeOS wallet modal must fit the mobile viewport');
+  assert.equal(await walletPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'DogeOS wallet modal must fit the 390px mobile viewport');
+  for (const label of ['Google', 'X']) {
+    const target = await walletPage.getByText(label, { exact: true }).evaluate((element) => {
+      const control = element.closest('button, a, [role="button"]') || element;
+      const rect = control.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+    assert(target.width >= 44 && target.height >= 44, `${label} login must have a mobile touch target of at least 44px`);
+  }
+  await walletPage.screenshot({ path: path.join(root, 'artifacts/testnet-dogeos-social-login-mobile.png'), fullPage: true });
+  await walletPage.setViewportSize({ width: 320, height: 740 });
+  assert.equal(await walletPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'DogeOS wallet modal must fit the 320px mobile viewport');
+  await walletPage.screenshot({ path: path.join(root, 'artifacts/testnet-dogeos-social-login-320.png'), fullPage: true });
   await walletPage.keyboard.press('Escape');
   await walletPage.close();
   assert.deepEqual(forbiddenMethods, [], 'Opening the DogeOS wallet modal must not sign or broadcast');
@@ -493,6 +506,7 @@ try {
   const result = {
     ok: true,
     dogeOsLazyModal: true,
+    dogeOsSocialLogins: ['google', 'x'],
     automaticRegistryVerification: true,
     chainId: 6281971,
     testAssetLabel: 'tUSDC',
@@ -525,6 +539,8 @@ try {
       'artifacts/testnet-app-desktop.png',
       'artifacts/testnet-app-mobile.png',
       'artifacts/testnet-dashboard-desktop.png',
+      'artifacts/testnet-dogeos-social-login-mobile.png',
+      'artifacts/testnet-dogeos-social-login-320.png',
     ],
     transactionSent: false,
   };

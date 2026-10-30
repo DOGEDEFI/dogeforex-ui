@@ -34,7 +34,7 @@
       loading = null;
       button.disabled = false;
       button.removeAttribute('aria-busy');
-      button.textContent = 'Connect wallet';
+      button.textContent = 'Connect or log in';
       const feedback = document.querySelector('#feedback');
       if (feedback) {
         feedback.textContent = error.message;

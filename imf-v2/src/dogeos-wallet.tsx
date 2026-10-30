@@ -68,7 +68,7 @@ function WalletBridge() {
   useEffect(() => {
     const button = document.querySelector<HTMLButtonElement>('#wallet-dogeos');
     if (!button) return;
-    button.textContent = isConnected ? 'DogeOS wallet connected' : 'Connect wallet';
+    button.textContent = isConnected ? 'DogeOS wallet connected' : 'Connect or log in';
     button.dataset.connected = String(isConnected);
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -105,7 +105,7 @@ function mount() {
     chains: { evm: [chain] },
     defaultConnectChain: ChainTypeEnum.EVM,
     metadata: runtime.metadata,
-    login: { basicLogins: ['externalWallets'], socialLogins: [] },
+    login: { basicLogins: ['externalWallets'], socialLogins: [{ type: 'google' }, { type: 'x' }] },
     theme: {
       defaultTheme: 'light',
       themes: {

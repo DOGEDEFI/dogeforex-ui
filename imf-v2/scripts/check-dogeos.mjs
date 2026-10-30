@@ -12,7 +12,7 @@ const [bridge, loader, wallet, runtime, build] = await Promise.all([
 assert(/^[A-Za-z0-9]{64,128}$/.test(runtime.dogeos.clientId));
 assert.equal(runtime.dogeos.metadata.url, 'https://app.imf.li/');
 assert(bridge.includes("basicLogins: ['externalWallets']"));
-assert(bridge.includes('socialLogins: []'));
+assert(bridge.includes("socialLogins: [{ type: 'google' }, { type: 'x' }]"));
 assert(bridge.includes('ChainTypeEnum.EVM'));
 assert(!bridge.includes('signMessage('));
 assert(!bridge.includes('signInWithWallet('));
@@ -28,4 +28,4 @@ assert(build.includes("entryPoints: [path.join(root, 'src/dogeos-wallet.tsx')]")
 assert(build.includes("if (runtime.dogeos?.clientId) await bundle"));
 assert(!build.includes("entryPoints: [path.join(root, 'src/dogeos-wallet.tsx')],\n  outfile: path.join(output, 'website"));
 
-console.log('PASS: DogeOS SDK is external-EVM-only, message-signing-free, production-scoped, provider-bound and lazy-loaded');
+console.log('PASS: DogeOS SDK supports external wallets and Google/X social login on EVM, remains message-signing-free, production-scoped, provider-bound and lazy-loaded');
