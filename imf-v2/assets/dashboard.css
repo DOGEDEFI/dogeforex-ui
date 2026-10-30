@@ -185,3 +185,23 @@
 .currency-explorer{padding:20px}.currency-filter-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}.currency-filter-row .dash-field{width:min(340px,100%)}.currency-filter-row input{width:100%;min-height:40px}.currency-filter-row>span{padding-bottom:10px;color:var(--muted);font:10px ui-monospace,monospace}.currency-supply-chart{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 22px;margin:4px 0 8px;padding:16px;border:1px solid var(--line);border-radius:11px;background:var(--cream)}.currency-supply-row{display:grid;grid-template-columns:38px minmax(60px,1fr) 72px;align-items:center;gap:9px;min-height:30px;padding:3px 0;border:0;background:transparent;color:var(--ink);text-align:left}.currency-supply-row>span:first-child{font:650 10px ui-monospace,monospace}.currency-supply-row>strong{font:600 10px ui-monospace,monospace;text-align:right}.currency-supply-track{display:block;height:9px;overflow:hidden;border-radius:3px;background:#e6ddcf}.currency-supply-track i{display:block;height:100%;min-width:1px;border-radius:3px}.currency-supply-row:hover .currency-supply-track{outline:2px solid #2b211833;outline-offset:2px}.currency-table-wrap{margin-top:18px}.currency-table{min-width:880px;font-size:11px}.currency-table td{padding-top:14px;padding-bottom:14px}.currency-table td small{display:block;margin-top:4px}.currency-link{display:flex;align-items:center;gap:10px;padding:0;border:0;background:transparent;color:var(--ink);text-align:left}.currency-link strong{display:block;font-size:12px}.currency-link small{color:var(--muted);font-size:9px}.currency-badge{display:grid;place-items:center;width:32px;height:32px;border:1px solid #d2b66b;border-radius:50%;background:#fff2cc;font:700 12px ui-monospace,monospace}.currency-link:hover strong{text-decoration:underline;text-underline-offset:3px}.currency-radar{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.currency-radar>summary{min-height:44px;cursor:pointer;font-size:11px;font-weight:650}.currency-radar .dash-radar-layout{max-width:760px}.dashboard-toolbar{position:relative}.dashboard-source{font-size:11px}.dash-kpi>strong{font-size:clamp(23px,2vw,30px)}
 @media(max-width:700px){.currency-explorer{padding:14px}.currency-filter-row{align-items:stretch;flex-direction:column;gap:5px}.currency-filter-row .dash-field{width:100%}.currency-filter-row>span{padding-bottom:0}.currency-supply-chart{grid-template-columns:1fr;padding:12px}.currency-supply-row{grid-template-columns:36px minmax(60px,1fr) 68px}.dashboard-toolbar>details.info{align-self:center}.dashboard-source{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.dash-drawer,.dash-drawer-backdrop{transition:none}.dashboard-nav{scroll-behavior:auto;scroll-snap-type:none}.dash-cube-svg,.dash-svg .day-bar,.dash-svg .dash-life-row{scroll-behavior:auto}}
+@media(max-width:700px){
+  .workspace-content:has(#dashboard-view:not([hidden])) .wallet-bar{display:none}
+  .workspace-content:has(#dashboard-view:not([hidden])) .app-title{margin-bottom:16px}
+  .dashboard-intro{gap:8px;margin-bottom:12px}
+  .dashboard-provenance{margin-bottom:12px}
+  .dashboard-toolbar .btn{min-height:44px;font-size:11px}
+  .dashboard-toolbar>details.info{align-self:center}
+  .dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .dash-kpi{min-height:108px;padding:14px}
+  .dash-kpi:last-child{grid-column:1/-1}
+  .dash-kpi>strong{font-size:clamp(20px,6vw,26px)}
+  .currency-table{min-width:0;font-size:10px}
+  .currency-table th,.currency-table td{padding:10px 5px}
+  .currency-table th:nth-child(3),.currency-table td:nth-child(3),.currency-table th:nth-child(4),.currency-table td:nth-child(4),.currency-table th:nth-child(5),.currency-table td:nth-child(5){display:none}
+  .currency-table td small{display:none}
+  .currency-table .currency-badge{width:28px;height:28px;font-size:10px}
+  .currency-table .currency-link{gap:7px}
+  .currency-table .currency-link strong{font-size:11px}
+  .currency-table .status-pill{padding:3px 5px;font-size:8px;white-space:normal}
+}

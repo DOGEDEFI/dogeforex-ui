@@ -116,6 +116,8 @@ The dashboard has no indexer configured by default. For a local or hosted Ponder
 
 The adapter checks required contract code and links, reads source block time, preserves method-specific decimal units and reports missing/failed state explicitly. It does not infer token eligibility from an address, mintability from a timer or live balances from deployment metadata.
 
+The all-currency overview shares pending system reads and renders rows progressively before position discovery completes. Hourly caching remains intact: Reload now refreshes the selected system, while Refresh currencies explicitly refreshes the full comparison. At 320–700px the five primary actions fit onscreen, read-only dashboard KPIs/tables are compact, and labeled Info disclosures open a keyboard-accessible bottom sheet with Escape focus restoration. Production SDK bundles are minified; review and fixture builds retain source maps.
+
 For labeled synthetic fixture testing, run `npm run dev:fixture` and open the same three surfaces on ports **5190/5191/5192**. `npm run build:fixture` creates `.fixture-dist/` independently of the normal preview. `node scripts/browser-check.mjs` exercises that fixture in Chrome; `node scripts/browser-check.mjs --default` checks the ordinary unconfigured preview. Only the isolated test wallet may exercise fixture writes. The fixture has no deployed contracts, real reserves, real transactions or operational authority and is never a production configuration.
 
 ## Source map

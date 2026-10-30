@@ -27,12 +27,14 @@
 .sidebar button[data-view="start"].active{background:var(--grass)}
 .field-wrap .field{margin-bottom:6px}
 details.info{margin:0 0 20px}
-details.info>summary{list-style:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--ink);background:var(--white);color:var(--ink);display:grid;place-items:center;font-size:15px;font-weight:700;font-style:italic;box-shadow:0 1px 4px #2b211814}
+details.info>summary{list-style:none;min-width:44px;min-height:44px;width:max-content;padding:8px 12px;border-radius:999px;border:1px solid var(--ink);background:var(--white);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:15px;font-weight:700;box-shadow:0 1px 4px #2b211814;cursor:pointer}
+details.info>summary>span[aria-hidden]{font-style:italic}
+details.info>summary::after{content:'Info';font-size:11px;font-style:normal;font-weight:650}
 details.info>summary::-webkit-details-marker{display:none}
 details.info>summary:hover{background:#eee8dc}
 details.info .info-body{border:1px solid var(--line);border-left:3px solid #46754b;border-radius:0 8px 8px 0;background:var(--white);padding:14px 16px;margin-top:10px;max-width:58ch}
 details.info .info-body p{font-size:13px;margin:0 0 10px;max-width:58ch}
-details.info .info-body a{font-size:12px;font-weight:650}
+details.info .info-body a{display:inline-flex;align-items:center;min-height:44px;font-size:12px;font-weight:650}
 .info-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin:0 0 20px}
 .info-row>details.info{margin:0;flex:0 0 auto}
 .info-row>details.info[open]{flex-basis:100%}
@@ -49,3 +51,17 @@ details.info .info-body a{font-size:12px;font-weight:650}
 .borrow-browser{margin-bottom:24px;padding:20px 22px}.borrow-browser-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.borrow-browser-head h2{font-size:22px;margin-bottom:8px}.borrow-browser-head p{margin-bottom:0}.borrow-search{max-width:380px;margin:16px 0 0}.borrow-table-wrap{margin-top:14px;border:1px solid var(--line);border-radius:10px}.borrow-table{font-size:12px}.borrow-table th,.borrow-table td{padding:13px 12px;white-space:nowrap}.borrow-table th{background:var(--cream)}.borrow-table td:first-child strong,.borrow-table td:first-child small{display:block}.borrow-table td:first-child small{margin-top:3px;color:var(--muted);font-family:ui-monospace,monospace}.borrow-table tr:last-child td{border-bottom:0}@media(max-width:700px){.borrow-browser-head{flex-direction:column}.borrow-browser-head .btn{width:100%}.borrow-search{max-width:none}}
 .workspace-command>details.info{margin:0}.workspace-command>details.info[open]{position:relative}.workspace-command>details.info .info-body{position:absolute;z-index:25;right:0;top:52px;width:min(340px,85vw)}.journey-info{margin:12px 0 0}.advanced-fields{margin:20px 0;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--cream)}.advanced-fields>summary{min-height:44px;cursor:pointer;font-size:13px;font-weight:650}.advanced-fields>summary::after{content:' +';float:right}.advanced-fields[open]>summary::after{content:' −'}.advanced-fields>summary{margin-bottom:16px}.dashboard-toolbar>details.info{margin:0}.dashboard-toolbar>details.info .info-body{position:absolute;z-index:20;width:min(340px,85vw)}
 @media(prefers-reduced-motion:reduce){.workspace-shell *{scroll-behavior:auto}}
+@media(max-width:700px){
+  .workspace-command{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;margin-bottom:20px}
+  .workspace-primary{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;width:100%;overflow:visible;padding-bottom:0}
+  .workspace-primary>button,.workspace-more>summary{min-width:0;width:100%;padding:9px 4px;font-size:12px}
+  .workspace-more{min-width:0}
+  .workspace-currency{min-width:0;padding:0 3px}
+  .workspace-command>details.info{justify-self:end}
+  .workspace-more-menu{max-height:70vh}
+  .workspace-more-menu button,.workspace-more-menu a{min-height:44px}
+  .workspace-command>details.info .info-body,.dashboard-toolbar>details.info .info-body,details.info .info-body{position:fixed;z-index:70;left:12px;right:12px;bottom:12px;top:auto;width:auto;max-width:none;max-height:min(70vh,520px);overflow:auto;margin:0;border-radius:12px;box-shadow:0 18px 60px #2b211840}
+  details.info .info-body p{font-size:14px}
+  details.info .info-body a{font-size:13px}
+}
+@media(max-width:370px){.workspace-primary>button,.workspace-more>summary{padding-left:2px;padding-right:2px;font-size:11px}}

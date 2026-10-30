@@ -12,6 +12,7 @@ const rpcOrigin = 'https://rpc.testnet.dogeos.com';
 const indexerEnabled = Boolean(process.env.IMF_INDEXER_URL);
 const endpoint = (port, pathname = '/') => `http://127.0.0.1:${port}${pathname}`;
 const responsiveChecks = [];
+const loadTimings = {};
 
 async function checkLayout(page, label, width) {
   await page.setViewportSize({ width, height: 1000 });
@@ -223,17 +224,35 @@ try {
       }
       for (const width of [320, 390, 700, 1024, 1440]) await checkLayout(targetPage, `dashboard/${panel}`, width);
     }
-    const directPage = await context.newPage();
+    const directContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const directPage = await directContext.newPage();
     monitor(directPage);
     for (const hash of ['#dashboard', '#dashboard/markets']) {
+      const started = Date.now();
       await directPage.goto('about:blank');
       await directPage.goto(endpoint(portBase + 2, hash), { waitUntil: 'networkidle' });
+      if (hash === '#dashboard') {
+        await directPage.waitForFunction(() => document.querySelectorAll('.currency-supply-row').length > 0, undefined, { timeout: 90000 });
+        loadTimings.firstCurrencyRowMs = Date.now() - started;
+        await directPage.waitForFunction(() => document.querySelectorAll('.currency-supply-row').length === 12, undefined, { timeout: 90000 });
+        loadTimings.allCurrencyRowsMs = Date.now() - started;
+      }
       await directPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE USD'), undefined, { timeout: 90000 });
       assert.equal(await directPage.evaluate(() => window.scrollY), 0, `${hash}: a fresh direct link must open at the top`);
       assert((await directPage.locator('.workspace-command').boundingBox()).y > 0, `${hash}: primary navigation must be visible`);
       assert.equal(await directPage.locator('.workspace-primary').isVisible(), true);
+      for (const width of [320, 390]) {
+        await directPage.setViewportSize({ width, height: 844 });
+        assert.equal(await directPage.evaluate(() => {
+          const nav = document.querySelector('.workspace-primary');
+          const more = document.querySelector('.workspace-more');
+          return nav.scrollWidth <= nav.clientWidth + 1 && more.getBoundingClientRect().right <= nav.getBoundingClientRect().right + 1;
+        }), true, `${hash}: all primary actions must fit at ${width}px`);
+        if (hash === '#dashboard') assert.equal(await directPage.locator('.wallet-bar').isVisible(), false, 'mobile read-only dashboard must not show the wallet panel');
+      }
+      await directPage.setViewportSize({ width: 1440, height: 1000 });
     }
-    await directPage.close();
+    await directContext.close();
     await targetPage.locator('#dashboard-tab-overview').click();
     await targetPage.keyboard.press('ArrowRight');
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-collateral').hidden === false && document.activeElement.id === 'dashboard-tab-collateral');
@@ -478,6 +497,7 @@ try {
     crawlerFiles: true,
     staticContentWithoutJavaScript: true,
     responsiveCheckCount: responsiveChecks.length,
+    loadTimings,
     rpcRequestCount: rpcMethods.length,
     forbiddenMethods,
     browserErrors: errors,

@@ -74,6 +74,7 @@
     cube: { axes: { x: '', y: '', z: '' }, code: '', yaw: 0.65, pitch: 0.42, focus: null, mode: '3d' },
   };
   const systemCache = new Map();
+  const systemRequests = new Map();
   let hooks = {};
   let root = null;
   let drawer = null;
@@ -258,9 +259,6 @@
 
   async function getSystemSnapshot(code = currentCode(), force = false) {
     const capabilities = getCapabilities(code);
-    if (!capabilities.verified) {
-      return { code, capabilities, error: capabilities.unconfigured ? 'Configure and verify a V2 registry before reading dashboard state.' : `${code} is not verified against the selected registry and chain.` };
-    }
     try {
       const result = await app().readDashboardAnalytics('system', 'snapshot', code, async () => {
         const client = await app().clientFor(code, { fresh: force });
@@ -304,7 +302,15 @@
       systemCache.delete(code);
       app().invalidateReadCache?.(code);
     }
-    return systemCache.get(code) ?? getSystemSnapshot(code, force);
+    if (systemCache.has(code)) return systemCache.get(code);
+    if (!force && systemRequests.has(code)) return systemRequests.get(code);
+    const request = getSystemSnapshot(code, force);
+    systemRequests.set(code, request);
+    try {
+      return await request;
+    } finally {
+      if (systemRequests.get(code) === request) systemRequests.delete(code);
+    }
   }
 
   async function mapLimit(values, limit, callback) {
@@ -973,10 +979,24 @@
 
   async function loadComparison(force = false) {
     const nonce = ++state.comparison.nonce;
-    const codes = (registryState()?.registry?.codes ?? (window.IMF_CURRENCIES ?? []).map(({ code }) => code)).filter((code) => getCapabilities(code).verified);
+    const codes = registryState()?.registry?.codes ?? (window.IMF_CURRENCIES ?? []).map(({ code }) => code);
     state.comparison.pending = true;
     renderOverview();
-    const rows = await mapLimit(codes, 3, (code) => cachedSystemSnapshot(code, force));
+    const rows = await mapLimit(codes, 4, async (code) => {
+      const snapshot = await cachedSystemSnapshot(code, force);
+      if (nonce === state.comparison.nonce) {
+        state.comparison.rows = [...state.comparison.rows.filter((row) => row.code !== code), snapshot];
+        if (state.panel === 'overview') {
+          const activeId = document.activeElement?.id;
+          const selection = activeId === 'dashboard-comparison-search' ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+          renderOverview();
+          const replacement = activeId ? document.getElementById(activeId) : null;
+          replacement?.focus();
+          if (selection) replacement?.setSelectionRange(...selection);
+        }
+      }
+      return snapshot;
+    });
     if (nonce !== state.comparison.nonce) return;
     state.comparison.rows = rows;
     state.comparison.pending = false;
@@ -2160,7 +2180,10 @@
     state.indexer = { status: 'pending', health: null, events: [], positions: [], complete: false, error: null };
     state.challenge = null;
     stopReplay();
-    const systemPromise = getSystemSnapshot(code, force);
+    const systemPromise = cachedSystemSnapshot(code, force);
+    if (state.panel === 'overview' && registryState()?.registry && !state.comparison.pending && (force || !state.comparison.rows.length)) {
+      loadComparison(false).catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
+    }
     const discoveryPromise = getDiscoveredPositions(code, { account, force });
     const indexerPromise = getIndexerBundle(code);
     const system = await systemPromise;
@@ -2176,9 +2199,6 @@
       if (nonce === state.nonce) {
         state.discoveryPending = false;
         await renderActivePanel();
-        if (state.panel === 'overview' && registryState()?.registry && !state.comparison.pending && (force || !state.comparison.rows.length)) {
-          loadComparison(force).catch((cause) => notify(cause instanceof Error ? cause.message : String(cause), true));
-        }
       }
     }
   }

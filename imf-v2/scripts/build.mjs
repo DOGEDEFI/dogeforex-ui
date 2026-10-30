@@ -225,6 +225,7 @@ await bundle({
   platform: 'browser',
   target: ['es2020'],
   sourcemap: review,
+  minify: !review,
   logLevel: 'warning',
 });
 

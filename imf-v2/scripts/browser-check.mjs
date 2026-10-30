@@ -491,8 +491,20 @@ await evaluate(`location.hash = ''`);
 await waitFor(`document.querySelector('#start-view').hidden === false && document.querySelector('#view-title').textContent === 'Start here'`);
 assert.equal(await evaluate(`document.querySelectorAll('#transaction-panel .info-row details.info').length`), 4);
 await waitFor(`document.querySelector('details.info[data-term="liquidation-price"] a[data-guide-link]')?.href.startsWith(${JSON.stringify(publicOrigins.docs)} + 'guides/')`);
-assert.equal(await evaluate(`getComputedStyle(document.querySelector('details.info > summary')).width`), '44px');
-pass('workspace Start here default, bookmarkable view routes, header state and glossary disclosures');
+assert((await evaluate(`parseFloat(getComputedStyle(document.querySelector('details.info > summary')).width)`)) >= 44);
+assert((await evaluate(`parseFloat(getComputedStyle(document.querySelector('details.info > summary')).height)`)) >= 44);
+assert.equal(await evaluate(`getComputedStyle(document.querySelector('details.info > summary'), '::after').content`), '"Info"');
+for (const width of [320, 390]) {
+  await viewport(width);
+  assert.equal(await evaluate(`(() => { const nav=document.querySelector('.workspace-primary'); const more=document.querySelector('.workspace-more'); return nav.scrollWidth <= nav.clientWidth + 1 && more.getBoundingClientRect().right <= nav.getBoundingClientRect().right + 1; })()`), true, `primary navigation must fit at ${width}px`);
+}
+await click('.workspace-command details.info > summary');
+await waitFor(`document.querySelector('.workspace-command details.info').open === true`);
+assert.equal(await evaluate(`(() => { const body=document.querySelector('.workspace-command details.info .info-body'); const rect=body.getBoundingClientRect(); return getComputedStyle(body).position === 'fixed' && rect.left >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight; })()`), true);
+await key('Escape');
+await waitFor(`document.querySelector('.workspace-command details.info').open === false && document.activeElement === document.querySelector('.workspace-command details.info > summary')`);
+await viewport(1440);
+pass('workspace Start here default, bookmarkable view routes, labeled mobile info disclosures and Escape focus restoration');
 if (!fixture) {
   assert.equal(await evaluate(`window.IMF_V2_APP.state.registry`), null);
   assert((await evaluate(`document.querySelector('#v2-net').textContent`)).includes('Connect verified V2 state'));

@@ -78,6 +78,14 @@
   mobileSidebar.addEventListener('change', synchronizeSidebar);
   synchronizeSidebar();
 
+  document.addEventListener('toggle', (event) => {
+    const current = event.target;
+    if (!(current instanceof HTMLDetailsElement) || !current.open || !current.classList.contains('info')) return;
+    document.querySelectorAll('details.info[open]').forEach((box) => {
+      if (box !== current) box.removeAttribute('open');
+    });
+  }, true);
+
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (menu?.getAttribute('aria-expanded') === 'true') closeMenu(true);
@@ -90,6 +98,9 @@
       more.removeAttribute('open');
       more.querySelector(':scope > summary')?.focus();
     }
+    const disclosures = [...document.querySelectorAll('details.info[open]')];
+    disclosures.forEach((box) => box.removeAttribute('open'));
+    disclosures.at(-1)?.querySelector(':scope > summary')?.focus();
   });
 
   document.querySelectorAll('.skip').forEach((link) => link.addEventListener('click', (event) => {

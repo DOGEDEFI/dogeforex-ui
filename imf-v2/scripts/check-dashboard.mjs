@@ -67,6 +67,10 @@ assert(dashboard.includes('#dashboard/${panel}/${code}'), 'dashboard deep links 
 assert(dashboard.includes('No FX conversion, shared reserve or aggregate TVL is inferred'), 'all-currency comparison must not imply cross-currency aggregation');
 assert(dashboard.includes("state.indexer.status === 'ready' && state.indexer.complete"), 'indexer history requires complete coverage');
 assert(build.includes('IMF_INDEXER_URL'), 'build must support an explicit optional indexer URL');
+assert(build.includes('minify: !review'), 'production SDK bundle must be minified without changing review source maps');
+assert(dashboard.includes('const systemRequests = new Map()') && dashboard.includes('mapLimit(codes, 4'), 'comparison reads must share pending work and render with bounded concurrency');
+assert(dashboard.indexOf('loadComparison(false).catch') < dashboard.indexOf('const discoveryPromise = getDiscoveredPositions'), 'overview comparison must start before position discovery');
+assert(dashboard.includes("$('#dashboard-compare-refresh', root)?.addEventListener('click', () => {\n      loadComparison(true)"), 'full comparison refresh must have its own explicit fresh-read action');
 assert(dashboard.includes('History unavailable — indexer not configured'), 'history must remain an explicit unavailable state');
 assert(dashboard.includes('Reference marks unavailable'), 'reference marks must remain an explicit unavailable state');
 assert(dashboard.includes('SYNTHETIC FIXTURE'), 'fixture boundary must be explicit');
