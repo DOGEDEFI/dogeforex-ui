@@ -334,3 +334,15 @@ Implementation commit `9f5b1b0` was pushed to `DOGEDEFI/dogeforex-ui` `main`. Ve
 Final public HTTP returned 200 for the website, docs, dashboard guide and app. Fresh public Chrome verified all 12 currency rows, CHF selection, the Borrow/Earn/Invest routes, 2,159 read-only RPC requests, no forbidden methods, no browser errors and `transactionSent: false`. Reviewed public screenshot: `artifacts/live-uiux-dashboard.png`.
 
 The separately requested on-chain action was not broadcast. `DEMO_MODE=estimate DEMO_STAGE=positions` and its USD-scoped retry both stopped at the existing guard: `Conservative aggregate estimate exceeds the configured total fee cap` (500 tDOGE). The CHF due-mint remains scheduled for 2026-11-01 after its real cooldown. No fee cap was raised, no guard was bypassed and no uncertain transaction was sent.
+
+## Production dashboard navigation hotfix — 2026-10-30
+
+**Status: FIXED, VERIFIED, PUSHED AND DEPLOYED.** A native `id="dashboard"` anchor and vertical `scrollIntoView` tab reveal could move direct dashboard links past the Borrow / Earn / Invest / Dashboard / More controls. The native anchor is removed and active-tab reveal now scrolls only the horizontal tab list. Position drawers also open without a deferred animation callback, so immediate Escape cannot be undone by a later callback. Ordinary in-app hash navigation behavior is unchanged.
+
+- `npm run verify` passed. The fixture and default browser runs reported 34 and 22 passing checks. Direct isolated commands then completed all 27 wallet-engine checks and all 36 guided-journey checks with no browser errors. The combined browser wrapper experienced watchdog/shutdown stalls after those checks; the final wallet and journey results come from the individually completed project commands.
+- `npm run verify:testnet` passed all 12 currencies, 36 positions, seven panels and fresh direct `#dashboard` / `#dashboard/markets` top-navigation assertions: `responsiveCheckCount: 196`, `rpcRequestCount: 6113`, `warmReloadRpcDelta: 98`, `manualReloadRpcBurst: 309`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`.
+- Commit `7a0769c` (`Fix dashboard deep-link navigation`) was pushed to `DOGEDEFI/dogeforex-ui` `main`; GitHub emitted the existing direct-main bypass notice.
+- Vercel CLI 65.8.0 deployed `https://imf-1pt1v8mhw-operalag-gmailcoms-projects.vercel.app` to READY and aliased `https://app.imf.li`. Website and docs content did not change and were not redeployed.
+- Fresh public Chrome pages for `https://app.imf.li/#dashboard` and `#dashboard/markets` both reported `scrollY: 0`, visible Borrow / Earn / Invest / Dashboard controls, no native anchor, no forbidden methods and no browser errors. Overview loaded all 12 currency rows. Reviewed screenshot: `artifacts/production-navigation-fixed.png`.
+
+No blockchain transaction was prepared or broadcast for this hotfix.
