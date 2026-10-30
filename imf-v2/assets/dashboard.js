@@ -1667,7 +1667,9 @@
     $('#dashboard-drawer-body', drawer).innerHTML = html;
     drawer.hidden = false;
     backdrop.hidden = false;
-    requestAnimationFrame(() => { drawer.classList.add('open'); backdrop.classList.add('open'); });
+    void drawer.offsetWidth;
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
     $('#dashboard-drawer-close', drawer)?.focus();
   }
 
@@ -2221,8 +2223,13 @@
 
   function revealTab(button, behavior = 'auto') {
     if (!button) return;
+    const list = button.closest('.dashboard-nav');
+    if (!list) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    button.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduced ? 'auto' : behavior });
+    const buttonBounds = button.getBoundingClientRect();
+    const listBounds = list.getBoundingClientRect();
+    const left = list.scrollLeft + buttonBounds.left - listBounds.left - (list.clientWidth - buttonBounds.width) / 2;
+    list.scrollTo({ left: Math.max(0, left), behavior: reduced ? 'auto' : behavior });
   }
 
   function setPanel(panel, { updateHash = true, focusTab = false } = {}) {

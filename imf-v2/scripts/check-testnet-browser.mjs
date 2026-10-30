@@ -223,6 +223,17 @@ try {
       }
       for (const width of [320, 390, 700, 1024, 1440]) await checkLayout(targetPage, `dashboard/${panel}`, width);
     }
+    const directPage = await context.newPage();
+    monitor(directPage);
+    for (const hash of ['#dashboard', '#dashboard/markets']) {
+      await directPage.goto('about:blank');
+      await directPage.goto(endpoint(portBase + 2, hash), { waitUntil: 'networkidle' });
+      await directPage.waitForFunction(() => document.querySelector('#dashboard-source-status')?.textContent.includes('LIVE USD'), undefined, { timeout: 90000 });
+      assert.equal(await directPage.evaluate(() => window.scrollY), 0, `${hash}: a fresh direct link must open at the top`);
+      assert((await directPage.locator('.workspace-command').boundingBox()).y > 0, `${hash}: primary navigation must be visible`);
+      assert.equal(await directPage.locator('.workspace-primary').isVisible(), true);
+    }
+    await directPage.close();
     await targetPage.locator('#dashboard-tab-overview').click();
     await targetPage.keyboard.press('ArrowRight');
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-collateral').hidden === false && document.activeElement.id === 'dashboard-tab-collateral');

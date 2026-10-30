@@ -24,10 +24,12 @@ for (const panel of panels) {
   assert(dashboard.includes(`'${panel}'`), `dashboard module does not name ${panel}`);
 }
 assert(appHtml.includes('class="dashboard-nav" aria-label="Dashboard views" role="tablist"'), 'dashboard must use one horizontal tablist');
+assert(!appHtml.includes('id="dashboard"'), 'the dashboard route must not have a native anchor that scrolls the workspace navigation offscreen');
 assert(!appHtml.includes('class="dashboard-layout"'), 'dashboard must not restore a nested sidebar layout');
 assert(appHtml.includes('class="workspace-primary"') && appHtml.includes('data-ecosystem-focus="savings"') && appHtml.includes('data-ecosystem-focus="equity"') && appHtml.includes('class="workspace-more"'), 'workspace must lead with Borrow, Earn, Invest, Dashboard and More');
 assert(appHtml.includes('id="workspace-currency"') && appHtml.includes('id="borrow-find-positions"'), 'currency selector and read-backed borrow browser are required');
 assert(dashboard.includes('ArrowLeft') && dashboard.includes('ArrowRight') && dashboard.includes("'Home'") && dashboard.includes("'End'"), 'dashboard tabs must support keyboard navigation');
+assert(dashboard.includes('list.scrollTo(') && !dashboard.includes('button.scrollIntoView('), 'active-tab reveal must scroll only the horizontal tab list, not the page');
 assert(dashboard.includes('function systemMap(') && dashboard.includes('function bridgeUtilization('), 'live-data visual components are missing');
 assert(dashboard.includes('minted * 10000n / limit'), 'bridge utilization must use exact integer arithmetic');
 assert(appHtml.indexOf('data-view="create"') < appHtml.indexOf('data-ecosystem-focus="savings"') && appHtml.indexOf('data-ecosystem-focus="savings"') < appHtml.indexOf('data-ecosystem-focus="equity"'), 'Borrow, Earn and Invest must retain their goal-oriented order');
