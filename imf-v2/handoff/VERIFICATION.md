@@ -346,3 +346,17 @@ The separately requested on-chain action was not broadcast. `DEMO_MODE=estimate 
 - Fresh public Chrome pages for `https://app.imf.li/#dashboard` and `#dashboard/markets` both reported `scrollY: 0`, visible Borrow / Earn / Invest / Dashboard controls, no native anchor, no forbidden methods and no browser errors. Overview loaded all 12 currency rows. Reviewed screenshot: `artifacts/production-navigation-fixed.png`.
 
 No blockchain transaction was prepared or broadcast for this hotfix.
+
+## Mobile UX and load-speed optimization — 2026-10-30
+
+**Status: IMPLEMENTED, VERIFIED, PUSHED AND DEPLOYED.** The 320–700px workspace now keeps all five primary actions and their labels onscreen, places currency and Info controls on one row, uses two-column KPI cards and an essential-column currency table, and hides the wallet panel only on the mobile read-only dashboard. Transaction journeys retain wallet controls. Native disclosures are labeled **i Info** with minimum 44px targets, a contained mobile bottom sheet, readable guide links, single-open behavior and Escape focus restoration.
+
+Comparison reads start before position discovery, share in-flight requests and render progressively with concurrency four. Cached rows are attempted before fresh verification. Reload now refreshes the selected system; Refresh currencies explicitly refreshes the full comparison. Production SDK minification reduced `protocol.js` from **1,003,582 to 435,598 bytes** (56.6%); review/fixture source maps remain enabled.
+
+- `npm run verify` passed. Individual browser checks completed **34 fixture**, **22 default**, **27 wallet-engine** and **36 guided-journey** checks with no browser errors. Fresh preview ports were used when existing shared ports were stale.
+- Final `npm run verify:testnet` passed all 12 currencies, 36 positions, progressive/final rows and every mobile navigation label: `responsiveCheckCount: 196`, `rpcRequestCount: 6766`, `warmReloadRpcDelta: 98`, `manualReloadRpcBurst: 265`, `forbiddenMethods: []`, `browserErrors: []`, `transactionSent: false`. Its local cold-read sample was `firstCurrencyRowMs: 14894`, `allCurrencyRowsMs: 14925`; public production measurements below are the release acceptance evidence.
+- Commits `ef8f9a1` (`Optimize mobile dashboard and loading`) and `4bd9ae6` (`Fit primary navigation on small screens`) were pushed to `DOGEDEFI/dogeforex-ui` `main`; GitHub emitted the existing direct-main bypass notices.
+- Final Vercel CLI 65.8.0 deployments are READY and aliased: app `https://imf-hj8q5cyxx-operalag-gmailcoms-projects.vercel.app` → `https://app.imf.li`, website `https://imf-website-afuk3kufs-operalag-gmailcoms-projects.vercel.app` → `https://imf.li`, docs `https://imf-docs-42plfmgej-operalag-gmailcoms-projects.vercel.app` → `https://docs.imf.li`.
+- Fresh public mobile Chrome measured **5,431ms to initial currency rows** and **8,379ms to all 12 rows**, improved from the pre-change 390px production sample of about **22.5 seconds**. The Info sheet fit the viewport, Escape restored focus, and the 320px check had no document overflow: every primary label had `clientWidth === scrollWidth === 51`. No browser errors occurred. Reviewed screenshots: `artifacts/production-mobile-390.png`, `production-mobile-info-390.png`, and `production-mobile-320-final.png`.
+
+No blockchain transaction was prepared or broadcast for this optimization.
