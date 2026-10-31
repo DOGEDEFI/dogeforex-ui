@@ -171,7 +171,7 @@ try {
     await targetPage.waitForFunction(() => document.querySelector('#dashboard-method-dialog').open === true);
     assert((await targetPage.locator('#dashboard-method-dialog').textContent()).includes('Unavailable analytics'));
     await targetPage.locator('#dashboard-method-close').click();
-    const pageTitles = { overview: 'Protocol at a glance.', collateral: 'Collateral, without the fog.', positions: 'Every position. One risk lens.', markets: 'Marks, volume and liquidity.', risk: 'Stress the book.', activity: 'The public ledger, in motion.', parameters: 'The system, parameter by parameter.' };
+    const pageTitles = { overview: 'Protocol at a glance.', collateral: 'Collateral, without the fog.', positions: '3D position intelligence.', markets: 'Marks, volume and liquidity.', risk: 'Stress the book.', activity: 'The public ledger, in motion.', parameters: 'The system, parameter by parameter.' };
     for (const panel of panels) {
       await targetPage.goto(endpoint(portBase + 2, `#dashboard/${panel}`), { waitUntil: 'networkidle' });
       try {
@@ -191,6 +191,11 @@ try {
       const source = await targetPage.locator('#dashboard-source-status').textContent();
       assert(source.includes('LIVE USD'), `${panel}: ${source}`);
       assert.equal(await targetPage.locator('#view-title').textContent(), pageTitles[panel]);
+      if (panel === 'positions') {
+        assert.equal(await targetPage.locator('.dash-cube-card').count(), 1);
+        assert.equal(await targetPage.locator('#dashboard-cube-x').count(), 1);
+        assert.equal(await targetPage.locator('.dash-cube-card').evaluate((card) => Boolean(card.compareDocumentPosition(document.querySelector('.dash-card.flush')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+      }
       if (panel === 'markets') assert((await targetPage.locator('#dashboard-markets').innerText()).includes('Reference marks unavailable'));
       if (panel === 'activity') {
         const activity = await targetPage.locator('#dashboard-activity').innerText();

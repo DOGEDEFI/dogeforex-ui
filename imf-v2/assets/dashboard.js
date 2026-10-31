@@ -5,7 +5,7 @@
   const PANEL_LABELS = {
     overview: 'Overview',
     collateral: 'Collateral',
-    positions: 'Positions',
+    positions: 'Positions + 3D',
     markets: 'Markets & volume',
     risk: 'Risk Lab',
     activity: 'Activity',
@@ -14,7 +14,7 @@
   const PANEL_COPY = {
     overview: ['Protocol at a glance.', 'Independent currency systems. Verified current reads. No oracle prices used by the protocol.'],
     collateral: ['Collateral, without the fog.', 'Composition, concentration, liquidation parameters, bridge capacity and loss-absorption context.'],
-    positions: ['Every position. One risk lens.', 'Search, sort and inspect discovered positions using their own liquidation boundaries.'],
+    positions: ['3D position intelligence.', 'Rotate the verified position cloud, compare exact dimensions, then filter and inspect the book.'],
     markets: ['Marks, volume and liquidity.', 'Reference analytics stay separate from contract liquidation prices. No oracle claims.'],
     risk: ['Stress the book.', 'Interactive collateral, reference and liquidity scenarios with position-level impact.'],
     activity: ['The public ledger, in motion.', 'Discovered position and challenge events, current-state verification and actual-timestamp replay.'],
@@ -1566,6 +1566,9 @@
           ${metricCard('Challenged', state.discoveryPending ? 'Read in progress' : String(challenged), 'Current challenged collateral above zero', challenged ? 'warn' : 'pass')}
         </div>
         <div class="dash-health-filters" aria-label="Position health filters">${healthFilters.map(([key, label, count]) => `<button type="button" class="dash-chip ${state.position.health === key ? 'active' : ''}" data-position-health="${key}" aria-pressed="${state.position.health === key}">${escapeHtml(label)} <span class="n">${count}</span></button>`).join('')}</div>
+        <div class="dash-grid">
+          <article class="dash-card span-12 dash-cube-card"><div class="dash-card-head"><div><h3>3D position dataqube</h3><p>DOGE-style business intelligence from verified positions. Drag the cloud, switch all three axes, filter the book and inspect exact values.</p></div>${cardTag('3D · VERIFIED READS', 'gold')}</div>${positionDataCube()}</article>
+        </div>
         <div class="dash-card flush">
           <div class="dash-card-head"><div><h3>Position explorer</h3><p>${escapeHtml(discoveryCoverageText())}</p></div><div class="dash-actions"><button type="button" class="btn light small" id="dashboard-positions-export">Export filtered CSV</button></div></div>
           <div class="dash-toolbar" style="padding:0 18px">
@@ -1581,8 +1584,7 @@
           <div style="padding:0 18px 18px">${positions.length ? `<div class="dash-table-wrap" tabindex="0"><table class="dash-table"><thead><tr><th>Position / owner</th><th>Collateral</th><th class="num">${sortButton('Gross debt', 'debt')}</th><th class="num">${sortButton('CR', 'collateralRatio')}</th><th class="num">Liquidation price</th><th class="num">${sortButton('Expiration', 'expiration')}</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div><div class="dash-pagination"><span>${positions.length} matching · page ${state.position.page} of ${totalPages}</span><span class="buttons">${pagination}</span></div>` : unavailableCard(state.discoveryPending ? 'Position discovery is in progress' : 'No positions match', state.discoveryPending ? 'The dashboard is scanning verified events and rereading current position state. No zero or empty position state is asserted yet.' : 'Adjust the filters or run discovery with an explicit account context.')}</div>
         </div>
         <div class="dash-grid">
-          <article class="dash-card span-5"><div class="dash-card-head"><div><h3>Position lifecycles</h3><p>Actual start → cooldown → expiration timelines against the current source block.</p></div>${cardTag('ACTUAL TIMESTAMPS')}</div>${lifecycleTimelines()}</article>
-          <article class="dash-card span-7"><div class="dash-card-head"><div><h3>Position dataqube</h3><p>Interactive projected cloud of the filtered positions. Drag to rotate, pick axes, or open the table fallback.</p></div>${cardTag('INTERACTIVE')}</div>${positionDataCube()}</article>
+          <article class="dash-card span-12"><div class="dash-card-head"><div><h3>Position lifecycles</h3><p>Actual start → cooldown → expiration timelines against the current source block.</p></div>${cardTag('ACTUAL TIMESTAMPS')}</div>${lifecycleTimelines()}</article>
         </div>
         ${sourceNote()}
       </div>`);

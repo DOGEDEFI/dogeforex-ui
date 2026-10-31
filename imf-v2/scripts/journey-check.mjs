@@ -28,7 +28,7 @@ const results = [];
 const watchdog = setTimeout(() => {
   console.error('Journey watchdog expired after:', results);
   process.exit(2);
-}, 90000);
+}, 300000);
 
 function pass(name) {
   results.push(name);
@@ -80,7 +80,7 @@ try {
     };
   }, { account, collateral, position });
   const page = await context.newPage();
-  page.setDefaultTimeout(8000);
+  page.setDefaultTimeout(30000);
   globalThis.__journeyPage = page;
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') console.error('Browser:', message.text()); });

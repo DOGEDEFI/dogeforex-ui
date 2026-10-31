@@ -48,6 +48,9 @@ assert(dashboard.includes('bridgeUtilization(bridge'), 'bridge utilization must 
 assert(dashboard.includes('independently normalized'), 'currency fingerprint radar must normalize each axis independently');
 assert(dashboard.includes('verified zero gross debt'), 'verified zero debt must be displayed explicitly');
 assert(dashboard.includes('dashboard-cube-x') && dashboard.includes('dashboard-cube-y') && dashboard.includes('dashboard-cube-z'), 'data cube requires X, Y and Z axis dropdowns');
+assert(appHtml.includes('Positions + 3D'), 'the dataqube must be discoverable in the dashboard tab label');
+assert(dashboard.includes('dash-cube-card') && styles.includes('.dash-cube-card'), 'the dataqube must retain its DOGE-gold/dark BI treatment');
+assert(dashboard.indexOf('<article class="dash-card span-12 dash-cube-card">') < dashboard.indexOf('<div class="dash-card flush">'), 'the dataqube must appear before the position explorer');
 assert(dashboard.includes('data-activity-day'), 'activity day timeline must support click-to-filter');
 assert(dashboard.includes('Table view'), 'data cube must provide an accessible table fallback');
 assert(dashboard.includes('* 100000n / safeMaximum'), 'display scaling must keep exact BigInt arithmetic');

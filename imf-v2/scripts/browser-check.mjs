@@ -174,7 +174,7 @@ async function checkDashboard(mode) {
   await key('Home');
   await waitFor(`document.querySelector('#dashboard-overview').hidden === false && document.activeElement.id === 'dashboard-tab-overview'`);
   assert.equal(await evaluate(`document.querySelectorAll('.dashboard-nav [aria-selected="true"]').length`), 1);
-  const pageTitles = { overview: 'Protocol at a glance.', collateral: 'Collateral, without the fog.', positions: 'Every position. One risk lens.', markets: 'Marks, volume and liquidity.', risk: 'Stress the book.', activity: 'The public ledger, in motion.', parameters: 'The system, parameter by parameter.' };
+  const pageTitles = { overview: 'Protocol at a glance.', collateral: 'Collateral, without the fog.', positions: '3D position intelligence.', markets: 'Marks, volume and liquidity.', risk: 'Stress the book.', activity: 'The public ledger, in motion.', parameters: 'The system, parameter by parameter.' };
   for (const panel of panels) {
     await evaluate(`location.hash = 'dashboard/${panel}'`);
     await waitFor(`document.querySelector('#dashboard-${panel}').hidden === false && document.querySelector('#dashboard-${panel}').innerText.length > 40`);
