@@ -405,3 +405,30 @@ Release evidence:
 - The production OAuth handoff reached the real Google sign-in page. X reached the correct `x.com/i/oauth2/authorize` URL, but X returned HTTP 403 to the isolated headless browser; this is recorded as a provider-side/manual-review limitation, not a successful X login. No social credentials were entered and no OAuth flow was completed. DogeOS's anonymous session probe returned its expected `session_revoked` 401 before login and did not prevent the modal or Google handoff.
 
 No blockchain transaction was prepared or broadcast. Real Google/X account completion, external-wallet confirmation and assistive-technology review remain manual follow-ups.
+
+## Agent-ready MCP and 3D DOGE business intelligence — 2026-10-31
+
+**Status: IMPLEMENTED, VERIFIED, COMMITTED, PUSHED AND DEPLOYED.** IMF now has a copy-paste agent integration through the local `dogeforex-mcp` stdio server and TypeScript SDK. `npm run start:v2` loads all 12 actual Chikyū V2 registries without signer configuration. MCP initialization supplies verification, exact-unit, source-block, independent-currency, read-health and non-execution instructions; only 14 V2 read/plan tools are advertised. Legacy write, fee-sampling and legacy log-enumeration tools are not registered for V2. No hosted remote MCP endpoint is claimed.
+
+The public website has an Agent-ready section, the app Agent panel links the quickstart, and the static Agent workflows guide contains client JSON, first prompts, all 14 tool groups and the live verification command. Metadata and `llms.txt` communicate the same read-only agent boundary.
+
+MCP evidence on Node 22:
+
+- Typecheck and build passed. The default suite passed **45 tests**, including real-directory loading of all 12 currencies and an in-memory MCP client initialization/tool-discovery check. Changed-source secret scans found no leaks.
+- `DOGEOS_LIVE_V2_TESTS=1 npm test -- test/v2-live.test.ts` passed both live tests: all 12 registries verified and all 12 current instance lists returned source-block state, with zero signers and no signing/broadcast RPC methods.
+- A real stdio MCP client connected through `npm run start:v2`, received instructions, discovered exactly 14 tools and called `v2_verify(CHF)` successfully at source block `9050713`. No transaction was sent.
+- MCP commit `794eea3edcc35cfbf5446e4a71475702aea93f22` (`Make IMF MCP agent-ready`) was pushed to `DOGEDEFI/dogeforex-mcp`; GitHub Actions run `41178175953` succeeded.
+
+Frontend and dashboard evidence on Node 22:
+
+- `npm run verify` passed builds, static content/discovery, exact planning, cache, dashboard and all 37 action checks. `npm run verify:browser` passed **34 fixture checks, 22 default checks, 28 wallet checks and all 36 guided journeys** with zero browser errors. The journey action timeout is now 30 seconds and its watchdog 300 seconds to accommodate real execution time; no assertion was removed.
+- `npm run verify:testnet` passed all 12 currencies, 20 static guides and 200 responsive checks: `rpcRequestCount: 7145`, `warmReloadRpcDelta: 98`, `manualReloadRpcBurst: 271`, `forbiddenMethods: []`, `browserErrors: []`, no desktop/mobile overflow and `transactionSent: false`.
+- The former Position dataqube is now a full-width dark/DOGE-gold BI feature under **Positions + 3D**, placed before the position explorer. Axis dropdowns, drag/keyboard rotation, exact-value focus, filters and the accessible table fallback remain intact. Live source checks require the dataqube to precede the explorer. Reviewed `artifacts/testnet-dashboard-positions.png`.
+
+Release evidence:
+
+- UI commit `f95d3b93a2c88d48a3822eca42aa76beb48b21a1` (`Communicate agent readiness and promote 3D dashboard`) was pushed to `DOGEDEFI/dogeforex-ui`; GitHub Actions run `41182200532` succeeded. The standalone prototype paths remained untracked.
+- Vercel CLI 65.8.0 deployed READY bundles and aliased all existing origins: website `https://imf-website-9az3xjsi8-operalag-gmailcoms-projects.vercel.app` → `https://imf.li`, docs `https://imf-docs-56tnhbun8-operalag-gmailcoms-projects.vercel.app` → `https://docs.imf.li`, and app `https://imf-cee1jlw8p-operalag-gmailcoms-projects.vercel.app` → `https://app.imf.li`.
+- Public HTTP returned 200 for the website, app, Agent guide, Dashboard metrics guide and `llms.txt`. Fresh public Chrome confirmed the website Agent-ready section, the complete static MCP quickstart and three verified USD cloud points in the promoted dataqube with all three axis controls and correct explorer ordering. The 390px layout had no horizontal overflow, page exceptions or forbidden signing/broadcast methods. Reviewed `artifacts/production-3d-dataqube-desktop.png` and `production-3d-dataqube-mobile.png`.
+
+No blockchain transaction was prepared or broadcast. V2 agent authority remains read/plan-only; guided wallet writes remain separate, USD-only and explicitly confirmed. Production readiness, a hosted MCP service, keeper automation and cross-currency aggregation are not claimed.
